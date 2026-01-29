@@ -47,7 +47,7 @@ export default function SubscribePage() {
         <div className="max-w-4xl mx-auto">
           <header className="text-center mb-12">
             <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">
-              Subscribe to The Chronicle
+              Subscribe to The Octagon
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto mb-8">
               Support independent journalism and get unlimited access to our award-winning coverage.

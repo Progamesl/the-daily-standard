@@ -87,18 +87,26 @@ export function Masthead() {
             </div>
 
             {/* Center: Logo/Wordmark */}
-            <Link to="/" className="flex-1 text-center">
+            <Link to="/" className="flex-1 text-center flex flex-col items-center">
+              <img
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"
+                alt="The Octagon Logo"
+                className={cn(
+                  "transition-all duration-300 object-contain",
+                  isScrolled ? "h-8" : "h-16 md:h-20"
+                )}
+              />
               <h1
                 className={cn(
                   "font-serif font-bold tracking-tight transition-all duration-300",
-                  isScrolled ? "text-xl md:text-2xl" : "text-3xl md:text-5xl"
+                  isScrolled ? "text-xl md:text-2xl mt-1" : "text-3xl md:text-5xl mt-2"
                 )}
               >
-                The Chronicle
+                The Octagon
               </h1>
               {!isScrolled && (
                 <p className="text-xs text-muted-foreground mt-1 hidden md:block">
-                  All the News That's Fit to Print
+                  A Sacramento Country Day School Newspaper
                 </p>
               )}
             </Link>

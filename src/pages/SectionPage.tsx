@@ -103,7 +103,6 @@ export default function SectionPage() {
                 ))}
               </div>
 
-              {/* Load more placeholder */}
               {rest.length > 0 && (
                 <div className="text-center mt-12">
                   <Button variant="outline" className="font-semibold">

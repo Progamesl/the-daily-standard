@@ -44,10 +44,10 @@ export function Footer() {
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="inline-block">
-              <h2 className="font-serif text-2xl font-bold mb-4">The Chronicle</h2>
+              <h2 className="font-serif text-2xl font-bold mb-4">The Octagon</h2>
             </Link>
             <p className="text-sm text-primary-foreground/70 leading-relaxed mb-6">
-              Delivering trusted journalism since 1851. Our commitment to truth and accuracy guides everything we do.
+              A Sacramento Country Day School Newspaper. Delivering trusted journalism to our community.
             </p>
             <div className="flex gap-4">
               <a
@@ -113,7 +113,7 @@ export function Footer() {
       <div className="border-t border-primary-foreground/10">
         <div className="container-newspaper py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-primary-foreground/50">
-            <p>© {currentYear} The Chronicle. All rights reserved.</p>
+            <p>© {currentYear} The Octagon. All rights reserved.</p>
             <div className="flex items-center gap-4">
               <Link to="/privacy" className="hover:text-primary-foreground transition-colors">
                 Privacy Policy
