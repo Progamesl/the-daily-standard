@@ -1,96 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* 
+  NEWSPAPER DESIGN SYSTEM
+  Inspired by NYT, Guardian, FT - editorial, authoritative, disciplined
+  All colors in HSL format
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    /* Core palette - Warm newsprint aesthetic */
+    --background: 40 20% 98%;
+    --foreground: 0 0% 8%;
+    
+    /* Card surfaces */
+    --card: 40 20% 99%;
+    --card-foreground: 0 0% 8%;
+    
+    /* Popover/Dropdown */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --popover-foreground: 0 0% 8%;
+    
+    /* Primary - Deep editorial black */
+    --primary: 0 0% 8%;
+    --primary-foreground: 40 20% 98%;
+    
+    /* Secondary - Warm gray */
+    --secondary: 40 10% 94%;
+    --secondary-foreground: 0 0% 15%;
+    
+    /* Muted elements */
+    --muted: 40 10% 92%;
+    --muted-foreground: 0 0% 40%;
+    
+    /* Accent - Muted burgundy for breaking/live */
+    --accent: 0 65% 40%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Border & Input */
+    --border: 0 0% 85%;
+    --border-strong: 0 0% 70%;
+    --input: 40 10% 94%;
+    --ring: 0 0% 8%;
+    
+    /* Radius - Sharp, editorial */
+    --radius: 0.125rem;
+    
+    /* Rules - Newspaper dividers */
+    --rule-thin: 1px solid hsl(0 0% 85%);
+    --rule-medium: 1px solid hsl(0 0% 50%);
+    --rule-thick: 2px solid hsl(0 0% 20%);
+    --rule-double: 3px double hsl(0 0% 20%);
+    
+    /* Typography scale - Editorial rhythm */
+    --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --font-sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    
+    /* Spacing scale (4px base) */
+    --space-1: 0.25rem;   /* 4px */
+    --space-2: 0.5rem;    /* 8px */
+    --space-3: 0.75rem;   /* 12px */
+    --space-4: 1rem;      /* 16px */
+    --space-5: 1.25rem;   /* 20px */
+    --space-6: 1.5rem;    /* 24px */
+    --space-8: 2rem;      /* 32px */
+    --space-10: 2.5rem;   /* 40px */
+    --space-12: 3rem;     /* 48px */
+    --space-16: 4rem;     /* 64px */
+    --space-20: 5rem;     /* 80px */
+    
+    /* Grid */
+    --grid-gutter: 1.25rem;
+    --container-max: 1280px;
+    
+    /* Sidebar - not used but required */
+    --sidebar-background: 40 20% 98%;
+    --sidebar-foreground: 0 0% 8%;
+    --sidebar-primary: 0 0% 8%;
+    --sidebar-primary-foreground: 40 20% 98%;
+    --sidebar-accent: 40 10% 94%;
+    --sidebar-accent-foreground: 0 0% 8%;
+    --sidebar-border: 0 0% 85%;
+    --sidebar-ring: 0 0% 8%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 0 0% 6%;
+    --foreground: 40 20% 95%;
+    
+    --card: 0 0% 8%;
+    --card-foreground: 40 20% 95%;
+    
+    --popover: 0 0% 8%;
+    --popover-foreground: 40 20% 95%;
+    
+    --primary: 40 20% 95%;
+    --primary-foreground: 0 0% 6%;
+    
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 40 20% 90%;
+    
+    --muted: 0 0% 15%;
+    --muted-foreground: 40 10% 60%;
+    
+    --accent: 0 65% 50%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 0 0% 20%;
+    --border-strong: 0 0% 35%;
+    --input: 0 0% 15%;
+    --ring: 40 20% 95%;
+    
+    --rule-thin: 1px solid hsl(0 0% 20%);
+    --rule-medium: 1px solid hsl(0 0% 40%);
+    --rule-thick: 2px solid hsl(0 0% 70%);
+    --rule-double: 3px double hsl(0 0% 70%);
+    
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 40 20% 95%;
+    --sidebar-primary: 40 20% 95%;
+    --sidebar-primary-foreground: 0 0% 6%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 40 20% 95%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 40 20% 95%;
   }
 }
 
@@ -98,8 +141,298 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
+  
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "kern" 1, "liga" 1;
+    line-height: 1.5;
+  }
+  
+  /* Editorial typography */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+  
+  p, span, div, a, li {
+    font-family: var(--font-sans);
+  }
+  
+  /* Link styles - editorial underlines */
+  a {
+    text-decoration: none;
+    transition: opacity 0.15s ease;
+  }
+  
+  a:hover {
+    opacity: 0.8;
+  }
+  
+  /* Focus states for accessibility */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Newspaper grid system */
+  .newspaper-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--grid-gutter);
+  }
+  
+  @media (max-width: 1024px) {
+    .newspaper-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .newspaper-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .newspaper-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  /* Rule dividers */
+  .rule-thin {
+    border-top: var(--rule-thin);
+  }
+  
+  .rule-medium {
+    border-top: var(--rule-medium);
+  }
+  
+  .rule-thick {
+    border-top: var(--rule-thick);
+  }
+  
+  .rule-double {
+    border-top: var(--rule-double);
+  }
+  
+  .rule-vertical {
+    border-left: var(--rule-thin);
+  }
+  
+  /* Typography utilities */
+  .headline-xl {
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+  
+  .headline-lg {
+    font-family: var(--font-serif);
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+  }
+  
+  .headline-md {
+    font-family: var(--font-serif);
+    font-size: clamp(1.125rem, 2vw, 1.5rem);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+  
+  .headline-sm {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  
+  .dek {
+    font-family: var(--font-serif);
+    font-size: 1.125rem;
+    font-weight: 400;
+    font-style: italic;
+    line-height: 1.4;
+    color: hsl(var(--muted-foreground));
+  }
+  
+  .body-text {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  
+  .caption {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: hsl(var(--muted-foreground));
+  }
+  
+  .label {
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+  
+  .byline {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: hsl(var(--foreground));
+  }
+  
+  .timestamp {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+  }
+  
+  /* Section label with rule */
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: hsl(var(--foreground));
+  }
+  
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: hsl(var(--border-strong));
+  }
+  
+  /* Breaking/Live badge */
+  .badge-breaking {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    font-family: var(--font-sans);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+  
+  .badge-breaking::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  
+  /* Container */
+  .container-newspaper {
+    width: 100%;
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: 0 var(--space-4);
+  }
+  
+  @media (min-width: 768px) {
+    .container-newspaper {
+      padding: 0 var(--space-6);
+    }
+  }
+  
+  /* Article body styling */
+  .article-body {
+    font-family: var(--font-serif);
+    font-size: 1.125rem;
+    line-height: 1.8;
+  }
+  
+  .article-body p {
+    font-family: var(--font-serif);
+    margin-bottom: var(--space-6);
+  }
+  
+  .article-body p:first-of-type::first-letter {
+    font-size: 4rem;
+    font-weight: 700;
+    float: left;
+    line-height: 1;
+    margin-right: 0.5rem;
+    margin-top: 0.1em;
+  }
+  
+  /* Pull quote */
+  .pull-quote {
+    font-family: var(--font-serif);
+    font-size: 1.5rem;
+    font-style: italic;
+    line-height: 1.4;
+    border-left: 3px solid hsl(var(--foreground));
+    padding-left: var(--space-6);
+    margin: var(--space-8) 0;
+  }
+  
+  /* Sticky header behavior */
+  .masthead-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: hsl(var(--background));
+    transition: all 0.3s ease;
+  }
+  
+  .masthead-condensed {
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .reading-width {
+    max-width: 65ch;
+  }
+  
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
