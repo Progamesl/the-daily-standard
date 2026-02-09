@@ -1,6 +1,8 @@
 import { useParams, Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { StoryCard } from "@/components/stories/StoryCard";
+import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
+import { DocumentHead } from "@/components/seo/DocumentHead";
 import { getAuthorById, articles } from "@/data/seedData";
 import { ArrowLeft, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +15,7 @@ export default function AuthorPage() {
   if (!author) {
     return (
       <Layout>
-        <div className="container-newspaper py-16 text-center">
+        <div className="flow-container py-16 text-center">
           <h1 className="font-serif text-2xl font-bold mb-4">Author Not Found</h1>
           <p className="text-muted-foreground mb-8">
             The author you're looking for doesn't exist.
@@ -29,9 +31,16 @@ export default function AuthorPage() {
     );
   }
 
+  const breadcrumbItems = [
+    { label: "Home", href: "/" },
+    { label: author.name },
+  ];
+
   return (
     <Layout>
-      <div className="container-newspaper py-8 md:py-12 animate-fade-in">
+      <DocumentHead title={author.name} description={author.bio} />
+      <div className="flow-container py-8 md:py-12 animate-fade-in">
+        <Breadcrumbs items={breadcrumbItems} className="mb-6" />
         {/* Author Header */}
         <header className="max-w-3xl mx-auto text-center mb-12">
           <img

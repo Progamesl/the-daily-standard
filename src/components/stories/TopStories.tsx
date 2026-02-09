@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Article, formatTimestamp } from "@/data/seedData";
 import { cn } from "@/lib/utils";
+import { enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
 
 interface TopStoriesProps {
   articles: Article[];
@@ -10,29 +11,35 @@ interface TopStoriesProps {
 export function TopStories({ articles, className }: TopStoriesProps) {
   return (
     <aside className={cn("", className)}>
-      {/* Header with rule */}
-      <div className="rule-medium pt-3 mb-4">
-        <h2 className="font-sans text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Top Stories
-        </h2>
-      </div>
-
-      {/* Stories list */}
-      <div className="space-y-4">
+      <h2 className="font-sans text-[11px] font-bold uppercase tracking-widest text-foreground mb-6">
+        Top Stories
+      </h2>
+      <div className="space-y-5">
         {articles.map((article) => (
-          <article key={article.id} className="group py-3 border-b border-border last:border-0">
-            <Link to={`/article/${article.slug}`} className="block">
-              {article.isBreaking && (
-                <span className="badge-breaking text-[10px] mb-1">Live</span>
-              )}
-              <span className="label text-[10px] text-accent">{article.section}</span>
-              <h3 className="font-serif text-base font-semibold leading-snug text-balance group-hover:opacity-80 transition-opacity mt-1 mb-2">
-                {article.headline}
-              </h3>
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                {article.dek}
-              </p>
-              <span className="timestamp text-xs">{formatTimestamp(article.publishedAt)}</span>
+          <article key={article.id} className="group border-b border-border last:border-0 pb-5 last:pb-0">
+            <Link to={`/article/${article.slug}`} className="flex gap-4">
+                            <figure className="flex-shrink-0 w-24 h-24 md:w-28 md:h-28 rounded-lg overflow-hidden bg-muted shadow-md">
+                              <img
+                                src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
+                                alt={article.headline}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                loading="lazy"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
+                              />
+                            </figure>
+              <div className="flex-1 min-w-0">
+                {article.isBreaking && (
+                  <span className="badge-breaking text-[10px] mb-1">Live</span>
+                )}
+                <span className="label text-[10px] text-accent">{article.section}</span>
+                <h3 className="font-serif text-sm md:text-base font-semibold leading-snug text-balance group-hover:text-accent transition-colors mt-0.5 mb-1 line-clamp-2">
+                  {article.headline}
+                </h3>
+                <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                  {article.dek}
+                </p>
+                <span className="timestamp text-xs">{formatTimestamp(article.publishedAt)}</span>
+              </div>
             </Link>
           </article>
         ))}

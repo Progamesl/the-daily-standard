@@ -63,7 +63,7 @@
     --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
     --font-sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     
-    /* Spacing scale (4px base) */
+    /* Spacing scale (4px base, 1.25 modular ratio for flow) */
     --space-1: 0.25rem;   /* 4px */
     --space-2: 0.5rem;    /* 8px */
     --space-3: 0.75rem;   /* 12px */
@@ -75,10 +75,26 @@
     --space-12: 3rem;     /* 48px */
     --space-16: 4rem;     /* 64px */
     --space-20: 5rem;     /* 80px */
+    --space-24: 6rem;     /* 96px */
+    
+    /* Layout flow – elegant, modern rhythm */
+    --section-space: 4rem;      /* vertical rhythm between sections */
+    --section-space-lg: 5rem;   /* larger break */
+    --content-gap: 1.5rem;      /* grid gap base */
+    --content-gap-lg: 2rem;     /* grid gap large */
+    --container-max: 1200px;     /* readable content width */
+    --container-padding: clamp(1rem, 4vw, 2rem);
+    
+    /* Proportions – technical, consistent */
+    --hero-aspect: 2.35;        /* cinematic 2.35:1 */
+    --card-aspect: 1.5;         /* 3:2 cards */
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.25rem;
     
     /* Grid */
-    --grid-gutter: 1.25rem;
-    --container-max: 1280px;
+    --grid-gutter: var(--content-gap);
     
     /* Sidebar - not used but required */
     --sidebar-background: 40 20% 98%;
@@ -231,36 +247,44 @@
     border-left: var(--rule-thin);
   }
   
-  /* Typography utilities */
+  /* Typography utilities - New Yorker: elegant, readable */
   .headline-xl {
     font-family: var(--font-serif);
     font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: 700;
-    line-height: 1.08;
-    letter-spacing: -0.03em;
-  }
-  
-  .headline-lg {
-    font-family: var(--font-serif);
-    font-size: clamp(1.5rem, 3vw, 2.25rem);
     font-weight: 700;
     line-height: 1.12;
     letter-spacing: -0.02em;
   }
   
+  .headline-hero {
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 5vw, 4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  
+  .headline-lg {
+    font-family: var(--font-serif);
+    font-size: clamp(1.375rem, 2.5vw, 2rem);
+    font-weight: 700;
+    line-height: 1.22;
+    letter-spacing: -0.015em;
+  }
+  
   .headline-md {
     font-family: var(--font-serif);
-    font-size: clamp(1.125rem, 2vw, 1.5rem);
+    font-size: clamp(1.0625rem, 1.75vw, 1.375rem);
     font-weight: 600;
-    line-height: 1.2;
-    letter-spacing: -0.015em;
+    line-height: 1.28;
+    letter-spacing: -0.01em;
   }
   
   .headline-sm {
     font-family: var(--font-serif);
     font-size: 1rem;
     font-weight: 600;
-    line-height: 1.25;
+    line-height: 1.3;
   }
   
   .dek {
@@ -268,8 +292,64 @@
     font-size: 1.125rem;
     font-weight: 400;
     font-style: italic;
-    line-height: 1.4;
+    line-height: 1.5;
     color: hsl(var(--muted-foreground));
+  }
+  
+  /* Card treatment – proportional, technical */
+  .card-editorial {
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 8px 0 rgb(0 0 0 / 0.06), 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    overflow: hidden;
+    transition: box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+  
+  .card-editorial:hover {
+    box-shadow: 0 8px 20px -4px rgb(0 0 0 / 0.1), 0 4px 10px -2px rgb(0 0 0 / 0.06);
+    transform: translateY(-2px);
+    border-color: hsl(var(--border));
+  }
+  
+  .section-divider {
+    border-top: 1px solid hsl(var(--border));
+    margin-top: var(--section-space-lg);
+    padding-top: var(--section-space-lg);
+  }
+  
+  .section-divider:first-of-type {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+  
+  /* Flow container – single source for width and padding */
+  .flow-container {
+    width: 100%;
+    max-width: var(--container-max);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+  }
+  
+  /* Elegant transition token */
+  .transition-flow {
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.2s ease;
+  }
+  
+  /* Modern image treatment */
+  img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+  
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
   }
   
   .body-text {

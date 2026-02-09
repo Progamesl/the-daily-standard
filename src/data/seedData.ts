@@ -1,7 +1,9 @@
 // Seed data for The Octagon newspaper website
 // Data imported from WordPress export
 
-import octagonData from './octagonData.json';
+import octagonDataRaw from './octagonData.json';
+
+const octagonData = octagonDataRaw && typeof octagonDataRaw === 'object' ? octagonDataRaw : { sections: [], authors: [], articles: [] };
 
 export interface Author {
   id: string;
@@ -20,6 +22,7 @@ export interface Article {
   dek: string;
   body: string;
   image: string;
+  images?: string[]; // All images from the article
   imageCaption: string;
   section: string;
   author: Author;
@@ -46,17 +49,21 @@ const convertArticle = (article: any): Article => ({
   updatedAt: article.updatedAt ? new Date(article.updatedAt) : undefined,
 });
 
-// Sections
-export const sections: Section[] = octagonData.sections as Section[];
+// Sections – defensive in case JSON structure is missing
+export const sections: Section[] = Array.isArray(octagonData?.sections) ? (octagonData.sections as Section[]) : [];
 
-// Authors - ensure all have required fields
-export const authors: Author[] = octagonData.authors.map((author: any) => ({
-  ...author,
-  twitter: author.twitter || undefined,
-})) as Author[];
+// Authors – ensure all have required fields
+export const authors: Author[] = Array.isArray(octagonData?.authors)
+  ? (octagonData.authors as any[]).map((author: any) => ({
+      ...author,
+      twitter: author.twitter || undefined,
+    })) as Author[]
+  : [];
 
-// Articles - convert dates and ensure proper formatting
-export const articles: Article[] = octagonData.articles.map(convertArticle) as Article[];
+// Articles – convert dates and ensure proper formatting
+export const articles: Article[] = Array.isArray(octagonData?.articles)
+  ? (octagonData.articles as any[]).map(convertArticle) as Article[]
+  : [];
 
 // Helper functions
 export const getArticleBySlug = (slug: string): Article | undefined => {
@@ -89,6 +96,24 @@ export const getTopStories = (limit: number = 4): Article[] => {
   return articles
     .filter((article) => !article.isFeatured)
     .slice(0, limit);
+};
+
+/** Long reads: readingTime >= 5 minutes */
+export const getLongReadArticles = (limit: number = 6): Article[] => {
+  return [...articles]
+    .filter((a) => (a.readingTime ?? 0) >= 5)
+    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+    .slice(0, limit);
+};
+
+/** Editors' picks: featured + high views or recent */
+export const getEditorsPicks = (limit: number = 5): Article[] => {
+  const featured = getFeaturedArticle();
+  const rest = [...articles]
+    .filter((a) => a.id !== featured?.id)
+    .sort((a, b) => (b.views ?? 0) - (a.views ?? 0) || b.publishedAt.getTime() - a.publishedAt.getTime())
+    .slice(0, limit - (featured ? 1 : 0));
+  return featured ? [featured, ...rest] : rest;
 };
 
 export const getSectionBySlug = (slug: string): Section | undefined => {

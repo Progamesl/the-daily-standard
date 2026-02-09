@@ -16,7 +16,7 @@ export default function ContactPage() {
 
   return (
     <Layout>
-      <div className="container-newspaper py-12 md:py-16 animate-fade-in">
+      <div className="flow-container py-12 md:py-16 animate-fade-in">
         <div className="max-w-4xl mx-auto">
           <header className="text-center mb-12">
             <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">Contact Us</h1>

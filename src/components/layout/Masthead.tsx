@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, User, Menu, X, Cloud, Sun } from "lucide-react";
+import { Search, User, Menu, X, Cloud, Sun, CloudRain, CloudSnow, CloudLightning, CloudFog } from "lucide-react";
 import { formatDate } from "@/data/seedData";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSacramentoWeather } from "@/hooks/useSacramentoWeather";
+import { ThemeToggle } from "./ThemeToggle";
+import { SearchDialog } from "@/components/search/SearchDialog";
 
 const sections = [
   { name: "World", slug: "world" },
@@ -18,20 +21,44 @@ const sections = [
   { name: "Opinion", slug: "opinion" },
 ];
 
+function WeatherIcon({ code }: { code: number }) {
+  if (code === 0) return <Sun className="h-3 w-3" />;
+  if (code >= 1 && code <= 3) return <Cloud className="h-3 w-3" />;
+  if (code === 45 || code === 48) return <CloudFog className="h-3 w-3" />;
+  if (code >= 51 && code <= 67) return <CloudRain className="h-3 w-3" />;
+  if (code >= 71 && code <= 77) return <CloudSnow className="h-3 w-3" />;
+  if (code >= 80 && code <= 86) return <CloudRain className="h-3 w-3" />;
+  if (code >= 95 && code <= 99) return <CloudLightning className="h-3 w-3" />;
+  return <Cloud className="h-3 w-3" />;
+}
+
 export function Masthead() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const { temp, weatherCode, loading, error } = useSacramentoWeather();
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 100);
     };
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const today = new Date();
+  const weatherLabel = loading ? "—° Sacramento" : error ? "Sacramento" : `${Math.round(temp)}°F Sacramento`;
 
   return (
     <>
@@ -52,9 +79,9 @@ export function Masthead() {
             <div className="flex items-center gap-4 text-muted-foreground">
               <span>{formatDate(today)}</span>
               <span className="hidden sm:inline">|</span>
-              <span className="hidden sm:flex items-center gap-1">
-                <Sun className="h-3 w-3" />
-                72°F New York
+              <span className="hidden sm:flex items-center gap-1" title="Sacramento, CA weather">
+                <WeatherIcon code={weatherCode} />
+                {weatherLabel}
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -81,7 +108,11 @@ export function Masthead() {
               >
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
-              <button className="p-2 hover:bg-muted rounded-sm transition-colors" aria-label="Search">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-2 hover:bg-muted rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Search"
+              >
                 <Search className="h-5 w-5" />
               </button>
             </div>
@@ -176,13 +207,14 @@ export function Masthead() {
               </ul>
             </nav>
             <div className="mt-8 pt-8 border-t border-border">
-              <Button variant="default" size="lg" className="w-full font-semibold">
-                Subscribe
+              <Button asChild variant="default" size="lg" className="w-full font-semibold" onClick={() => setMobileMenuOpen(false)}>
+                <Link to="/subscribe">Subscribe</Link>
               </Button>
             </div>
           </div>
         </div>
       )}
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );
 }
