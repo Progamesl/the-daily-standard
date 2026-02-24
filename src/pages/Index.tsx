@@ -11,9 +11,20 @@ import {
   getBreakingNews,
   getEditorsPicks,
   getLongReadArticles,
+  formatTimestamp,
+  Article,
 } from "@/data/seedData";
-import { formatTimestamp } from "@/data/seedData";
-import { enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
+import { getImageOrNull, enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
+
+/** Only keep articles that have a real image (not null/empty/placeholder). */
+function withImages(list: Article[]): Article[] {
+  return list.filter((a) => getImageOrNull(a.image, a.images) != null);
+}
+
+/** Get image URL for an article; guaranteed non-null since we pre-filtered. */
+function imgSrc(a: Article): string {
+  return getImageOrNull(a.image, a.images) ?? SITE_PLACEHOLDER;
+}
 
 const Index = () => {
   const featured = getFeaturedArticle();
@@ -21,29 +32,44 @@ const Index = () => {
   const latestTwelve = getLatestArticles(12);
   const breakingNews = getBreakingNews(3);
   const editorsPicksRaw = getEditorsPicks(5);
-  const longReads = getLongReadArticles(6);
-
-  // Prefer articles that have real images (not placeholder) for hero and prominent slots
-  const hasRealImage = (a: { image?: string; images?: string[]; headline?: string; section?: string; dek?: string }) =>
-    enhanceArticleImage(a.image ?? "", a.headline, a.section, a.dek, a.images) !== SITE_PLACEHOLDER;
-  const withImagesFirst = <T extends { id: string; image?: string; images?: string[]; headline?: string; section?: string; dek?: string }>(list: T[]) =>
-    [...list].sort((a, b) => (hasRealImage(b) ? 1 : 0) - (hasRealImage(a) ? 1 : 0));
-
-  const leadCandidates = withImagesFirst([featured, latest, ...latestTwelve].filter(Boolean) as typeof latestTwelve);
-  const leadArticle = leadCandidates[0] ?? featured ?? latest;
   const mostPopular = getMostPopular(10);
-  const secondaryHero = latestTwelve.filter((a) => a.id !== leadArticle?.id).slice(0, 2);
-  const secondaryHeroWithImages = withImagesFirst(secondaryHero).slice(0, 2);
-  const editorsPicks = withImagesFirst(editorsPicksRaw);
-  const mixStories = latestTwelve.filter((a) => a.id !== leadArticle?.id && !secondaryHero.find(s => s.id === a.id)).slice(0, 6);
 
-  const businessArticles = getArticlesBySection("business");
-  const techArticles = getArticlesBySection("technology");
-  const scienceArticles = getArticlesBySection("science");
-  const artsArticles = getArticlesBySection("arts");
-  const opinionArticles = getArticlesBySection("opinion");
-  const sportsArticles = getArticlesBySection("sports");
-  const usArticles = getArticlesBySection("us");
+  // Global dedup tracker — no story appears more than once on the homepage
+  const usedIds = new Set<string>();
+  function take(pool: Article[], count: number): Article[] {
+    const result: Article[] = [];
+    for (const a of pool) {
+      if (result.length >= count) break;
+      if (usedIds.has(a.id)) continue;
+      result.push(a);
+      usedIds.add(a.id);
+    }
+    return result;
+  }
+
+  // Hero: pick lead from latest articles that have images
+  const leadPool = withImages([featured, latest, ...latestTwelve].filter(Boolean) as Article[]);
+  const [leadArticle] = take(leadPool, 1);
+
+  // Secondary hero: 2 cards
+  const secondaryHeroPool = withImages(latestTwelve);
+  const secondaryHero = take(secondaryHeroPool, 2);
+
+  // Editors' picks: up to 5
+  const editorsPicks = take(withImages(editorsPicksRaw), 5);
+
+  // Today's mix: up to 6
+  const mixPool = withImages(latestTwelve);
+  const mixStories = take(mixPool, 6);
+
+  // Section pools — all pre-filtered for images
+  const usArticles = take(withImages(getArticlesBySection("us")), 5);
+  const techArticles = take(withImages(getArticlesBySection("technology")), 6);
+  const businessArticles = take(withImages(getArticlesBySection("business")), 4);
+  const longReads = take(withImages(getLongReadArticles(12)), 6);
+  const artsArticles = take(withImages(getArticlesBySection("arts")), 4);
+  const sportsArticles = take(withImages(getArticlesBySection("sports")), 4);
+  const opinionArticles = take(withImages(getArticlesBySection("opinion")), 6);
 
   return (
     <Layout>
@@ -57,11 +83,7 @@ const Index = () => {
                 <span className="text-[10px] font-bold uppercase tracking-widest shrink-0">Breaking</span>
                 <div className="flex flex-wrap items-center gap-3 md:gap-6">
                   {breakingNews.map((article) => (
-                    <Link
-                      key={article.id}
-                      to={`/article/${article.slug}`}
-                      className="text-sm font-medium hover:underline underline-offset-2"
-                    >
+                    <Link key={article.id} to={`/article/${article.slug}`} className="text-sm font-medium hover:underline underline-offset-2">
                       {article.headline}
                     </Link>
                   ))}
@@ -71,17 +93,17 @@ const Index = () => {
           </section>
         )}
 
-        {/* Hero – cinematic 2.35:1 proportion */}
-        <section className="w-full relative overflow-hidden" aria-label="Hero">
-          {leadArticle && (
+        {/* Hero – cinematic 2.35:1 */}
+        {leadArticle && (
+          <section className="w-full relative overflow-hidden" aria-label="Hero">
             <Link to={`/article/${leadArticle.slug}`} className="block group cursor-pointer">
               <div className="relative w-full aspect-[21/9] sm:aspect-[2.35/1] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
                 <img
-                  src={enhanceArticleImage(leadArticle.image, leadArticle.headline, leadArticle.section, leadArticle.dek, leadArticle.images)}
+                  src={imgSrc(leadArticle)}
                   alt={leadArticle.headline}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2800ms] ease-out group-hover:scale-[1.06]"
                   loading="eager"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
@@ -114,24 +136,24 @@ const Index = () => {
                 </div>
               </div>
             </Link>
-          )}
-        </section>
+          </section>
+        )}
 
-        {/* Secondary hero – 2 cards, same rhythm */}
+        {/* Secondary hero – 2 cards */}
         {secondaryHero.length >= 2 && (
           <section className="w-full bg-background border-b border-border py-14 lg:py-16" aria-label="Featured">
             <div className="flow-container">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
-                {secondaryHeroWithImages.map((article) => (
+                {secondaryHero.map((article) => (
                   <Link key={article.id} to={`/article/${article.slug}`} className="group block">
                     <article className="relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-flow bg-card">
                       <figure className="relative aspect-[3/2] overflow-hidden">
                         <img
-                          src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
+                          src={imgSrc(article)}
                           alt={article.headline}
                           className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                           loading="eager"
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/45 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white">
@@ -141,9 +163,7 @@ const Index = () => {
                           <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-bold leading-tight mb-2 line-clamp-3 drop-shadow-md">
                             {article.headline}
                           </h2>
-                          <p className="text-sm text-white/90 mb-2 line-clamp-2">
-                            {article.dek}
-                          </p>
+                          <p className="text-sm text-white/90 mb-2 line-clamp-2">{article.dek}</p>
                           <div className="flex items-center gap-2.5 text-xs text-white/80">
                             <span>{article.author.name}</span>
                             <span>·</span>
@@ -159,40 +179,26 @@ const Index = () => {
           </section>
         )}
 
-        {/* Editors' Picks – horizontal strip */}
+        {/* Editors' Picks */}
         {editorsPicks.length > 0 && (
           <section className="w-full bg-background border-b border-border py-10 lg:py-12" aria-label="Editors' Picks">
             <div className="flow-container">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
-                  Editors&apos; Picks
-                </h2>
-                <Link to="/section/us" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
-                  See All →
-                </Link>
+                <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Editors&apos; Picks</h2>
+                <Link to="/section/us" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 lg:gap-6">
                 {editorsPicks.map((article) => (
                   <Link key={article.id} to={`/article/${article.slug}`} className="group block">
                     <article className="h-full flex flex-col bg-card rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-flow border border-border/50">
                       <figure className="relative aspect-[3/2] overflow-hidden bg-muted flex-shrink-0">
-                        <img
-                          src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                          alt={article.headline}
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                        />
+                        <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                         <div className="absolute top-2 left-2">
-                          <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">
-                            {article.section}
-                          </span>
+                          <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
                         </div>
                       </figure>
                       <div className="p-3 md:p-4 flex-1 flex flex-col">
-                        <h3 className="font-serif text-base font-bold leading-tight mb-1 line-clamp-2 group-hover:text-accent transition-colors">
-                          {article.headline}
-                        </h3>
+                        <h3 className="font-serif text-base font-bold leading-tight mb-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                         <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2">
                           <span>{article.author.name}</span>
                           <span>{formatTimestamp(article.publishedAt)}</span>
@@ -206,47 +212,28 @@ const Index = () => {
           </section>
         )}
 
-        {/* Today's Mix – 3-column grid, 3:2 cards */}
-        {mixStories.length >= 6 && (
+        {/* Today's Mix */}
+        {mixStories.length >= 3 && (
           <section className="w-full bg-background border-b border-border py-14 lg:py-16" aria-label="Latest">
             <div className="flow-container">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
-                  Today&apos;s Mix
-                </h2>
-                <Link
-                  to="/section/us"
-                  className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  View All →
-                </Link>
+                <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Today&apos;s Mix</h2>
+                <Link to="/section/us" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">View All →</Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
                 {mixStories.map((article) => (
                   <Link key={article.id} to={`/article/${article.slug}`} className="group block">
                     <article className="h-full flex flex-col bg-card rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-flow border border-border/50 hover:border-border">
                       <figure className="relative aspect-[3/2] overflow-hidden bg-muted flex-shrink-0">
-                        <img
-                          src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                          alt={article.headline}
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-115"
-                          loading="lazy"
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                        />
+                        <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-115" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         <div className="absolute top-3 left-3">
-                          <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 bg-background/95 backdrop-blur-md rounded text-accent">
-                            {article.section}
-                          </span>
+                          <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 bg-background/95 backdrop-blur-md rounded text-accent">{article.section}</span>
                         </div>
                       </figure>
                       <div className="p-4 md:p-5 flex-1 flex flex-col">
-                        <h3 className="font-serif text-lg md:text-xl font-bold leading-tight mb-2 line-clamp-2 group-hover:text-accent transition-colors">
-                          {article.headline}
-                        </h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3 flex-1 leading-relaxed">
-                          {article.dek}
-                        </p>
+                        <h3 className="font-serif text-lg md:text-xl font-bold leading-tight mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3 flex-1 leading-relaxed">{article.dek}</p>
                         <div className="flex items-center justify-between text-xs text-muted-foreground pt-2.5 border-t border-border/50">
                           <span className="font-medium">{article.author.name}</span>
                           <span>{formatTimestamp(article.publishedAt)}</span>
@@ -260,7 +247,7 @@ const Index = () => {
           </section>
         )}
 
-        {/* Main content – 8/4 grid, consistent rhythm */}
+        {/* Main content – 8/4 grid */}
         <section className="w-full bg-background py-14 lg:py-16" aria-label="Sections">
           <div className="flow-container">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
@@ -269,44 +256,23 @@ const Index = () => {
                 {usArticles.length > 0 && (
                   <div className="section-divider">
                     <div className="flex items-center justify-between mb-6">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
-                        News
-                      </h2>
-                      <Link
-                        to="/section/us"
-                        className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        See All →
-                      </Link>
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">News</h2>
+                      <Link to="/section/us" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
-                      {usArticles.slice(0, 5).map((article, idx) => (
+                      {usArticles.map((article, idx) => (
                         <div key={article.id} className={idx === 0 ? "md:col-span-2" : ""}>
                           <Link to={`/article/${article.slug}`} className="group block">
-                            <article className={`${idx === 0 ? 'card-editorial rounded-xl' : 'card-editorial rounded-xl'} overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow`}>
+                            <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow">
                               <figure className={`${idx === 0 ? 'aspect-[2.35/1]' : 'aspect-[3/2]'} overflow-hidden bg-muted relative`}>
-                                <img
-                                  src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                                  alt={article.headline}
-                                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                  loading={idx === 0 ? "eager" : "lazy"}
-                                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                                />
+                                <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading={idx === 0 ? "eager" : "lazy"} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                                 <div className="absolute top-3 left-3">
-                                  <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">
-                                    {article.section}
-                                  </span>
+                                  <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
                                 </div>
                               </figure>
                               <div className="p-4 md:p-5 flex-1 flex flex-col">
-                                <h3 className={`${idx === 0 ? 'headline-lg' : 'headline-md'} font-serif font-bold mb-2 ${idx === 0 ? 'line-clamp-3' : 'line-clamp-2'} group-hover:text-accent transition-colors`}>
-                                  {article.headline}
-                                </h3>
-                                {idx === 0 && (
-                                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
-                                    {article.dek}
-                                  </p>
-                                )}
+                                <h3 className={`${idx === 0 ? 'headline-lg' : 'headline-md'} font-serif font-bold mb-2 ${idx === 0 ? 'line-clamp-3' : 'line-clamp-2'} group-hover:text-accent transition-colors`}>{article.headline}</h3>
+                                {idx === 0 && <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">{article.dek}</p>}
                                 <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2.5 border-t border-border/50">
                                   <span className="font-medium">{article.author.name}</span>
                                   <span>{formatTimestamp(article.publishedAt)}</span>
@@ -324,38 +290,21 @@ const Index = () => {
                 {techArticles.length > 0 && (
                   <div className="section-divider">
                     <div className="flex items-center justify-between mb-6">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
-                        Technology
-                      </h2>
-                      <Link
-                        to="/section/technology"
-                        className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        See All →
-                      </Link>
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Technology</h2>
+                      <Link to="/section/technology" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-                      {techArticles.slice(0, 6).map((article) => (
+                      {techArticles.map((article) => (
                         <Link key={article.id} to={`/article/${article.slug}`} className="group block">
                           <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow">
                             <figure className="aspect-[3/2] overflow-hidden bg-muted relative">
-                              <img
-                                src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                                alt={article.headline}
-                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                loading="lazy"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                              />
+                              <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                               <div className="absolute top-3 left-3">
-                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">
-                                  {article.section}
-                                </span>
+                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
                               </div>
                             </figure>
                             <div className="p-4 md:p-5 flex-1 flex flex-col">
-                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">
-                                {article.headline}
-                              </h3>
+                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                               <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2">
                                 <span className="font-medium">{article.author.name}</span>
                                 <span>{formatTimestamp(article.publishedAt)}</span>
@@ -372,41 +321,22 @@ const Index = () => {
                 {businessArticles.length > 0 && (
                   <div className="section-divider">
                     <div className="flex items-center justify-between mb-6">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
-                        Business
-                      </h2>
-                      <Link
-                        to="/section/business"
-                        className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        See All →
-                      </Link>
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Business</h2>
+                      <Link to="/section/business" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
-                      {businessArticles.slice(0, 4).map((article) => (
+                      {businessArticles.map((article) => (
                         <Link key={article.id} to={`/article/${article.slug}`} className="group block">
                           <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow">
                             <figure className="aspect-[3/2] overflow-hidden bg-muted relative">
-                              <img
-                                src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                                alt={article.headline}
-                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                loading="lazy"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                              />
+                              <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                               <div className="absolute top-3 left-3">
-                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">
-                                  {article.section}
-                                </span>
+                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
                               </div>
                             </figure>
                             <div className="p-4 md:p-5 flex-1 flex flex-col">
-                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">
-                                {article.headline}
-                              </h3>
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
-                                {article.dek}
-                              </p>
+                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">{article.dek}</p>
                               <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2.5 border-t border-border/50">
                                 <span className="font-medium">{article.author.name}</span>
                                 <span>{formatTimestamp(article.publishedAt)}</span>
@@ -423,39 +353,23 @@ const Index = () => {
                 {longReads.length > 0 && (
                   <div className="section-divider">
                     <div className="flex items-center justify-between mb-6">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
-                        In-Depth
-                      </h2>
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">In-Depth</h2>
                       <span className="text-xs text-muted-foreground">Long reads</span>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-                      {longReads.slice(0, 6).map((article) => (
+                      {longReads.map((article) => (
                         <Link key={article.id} to={`/article/${article.slug}`} className="group block">
                           <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow border border-border/50">
                             <figure className="aspect-[3/2] overflow-hidden bg-muted relative">
-                              <img
-                                src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                                alt={article.headline}
-                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                loading="lazy"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                              />
+                              <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                               <div className="absolute bottom-2 left-2 right-2 flex justify-between items-end">
-                                <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">
-                                  {article.section}
-                                </span>
-                                <span className="text-[10px] font-medium text-white/90 bg-black/50 px-2 py-1 rounded">
-                                  {article.readingTime} min read
-                                </span>
+                                <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
+                                <span className="text-[10px] font-medium text-white/90 bg-black/50 px-2 py-1 rounded">{article.readingTime} min read</span>
                               </div>
                             </figure>
                             <div className="p-4 md:p-5 flex-1 flex flex-col">
-                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">
-                                {article.headline}
-                              </h3>
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">
-                                {article.dek}
-                              </p>
+                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">{article.dek}</p>
                               <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2 border-t border-border/50">
                                 <span className="font-medium">{article.author.name}</span>
                                 <span>{formatTimestamp(article.publishedAt)}</span>
@@ -478,33 +392,18 @@ const Index = () => {
                   {artsArticles.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-5">
-                        <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
-                          Arts
-                        </h2>
-                        <Link
-                          to="/section/arts"
-                          className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          See All →
-                        </Link>
+                        <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Arts</h2>
+                        <Link to="/section/arts" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                       </div>
                       <div className="space-y-5">
-                        {artsArticles.slice(0, 4).map((article) => (
+                        {artsArticles.map((article) => (
                           <Link key={article.id} to={`/article/${article.slug}`} className="group flex gap-4">
                             <figure className="flex-shrink-0 w-36 h-28 rounded-xl overflow-hidden bg-muted shadow-md">
-                              <img
-                                src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                                alt={article.headline}
-                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                loading="lazy"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                              />
+                              <img src={imgSrc(article)} alt={article.headline} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                             </figure>
                             <div className="flex-1 min-w-0">
                               <span className="label text-[10px] text-accent">{article.section}</span>
-                              <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">
-                                {article.headline}
-                              </h3>
+                              <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                               <span className="timestamp text-xs mt-2 block">{formatTimestamp(article.publishedAt)}</span>
                             </div>
                           </Link>
@@ -515,33 +414,18 @@ const Index = () => {
                   {sportsArticles.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-5">
-                        <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
-                          Sports
-                        </h2>
-                        <Link
-                          to="/section/sports"
-                          className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          See All →
-                        </Link>
+                        <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Sports</h2>
+                        <Link to="/section/sports" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                       </div>
                       <div className="space-y-4">
-                        {sportsArticles.slice(0, 4).map((article) => (
+                        {sportsArticles.map((article) => (
                           <Link key={article.id} to={`/article/${article.slug}`} className="group flex gap-3">
                             <figure className="flex-shrink-0 w-28 rounded-lg overflow-hidden bg-muted shadow-sm aspect-[4/3]">
-                              <img
-                                src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                                alt={article.headline}
-                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                loading="lazy"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                              />
+                              <img src={imgSrc(article)} alt={article.headline} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                             </figure>
                             <div className="flex-1 min-w-0">
                               <span className="label text-[10px] text-accent">{article.section}</span>
-                              <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">
-                                {article.headline}
-                              </h3>
+                              <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                               <span className="timestamp text-xs mt-2 block">{formatTimestamp(article.publishedAt)}</span>
                             </div>
                           </Link>
@@ -555,38 +439,21 @@ const Index = () => {
                 {opinionArticles.length > 0 && (
                   <div className="section-divider">
                     <div className="flex items-center justify-between mb-6">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
-                        Opinion
-                      </h2>
-                      <Link
-                        to="/section/opinion"
-                        className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        See All →
-                      </Link>
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Opinion</h2>
+                      <Link to="/section/opinion" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-                      {opinionArticles.slice(0, 6).map((article) => (
+                      {opinionArticles.map((article) => (
                         <Link key={article.id} to={`/article/${article.slug}`} className="group block">
                           <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow">
                             <figure className="aspect-[3/2] overflow-hidden bg-muted relative">
-                              <img
-                                src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                                alt={article.headline}
-                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                loading="lazy"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                              />
+                              <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                               <div className="absolute top-3 left-3">
-                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">
-                                  {article.section}
-                                </span>
+                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
                               </div>
                             </figure>
                             <div className="p-4 md:p-5 flex-1 flex flex-col">
-                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">
-                                {article.headline}
-                              </h3>
+                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                               <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2">
                                 <span className="font-medium">{article.author.name}</span>
                                 <span>{formatTimestamp(article.publishedAt)}</span>

@@ -450,25 +450,79 @@
     }
   }
   
-  /* Article body styling */
+  /* Article body – readable, solid color, responsive font sizing */
   .article-body {
     font-family: var(--font-serif);
     font-size: 1.125rem;
     line-height: 1.8;
+    color: #334155;
   }
   
-  .article-body p {
+  .article-body p,
+  .article-body li,
+  .article-body blockquote,
+  .article-body span {
     font-family: var(--font-serif);
+    color: #334155;
+  }
+
+  .article-body p {
     margin-bottom: var(--space-6);
   }
-  
-  .article-body p:first-of-type::first-letter {
-    font-size: 4rem;
+
+  .article-body a {
+    color: hsl(var(--accent));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .article-body a:hover {
+    opacity: 0.8;
+  }
+
+  .article-body h2, .article-body h3, .article-body h4 {
+    color: #1e293b;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .article-body strong {
+    color: #1e293b;
+    font-weight: 700;
+  }
+
+  .article-body em {
+    color: #475569;
+  }
+
+  .article-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 1.5rem 0;
+  }
+
+  .article-body figure {
+    margin: 2rem 0;
+  }
+
+  .article-body figcaption {
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    color: #64748b;
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  /* Drop cap: only the very first paragraph */
+  .article-body > p:first-child::first-letter {
+    font-size: 3.5rem;
     font-weight: 700;
     float: left;
-    line-height: 1;
-    margin-right: 0.5rem;
-    margin-top: 0.1em;
+    line-height: 0.85;
+    margin-right: 0.4rem;
+    margin-top: 0.05em;
+    color: #1e293b;
   }
   
   /* Pull quote */
@@ -488,13 +542,14 @@
     top: 0;
     z-index: 100;
     background: hsl(var(--background));
-    transition: all 0.3s ease;
+    transition: padding 0.4s ease, box-shadow 0.4s ease;
+    will-change: padding, box-shadow;
   }
   
   .masthead-condensed {
-    padding-top: var(--space-2);
-    padding-bottom: var(--space-2);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
 }
 

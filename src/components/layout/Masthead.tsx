@@ -5,8 +5,8 @@ import { formatDate } from "@/data/seedData";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSacramentoWeather } from "@/hooks/useSacramentoWeather";
-import { ThemeToggle } from "./ThemeToggle";
 import { SearchDialog } from "@/components/search/SearchDialog";
+import { UserMenu } from "@/components/user/UserMenu";
 
 const sections = [
   { name: "World", slug: "world" },
@@ -36,6 +36,7 @@ export function Masthead() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { temp, weatherCode, loading, error } = useSacramentoWeather();
 
   useEffect(() => {
@@ -68,11 +69,11 @@ export function Masthead() {
           isScrolled && "masthead-condensed"
         )}
       >
-        {/* Top utility bar - hidden when scrolled */}
+        {/* Top utility bar */}
         <div
           className={cn(
-            "container-newspaper transition-all duration-300 overflow-hidden",
-            isScrolled ? "h-0 opacity-0" : "h-auto opacity-100"
+            "container-newspaper overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out",
+            isScrolled ? "max-h-0 opacity-0" : "max-h-12 opacity-100"
           )}
         >
           <div className="flex items-center justify-between py-2 text-xs">
@@ -85,13 +86,9 @@ export function Masthead() {
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">
-                About
-              </Link>
+              <Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">About</Link>
               <span className="text-muted-foreground">|</span>
-              <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
-                Contact
-              </Link>
+              <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
             </div>
           </div>
         </div>
@@ -118,41 +115,46 @@ export function Masthead() {
             </div>
 
             {/* Center: Logo/Wordmark */}
-            <Link to="/" className="flex-1 text-center flex flex-col items-center">
+            <Link to="/" className="flex-1 text-center flex flex-col items-center will-change-transform">
               <img
                 src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"
                 alt="The Octagon Logo"
+                width={80}
+                height={80}
                 className={cn(
-                  "transition-all duration-300 object-contain",
-                  isScrolled ? "h-8" : "h-16 md:h-20"
+                  "object-contain transition-[height] duration-500 ease-in-out",
+                  isScrolled ? "h-7" : "h-14 md:h-[4.5rem]"
                 )}
               />
               <h1
                 className={cn(
-                  "font-serif font-bold tracking-tight transition-all duration-300",
-                  isScrolled ? "text-xl md:text-2xl mt-1" : "text-3xl md:text-5xl mt-2"
+                  "font-serif font-bold tracking-tight transition-[font-size,margin] duration-500 ease-in-out",
+                  isScrolled ? "text-xl md:text-2xl mt-0.5" : "text-3xl md:text-5xl mt-1.5"
                 )}
               >
                 The Octagon
               </h1>
-              {!isScrolled && (
-                <p className="text-xs text-muted-foreground mt-1 hidden md:block">
-                  A Sacramento Country Day School Newspaper
-                </p>
-              )}
+              <p
+                className={cn(
+                  "text-xs text-muted-foreground hidden md:block transition-[max-height,opacity,margin] duration-300 ease-in-out overflow-hidden",
+                  isScrolled ? "max-h-0 opacity-0 mt-0" : "max-h-6 opacity-100 mt-1"
+                )}
+              >
+                A Sacramento Country Day School Newspaper
+              </p>
             </Link>
 
             {/* Right: Account + Subscribe */}
             <div className="flex items-center gap-2 w-32 justify-end">
-              <button className="p-2 hover:bg-muted rounded-sm transition-colors" aria-label="Account">
+              <button
+                onClick={() => setUserMenuOpen(true)}
+                className="p-2 hover:bg-muted rounded-lg transition-colors"
+                aria-label="Your account"
+              >
                 <User className="h-5 w-5" />
               </button>
-              <Button
-                variant="default"
-                size="sm"
-                className="hidden sm:inline-flex text-xs font-semibold tracking-wide"
-              >
-                Subscribe
+              <Button asChild variant="default" size="sm" className="hidden sm:inline-flex text-xs font-semibold tracking-wide">
+                <Link to="/subscribe">Subscribe</Link>
               </Button>
             </div>
           </div>
@@ -214,7 +216,9 @@ export function Masthead() {
           </div>
         </div>
       )}
+
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <UserMenu open={userMenuOpen} onClose={() => setUserMenuOpen(false)} />
     </>
   );
 }

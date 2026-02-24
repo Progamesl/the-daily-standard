@@ -154,9 +154,9 @@ export function ArticleReadingToolbar({
         <div className="flex items-center gap-0.5 border border-border rounded-md p-0.5 shrink-0">
           <span className="sr-only">Text size</span>
           <Button
-            variant="ghost"
+            variant={fontSize === "normal" ? "secondary" : "ghost"}
             size="sm"
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground text-xs font-bold"
+            className="h-8 w-8 p-0 text-xs font-bold"
             onClick={() => onFontSizeChange("normal")}
             aria-label="Normal text size"
           >
@@ -165,7 +165,7 @@ export function ArticleReadingToolbar({
           <Button
             variant={fontSize === "large" ? "secondary" : "ghost"}
             size="sm"
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground text-sm font-bold"
+            className="h-8 w-8 p-0 text-sm font-bold"
             onClick={() => onFontSizeChange("large")}
             aria-label="Large text"
           >
@@ -174,7 +174,7 @@ export function ArticleReadingToolbar({
           <Button
             variant={fontSize === "xlarge" ? "secondary" : "ghost"}
             size="sm"
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground text-base font-bold"
+            className="h-8 w-8 p-0 text-base font-bold"
             onClick={() => onFontSizeChange("xlarge")}
             aria-label="Largest text"
           >
