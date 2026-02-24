@@ -122,10 +122,10 @@ export function UserMenu({ open, onClose }: UserMenuProps) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed top-0 right-0 z-[61] w-full max-w-md h-full bg-background shadow-2xl border-l border-border overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed top-0 right-0 z-[201] w-full max-w-md h-full bg-background shadow-2xl border-l border-border overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-3">
