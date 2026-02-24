@@ -2,8 +2,6 @@ import { useParams, Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { StoryCard } from "@/components/stories/StoryCard";
 import { MostPopular } from "@/components/stories/MostPopular";
-import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
-import { DocumentHead } from "@/components/seo/DocumentHead";
 import {
   getSectionBySlug,
   getArticlesBySection,
@@ -40,16 +38,9 @@ export default function SectionPage() {
 
   const [featured, ...rest] = articles;
 
-  const breadcrumbItems = [
-    { label: "Home", href: "/" },
-    { label: section.name },
-  ];
-
   return (
     <Layout>
-      <DocumentHead title={section.name} description={section.description} />
-      <div className="flow-container py-8 md:py-12 animate-fade-in">
-        <Breadcrumbs items={breadcrumbItems} className="mb-6" />
+      <div className="container-newspaper py-8 md:py-12 animate-fade-in">
         {/* Section Header */}
         <header className="mb-8 md:mb-12">
           <div className="rule-double pt-4">
@@ -112,6 +103,7 @@ export default function SectionPage() {
                 ))}
               </div>
 
+              {/* Load more placeholder */}
               {rest.length > 0 && (
                 <div className="text-center mt-12">
                   <Button variant="outline" className="font-semibold">

@@ -19,8 +19,8 @@ export function NewsletterStrip({ className }: NewsletterStripProps) {
   };
 
   return (
-    <section className={cn("bg-muted/50 py-10 md:py-12 rounded-xl border border-border shadow-sm", className)} aria-labelledby="newsletter-heading">
-      <div className="flow-container">
+    <section className={cn("bg-muted py-10 md:py-12", className)} aria-labelledby="newsletter-heading">
+      <div className="container-newspaper">
         <div className="max-w-2xl mx-auto text-center">
           {submitted ? (
             <div className="space-y-2">

@@ -16,7 +16,7 @@ export default function ContactPage() {
 
   return (
     <Layout>
-      <div className="flow-container py-12 md:py-16 animate-fade-in">
+      <div className="container-newspaper py-12 md:py-16 animate-fade-in">
         <div className="max-w-4xl mx-auto">
           <header className="text-center mb-12">
             <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">Contact Us</h1>
@@ -80,10 +80,10 @@ export default function ContactPage() {
                     <div>
                       <p className="font-medium">Email</p>
                       <a
-                        href="mailto:octagon@scdsstudent.org"
+                        href="mailto:contact@thechronicle.com"
                         className="text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        octagon@scdsstudent.org
+                        contact@thechronicle.com
                       </a>
                     </div>
                   </div>
@@ -106,9 +106,9 @@ export default function ContactPage() {
                     <div>
                       <p className="font-medium">Address</p>
                       <p className="text-muted-foreground">
-                        Sacramento Country Day School
+                        620 Eighth Avenue
                         <br />
-                        Sacramento, CA
+                        New York, NY 10018
                       </p>
                     </div>
                   </div>
@@ -122,10 +122,10 @@ export default function ContactPage() {
                   from readers with news tips.
                 </p>
                 <a
-                  href="mailto:octagon@scdsstudent.org"
+                  href="mailto:tips@thechronicle.com"
                   className="text-foreground font-medium hover:opacity-80 transition-opacity"
                 >
-                  octagon@scdsstudent.org
+                  tips@thechronicle.com
                 </a>
               </div>
 
@@ -136,10 +136,10 @@ export default function ContactPage() {
                   us know.
                 </p>
                 <a
-                  href="mailto:octagon@scdsstudent.org"
+                  href="mailto:corrections@thechronicle.com"
                   className="text-foreground font-medium hover:opacity-80 transition-opacity"
                 >
-                  octagon@scdsstudent.org
+                  corrections@thechronicle.com
                 </a>
               </div>
             </div>

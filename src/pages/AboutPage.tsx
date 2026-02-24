@@ -5,27 +5,28 @@ import { Link } from "react-router-dom";
 export default function AboutPage() {
   return (
     <Layout>
-      <div className="flow-container py-12 md:py-16 animate-fade-in">
+      <div className="container-newspaper py-12 md:py-16 animate-fade-in">
         <div className="max-w-3xl mx-auto">
           <header className="mb-12">
-            <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">About The Octagon</h1>
+            <h1 className="font-serif text-4xl md:text-5xl font-bold mb-4">About The Chronicle</h1>
             <p className="dek">
-              A Sacramento Country Day School Newspaper delivering trusted journalism to our community.
+              Delivering trusted journalism to readers around the world since 1851.
             </p>
           </header>
 
           <div className="article-body">
             <p>
-              The Octagon is committed to covering the news that matters most to our readers with
+              The Chronicle is committed to covering the news that matters most to our readers with
               accuracy, fairness, and independence. Our team of award-winning journalists works
               tirelessly to bring you comprehensive coverage of world events, politics, business,
               technology, science, arts, and more.
             </p>
 
             <p>
-              The Octagon is the student newspaper of Sacramento Country Day School, providing
-              comprehensive coverage of school events, student life, and community news. Our student
-              journalists work to bring you firsthand accounts of the events shaping our school community.
+              Founded over 170 years ago, The Chronicle has grown from a small regional newspaper
+              into one of the world's most respected news organizations. Our journalists report from
+              every corner of the globe, bringing you firsthand accounts of the events shaping our
+              world.
             </p>
 
             <h2 className="font-serif text-2xl font-bold mt-12 mb-4">Our Mission</h2>
