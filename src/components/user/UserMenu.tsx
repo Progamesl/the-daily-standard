@@ -213,10 +213,10 @@ export function UserMenu({ open, onClose }: UserMenuProps) {
                         </Link>
                         <button
                           onClick={() => removeSaved(a.slug)}
-                          className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 rounded transition-all self-start"
+                          className="p-2 sm:p-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all self-start touch-manipulation text-muted-foreground"
                           aria-label="Remove"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                         </button>
                       </div>
                     );

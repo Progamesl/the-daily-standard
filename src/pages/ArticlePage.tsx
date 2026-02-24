@@ -94,8 +94,8 @@ export default function ArticlePage() {
             <Link to={`/section/${article.section}`} className="label text-accent hover:opacity-80 transition-opacity inline-block mb-4">
               {article.section}
             </Link>
-            <h1 className="headline-xl mb-4 text-balance text-slate-900">{article.headline}</h1>
-            <p className="font-sans text-lg text-slate-600 mb-6 text-balance leading-relaxed">{article.dek}</p>
+            <h1 className="headline-xl mb-3 sm:mb-4 text-balance text-slate-900">{article.headline}</h1>
+            <p className="font-sans text-base sm:text-lg text-slate-600 mb-4 sm:mb-6 text-balance leading-relaxed">{article.dek}</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm border-y border-border py-4 text-slate-700">
               <div className="flex items-center gap-3">
                 <img src={article.author.image} alt={article.author.name} className="w-10 h-10 rounded-full object-cover" />
@@ -132,7 +132,7 @@ export default function ArticlePage() {
               <img
                 src={heroImage}
                 alt={article.imageCaption || article.headline}
-                className="w-full aspect-[2.35/1] object-cover rounded-xl shadow-lg bg-slate-100"
+                className="w-full aspect-[16/9] sm:aspect-[2.35/1] object-cover rounded-lg sm:rounded-xl shadow-lg bg-slate-100"
                 loading="eager"
                 referrerPolicy="no-referrer"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
@@ -163,14 +163,14 @@ export default function ArticlePage() {
               </div>
 
               {/* Author bio */}
-              <div className="mt-8 p-6 bg-muted rounded-lg">
-                <div className="flex items-start gap-4">
-                  <img src={article.author.image} alt={article.author.name} className="w-16 h-16 rounded-full object-cover" loading="lazy" />
+              <div className="mt-8 p-4 sm:p-6 bg-muted rounded-lg">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-4 text-center sm:text-left">
+                  <img src={article.author.image} alt={article.author.name} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover" loading="lazy" />
                   <div>
-                    <Link to={`/author/${article.author.id}`} className="font-serif text-lg font-bold text-slate-900 hover:text-accent transition-colors">
+                    <Link to={`/author/${article.author.id}`} className="font-serif text-base sm:text-lg font-bold text-slate-900 hover:text-accent transition-colors">
                       {article.author.name}
                     </Link>
-                    <p className="text-sm text-slate-600 mb-2">{article.author.role}</p>
+                    <p className="text-sm text-slate-600 mb-1 sm:mb-2">{article.author.role}</p>
                     <p className="text-sm text-slate-600 line-clamp-2">{article.author.bio}</p>
                   </div>
                 </div>
@@ -188,10 +188,10 @@ export default function ArticlePage() {
 
         {/* Related Stories */}
         {relatedArticles.length > 0 && (
-          <section className="container-newspaper py-12 mt-12 border-t border-border">
-            <h2 className="font-serif text-xl font-bold mb-2">Read next</h2>
-            <p className="text-sm text-muted-foreground mb-6">More in {article.section}</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <section className="flow-container py-8 sm:py-12 mt-8 sm:mt-12 border-t border-border">
+            <h2 className="font-serif text-lg sm:text-xl font-bold mb-2">Read next</h2>
+            <p className="text-sm text-muted-foreground mb-4 sm:mb-6">More in {article.section}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {relatedArticles.map((rel) => (
                 <StoryCard key={rel.id} article={rel} variant="standard" showDek={false} />
               ))}

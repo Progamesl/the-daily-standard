@@ -89,13 +89,13 @@ export default function SubscribePage() {
     <Layout>
       <div className="min-h-[80vh] bg-gradient-to-b from-background via-background to-muted/30">
         {/* Hero */}
-        <section className="flow-container pt-16 pb-12 md:pt-24 md:pb-16 text-center">
-          <div className="max-w-2xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent text-sm font-medium mb-6">
-              <Mail className="h-4 w-4" />
+        <section className="flow-container pt-10 pb-8 sm:pt-16 sm:pb-12 md:pt-24 md:pb-16 text-center">
+          <div className="max-w-2xl mx-auto px-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-accent/10 text-accent text-xs sm:text-sm font-medium mb-4 sm:mb-6">
+              <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Free newsletter
             </div>
-            <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-5 text-slate-900">
+            <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-5 text-slate-900">
               Stay informed.{" "}
               <span className="bg-gradient-to-r from-accent to-red-700 bg-clip-text text-transparent">Stay ahead.</span>
             </h1>
@@ -223,18 +223,18 @@ export default function SubscribePage() {
         {/* Social proof / stats */}
         <section className="flow-container pb-16">
           <div className="max-w-3xl mx-auto">
-            <div className="grid grid-cols-3 gap-6 text-center mb-12">
+            <div className="grid grid-cols-3 gap-3 sm:gap-6 text-center mb-8 sm:mb-12">
               <div>
-                <div className="font-serif text-3xl md:text-4xl font-bold text-slate-900">500+</div>
-                <div className="text-sm text-slate-500 mt-1">Published articles</div>
+                <div className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">500+</div>
+                <div className="text-xs sm:text-sm text-slate-500 mt-1">Published articles</div>
               </div>
               <div>
-                <div className="font-serif text-3xl md:text-4xl font-bold text-slate-900">60+</div>
-                <div className="text-sm text-slate-500 mt-1">Student journalists</div>
+                <div className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">60+</div>
+                <div className="text-xs sm:text-sm text-slate-500 mt-1">Student journalists</div>
               </div>
               <div>
-                <div className="font-serif text-3xl md:text-4xl font-bold text-accent">Free</div>
-                <div className="text-sm text-slate-500 mt-1">Always</div>
+                <div className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-accent">Free</div>
+                <div className="text-xs sm:text-sm text-slate-500 mt-1">Always</div>
               </div>
             </div>
 

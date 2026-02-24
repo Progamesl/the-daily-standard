@@ -97,17 +97,17 @@ export function Masthead() {
         <div className="container-newspaper">
           <div className="flex items-center justify-between py-4">
             {/* Left: Mobile menu + Search */}
-            <div className="flex items-center gap-2 w-32">
+            <div className="flex items-center gap-1 sm:gap-2 w-20 sm:w-32">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 hover:bg-muted rounded-sm transition-colors"
+                className="lg:hidden p-2.5 hover:bg-muted rounded-lg transition-colors touch-manipulation"
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
               <button
                 onClick={() => setSearchOpen(true)}
-                className="p-2 hover:bg-muted rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+                className="p-2.5 hover:bg-muted rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-ring touch-manipulation"
                 aria-label="Search"
               >
                 <Search className="h-5 w-5" />
@@ -115,7 +115,7 @@ export function Masthead() {
             </div>
 
             {/* Center: Logo/Wordmark */}
-            <Link to="/" className="flex-1 text-center flex flex-col items-center will-change-transform">
+            <Link to="/" className="flex-1 text-center flex flex-col items-center will-change-transform min-w-0">
               <img
                 src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"
                 alt="The Octagon Logo"
@@ -123,13 +123,13 @@ export function Masthead() {
                 height={80}
                 className={cn(
                   "object-contain transition-[height] duration-500 ease-in-out",
-                  isScrolled ? "h-7" : "h-14 md:h-[4.5rem]"
+                  isScrolled ? "h-6 sm:h-7" : "h-10 sm:h-14 md:h-[4.5rem]"
                 )}
               />
               <h1
                 className={cn(
                   "font-serif font-bold tracking-tight transition-[font-size,margin] duration-500 ease-in-out",
-                  isScrolled ? "text-xl md:text-2xl mt-0.5" : "text-3xl md:text-5xl mt-1.5"
+                  isScrolled ? "text-lg sm:text-xl md:text-2xl mt-0.5" : "text-2xl sm:text-3xl md:text-5xl mt-1"
                 )}
               >
                 The Octagon
@@ -145,10 +145,10 @@ export function Masthead() {
             </Link>
 
             {/* Right: Account + Subscribe */}
-            <div className="flex items-center gap-2 w-32 justify-end">
+            <div className="flex items-center gap-1 sm:gap-2 w-20 sm:w-32 justify-end">
               <button
                 onClick={() => setUserMenuOpen(true)}
-                className="p-2 hover:bg-muted rounded-lg transition-colors"
+                className="p-2.5 hover:bg-muted rounded-lg transition-colors touch-manipulation"
                 aria-label="Your account"
               >
                 <User className="h-5 w-5" />
@@ -181,8 +181,8 @@ export function Masthead() {
 
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-background">
-          <div className="container-newspaper py-4">
+        <div className="lg:hidden fixed inset-0 z-50 bg-background overflow-y-auto overscroll-contain">
+          <div className="container-newspaper py-4 pb-safe">
             <div className="flex items-center justify-between mb-8">
               <h2 className="font-serif text-2xl font-bold">Sections</h2>
               <button
@@ -200,7 +200,7 @@ export function Masthead() {
                     <Link
                       to={`/section/${section.slug}`}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="block px-4 py-3 text-lg font-medium text-foreground hover:bg-muted rounded-sm transition-colors border-b border-border"
+                      className="block px-4 py-4 text-lg font-medium text-foreground hover:bg-muted active:bg-muted rounded-lg transition-colors border-b border-border touch-manipulation"
                     >
                       {section.name}
                     </Link>

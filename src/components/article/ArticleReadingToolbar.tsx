@@ -94,7 +94,7 @@ export function ArticleReadingToolbar({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 py-3 border-t border-border">
+    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 py-3 border-t border-border">
       <ListenButton title={headline} text={bodyText} className="shrink-0" />
 
       <DropdownMenu>

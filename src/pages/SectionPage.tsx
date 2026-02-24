@@ -51,23 +51,23 @@ export default function SectionPage() {
       <div className="flow-container py-8 md:py-12 animate-fade-in">
         <Breadcrumbs items={breadcrumbItems} className="mb-6" />
         {/* Section Header */}
-        <header className="mb-8 md:mb-12">
+        <header className="mb-6 sm:mb-8 md:mb-12">
           <div className="rule-double pt-4">
-            <h1 className="font-serif text-4xl md:text-5xl font-bold mb-2">{section.name}</h1>
+            <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold mb-2">{section.name}</h1>
             <p className="text-muted-foreground">{section.description}</p>
           </div>
 
           {/* Subsection nav */}
-          <nav className="mt-6 overflow-x-auto no-scrollbar" aria-label="Section navigation">
-            <ul className="flex items-center gap-1">
+          <nav className="mt-6 -mx-4 px-4 overflow-x-auto no-scrollbar" aria-label="Section navigation">
+            <ul className="flex items-center gap-1.5 w-max">
               {sections.map((s) => (
                 <li key={s.slug}>
                   <Link
                     to={`/section/${s.slug}`}
-                    className={`px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                    className={`px-3.5 py-2 text-sm font-medium whitespace-nowrap rounded-lg transition-colors touch-manipulation ${
                       s.slug === slug
                         ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:bg-muted"
+                        : "text-muted-foreground hover:bg-muted active:bg-muted"
                     }`}
                   >
                     {s.name}

@@ -163,12 +163,16 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
   }
   
   body {
     @apply bg-background text-foreground font-sans;
     font-feature-settings: "kern" 1, "liga" 1;
     line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
   
   /* Editorial typography */
@@ -516,13 +520,46 @@
 
   /* Drop cap: only the very first paragraph */
   .article-body > p:first-child::first-letter {
-    font-size: 3.5rem;
+    font-size: 2.75rem;
     font-weight: 700;
     float: left;
     line-height: 0.85;
-    margin-right: 0.4rem;
+    margin-right: 0.3rem;
     margin-top: 0.05em;
     color: #1e293b;
+  }
+
+  @media (min-width: 640px) {
+    .article-body > p:first-child::first-letter {
+      font-size: 3.5rem;
+      margin-right: 0.4rem;
+    }
+  }
+
+  /* Mobile: prevent horizontal overflow from body images/embeds */
+  .article-body img,
+  .article-body iframe,
+  .article-body video,
+  .article-body embed,
+  .article-body object {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .article-body figure {
+    overflow: hidden;
+  }
+
+  /* Mobile: reduce font size slightly for readability */
+  @media (max-width: 640px) {
+    .article-body {
+      font-size: 1rem;
+      line-height: 1.75;
+    }
+
+    .article-body p {
+      margin-bottom: 1.25rem;
+    }
   }
   
   /* Pull quote */
@@ -569,5 +606,27 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Ensure all interactive elements meet 44px minimum on mobile */
+  @media (pointer: coarse) {
+    button, a, [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Except inline text links */
+    p a, span a, li a, .article-body a {
+      min-height: auto;
+      min-width: auto;
+    }
   }
 }

@@ -31,7 +31,7 @@ export function StoryCard({
               <img
                 src={enhanceArticleImage(image, headline, section, dek, images)}
                 alt={imageCaption || headline}
-                className="w-full aspect-[16/10] object-cover transition-transform duration-500 group-hover:scale-[1.02] min-h-[200px]"
+                className="w-full aspect-[16/10] object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                 loading="eager"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
               />

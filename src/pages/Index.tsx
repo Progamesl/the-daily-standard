@@ -108,19 +108,19 @@ const Index = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/85" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 md:p-10 lg:p-12 xl:p-16">
+                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 md:p-10 lg:p-12 xl:p-16">
                   <div className="flow-container">
                     <div className="max-w-4xl">
-                      <span className="inline-flex items-center text-[11px] font-bold uppercase tracking-[0.2em] text-white/90 mb-4 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
+                      <span className="inline-flex items-center text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-white/90 mb-2 sm:mb-4 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
                         {leadArticle.section}
                       </span>
-                      <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] xl:text-[3.75rem] font-bold leading-[1.08] mb-4 text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] tracking-tight">
+                      <h1 className="font-serif text-2xl sm:text-3xl md:text-5xl lg:text-[3.25rem] xl:text-[3.75rem] font-bold leading-[1.1] mb-3 sm:mb-4 text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] tracking-tight">
                         {leadArticle.headline}
                       </h1>
-                      <p className="font-serif text-lg md:text-xl lg:text-2xl text-white/95 mb-5 line-clamp-2 leading-relaxed max-w-3xl font-normal">
+                      <p className="font-serif text-sm sm:text-lg md:text-xl lg:text-2xl text-white/95 mb-3 sm:mb-5 line-clamp-2 leading-relaxed max-w-3xl font-normal hidden xs:block">
                         {leadArticle.dek}
                       </p>
-                      <div className="flex flex-wrap items-center gap-3 text-sm md:text-base text-white/85">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm md:text-base text-white/85">
                         <span className="font-medium">{leadArticle.author.name}</span>
                         <span className="text-white/50">·</span>
                         <span>{formatTimestamp(leadArticle.publishedAt)}</span>
@@ -141,9 +141,9 @@ const Index = () => {
 
         {/* Secondary hero – 2 cards */}
         {secondaryHero.length >= 2 && (
-          <section className="w-full bg-background border-b border-border py-14 lg:py-16" aria-label="Featured">
+          <section className="w-full bg-background border-b border-border py-8 sm:py-14 lg:py-16" aria-label="Featured">
             <div className="flow-container">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
                 {secondaryHero.map((article) => (
                   <Link key={article.id} to={`/article/${article.slug}`} className="group block">
                     <article className="relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-flow bg-card">
@@ -181,13 +181,13 @@ const Index = () => {
 
         {/* Editors' Picks */}
         {editorsPicks.length > 0 && (
-          <section className="w-full bg-background border-b border-border py-10 lg:py-12" aria-label="Editors' Picks">
+          <section className="w-full bg-background border-b border-border py-8 sm:py-10 lg:py-12" aria-label="Editors' Picks">
             <div className="flow-container">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Editors&apos; Picks</h2>
                 <Link to="/section/us" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 lg:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-5 lg:gap-6">
                 {editorsPicks.map((article) => (
                   <Link key={article.id} to={`/article/${article.slug}`} className="group block">
                     <article className="h-full flex flex-col bg-card rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-flow border border-border/50">
@@ -214,9 +214,9 @@ const Index = () => {
 
         {/* Today's Mix */}
         {mixStories.length >= 3 && (
-          <section className="w-full bg-background border-b border-border py-14 lg:py-16" aria-label="Latest">
+          <section className="w-full bg-background border-b border-border py-8 sm:py-14 lg:py-16" aria-label="Latest">
             <div className="flow-container">
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-5 sm:mb-8">
                 <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Today&apos;s Mix</h2>
                 <Link to="/section/us" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">View All →</Link>
               </div>
@@ -248,10 +248,10 @@ const Index = () => {
         )}
 
         {/* Main content – 8/4 grid */}
-        <section className="w-full bg-background py-14 lg:py-16" aria-label="Sections">
+        <section className="w-full bg-background py-8 sm:py-14 lg:py-16" aria-label="Sections">
           <div className="flow-container">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
-              <div className="lg:col-span-8 space-y-16">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+              <div className="lg:col-span-8 space-y-10 sm:space-y-16">
                 {/* News */}
                 {usArticles.length > 0 && (
                   <div className="section-divider">
