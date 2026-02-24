@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Regular octagon logo for The Octagon -->
+  <polygon fill="#0f172a" points="16,2 24,5 30,16 24,27 16,30 8,27 2,16 8,5" />
+  <polygon fill="none" stroke="#e2e8f0" stroke-width="1.25" stroke-linejoin="round" points="16,3.5 22.5,6.2 28,16 22.5,25.8 16,28.5 9.5,25.8 4,16 9.5,6.2" />
+</svg>

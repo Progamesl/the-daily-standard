@@ -23,31 +23,29 @@ export function SectionBlock({
   const [featured, ...rest] = articles;
 
   return (
-    <section className={cn("py-8", className)} aria-labelledby={`section-${slug}`}>
-      {/* Section header with double rule */}
-      <div className="rule-double pt-4 mb-6">
-        <div className="flex items-center justify-between">
-          <h2 id={`section-${slug}`} className="font-serif text-xl font-bold">
-            {title}
-          </h2>
-          <Link
-            to={`/section/${slug}`}
-            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-          >
-            See All →
-          </Link>
-        </div>
+    <section className={cn("section-divider", className)} aria-labelledby={`section-${slug}`}>
+      <div className="flex items-center justify-between mb-6">
+        <h2 id={`section-${slug}`} className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">
+          {title}
+        </h2>
+        <Link
+          to={`/section/${slug}`}
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+        >
+          See All →
+        </Link>
       </div>
 
       {variant === "wide" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {articles.slice(0, 3).map((article) => (
-            <StoryCard
-              key={article.id}
-              article={article}
-              variant="standard"
-              showDek={false}
-            />
+            <div key={article.id} className="card-editorial rounded-xl overflow-hidden">
+              <StoryCard
+                article={article}
+                variant="standard"
+                showDek={false}
+              />
+            </div>
           ))}
         </div>
       ) : variant === "compact" ? (
@@ -57,26 +55,25 @@ export function SectionBlock({
               key={article.id}
               article={article}
               variant="compact"
-              showImage={false}
+              showImage={true}
               showDek={false}
               showByline={false}
             />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {/* Featured story */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8">
           <div className="md:col-span-6 lg:col-span-5">
-            <StoryCard
-              article={featured}
-              variant="standard"
-              showDek={true}
-            />
+            <div className="card-editorial rounded-xl overflow-hidden">
+              <StoryCard
+                article={featured}
+                variant="standard"
+                showDek={true}
+              />
+            </div>
           </div>
-
-          {/* Secondary stories */}
-          <div className="md:col-span-6 lg:col-span-7 md:border-l md:border-border md:pl-6">
-            <div className="space-y-4">
+          <div className="md:col-span-6 lg:col-span-7 md:border-l border-border md:pl-6 lg:pl-8">
+            <div className="space-y-5">
               {rest.slice(0, 4).map((article) => (
                 <StoryCard
                   key={article.id}
