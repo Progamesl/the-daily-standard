@@ -32,6 +32,7 @@ const footerSections = [
       { name: "Subscribe", href: "/subscribe" },
       { name: "About", href: "/about" },
       { name: "Contact", href: "/contact" },
+      { name: "Staff", href: "/staff" },
     ],
   },
 ];
