@@ -6,14 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, MapPin, CheckCircle, Loader2 } from "lucide-react";
 
-// ──────────────────────────────────────────────────────────────────────────
-// TO ACTIVATE EMAIL DELIVERY:
-//  1. Go to https://formspree.io and sign in with the Octagon email account.
-//  2. Create a new form → it gives you a Form ID like "xyzabcde".
-//  3. Replace the placeholder below with that ID.
-// ──────────────────────────────────────────────────────────────────────────
-const FORMSPREE_FORM_ID = "mwvnylbg";
-const FORMSPREE_URL = `https://formspree.io/f/${FORMSPREE_FORM_ID}`;
+const FORMSPREE_URL = "https://formspree.io/f/mwvnylbg";
+const OCTAGON_EMAIL = "scdsoctagon1@gmail.com";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -23,26 +17,11 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    // If Formspree hasn't been configured yet, fall back to mailto
-    if (FORMSPREE_FORM_ID === "YOUR_FORM_ID_HERE") {
-      const form = e.currentTarget;
-      const data = new FormData(form);
-      const subject = encodeURIComponent(data.get("subject") as string || "Message from website");
-      const body = encodeURIComponent(
-        `Name: ${data.get("firstName")} ${data.get("lastName")}\nEmail: ${data.get("email")}\n\n${data.get("message")}`
-      );
-      window.open(`mailto:octagon@scdsstudent.org?subject=${subject}&body=${body}`, "_blank");
-      setStatus("success");
-      return;
-    }
-
     setStatus("loading");
     setErrorMsg("");
 
     try {
-      const form = e.currentTarget;
-      const data = new FormData(form);
+      const data = new FormData(e.currentTarget);
       const res = await fetch(FORMSPREE_URL, {
         method: "POST",
         body: data,
@@ -82,11 +61,7 @@ export default function ContactPage() {
                   <p className="text-muted-foreground">
                     Thank you for reaching out. We&apos;ll get back to you as soon as possible.
                   </p>
-                  <Button
-                    variant="outline"
-                    className="mt-6"
-                    onClick={() => setStatus("idle")}
-                  >
+                  <Button variant="outline" className="mt-6" onClick={() => setStatus("idle")}>
                     Send Another Message
                   </Button>
                 </div>
@@ -105,7 +80,7 @@ export default function ContactPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" name="email" type="email" required placeholder="jane@example.com" />
+                    <Input id="email" name="email" type="email" required placeholder="you@example.com" />
                   </div>
 
                   <div className="space-y-2">
@@ -153,10 +128,10 @@ export default function ContactPage() {
                     <div>
                       <p className="font-medium">Email</p>
                       <a
-                        href="mailto:octagon@scdsstudent.org"
+                        href={`mailto:${OCTAGON_EMAIL}`}
                         className="text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        octagon@scdsstudent.org
+                        {OCTAGON_EMAIL}
                       </a>
                     </div>
                   </div>
@@ -168,7 +143,7 @@ export default function ContactPage() {
                       <p className="text-muted-foreground">
                         Sacramento Country Day School
                         <br />
-                        Sacramento, CA
+                        2636 Latham Dr, Sacramento, CA 95864
                       </p>
                     </div>
                   </div>
@@ -181,10 +156,10 @@ export default function ContactPage() {
                   Have a story we should know about? Our newsroom is always interested in tips from readers.
                 </p>
                 <a
-                  href="mailto:octagon@scdsstudent.org?subject=News Tip"
+                  href={`mailto:${OCTAGON_EMAIL}?subject=News Tip`}
                   className="text-foreground font-medium hover:opacity-80 transition-opacity underline underline-offset-2"
                 >
-                  octagon@scdsstudent.org
+                  {OCTAGON_EMAIL}
                 </a>
               </div>
 
@@ -194,10 +169,10 @@ export default function ContactPage() {
                   We take accuracy seriously. If you&apos;ve found an error in our reporting, please let us know.
                 </p>
                 <a
-                  href="mailto:octagon@scdsstudent.org?subject=Correction Request"
+                  href={`mailto:${OCTAGON_EMAIL}?subject=Correction Request`}
                   className="text-foreground font-medium hover:opacity-80 transition-opacity underline underline-offset-2"
                 >
-                  octagon@scdsstudent.org
+                  {OCTAGON_EMAIL}
                 </a>
               </div>
 
@@ -206,10 +181,10 @@ export default function ContactPage() {
                 <p className="text-muted-foreground leading-relaxed">
                   Letters must be signed and may be edited for grammar, punctuation, and length. Send letters to{" "}
                   <a
-                    href="mailto:octagon@scdsstudent.org?subject=Letter to the Editor"
+                    href={`mailto:${OCTAGON_EMAIL}?subject=Letter to the Editor`}
                     className="text-foreground font-medium hover:opacity-80 transition-opacity underline underline-offset-2"
                   >
-                    octagon@scdsstudent.org
+                    {OCTAGON_EMAIL}
                   </a>.
                 </p>
               </div>

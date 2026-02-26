@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { BookOpen, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -90,11 +90,10 @@ export default function AboutPage() {
                 href="https://issuu.com/octagon25"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-foreground text-background px-5 py-3 rounded-lg font-semibold hover:opacity-80 transition-opacity"
+                className="inline-flex items-center gap-2 text-foreground font-semibold underline underline-offset-4 decoration-border hover:decoration-foreground transition-all"
               >
-                <BookOpen className="h-4 w-4" />
-                View Print Archives on Issuu
-                <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                View all print editions on Issuu
+                <ExternalLink className="h-3.5 w-3.5 opacity-60" />
               </a>
             </section>
 
@@ -104,10 +103,10 @@ export default function AboutPage() {
             <section className="mb-4">
               <h2 className="font-serif text-2xl font-bold mb-4 text-foreground">Contact Us</h2>
               <p className="text-slate-700 leading-relaxed text-lg mb-6">
-                We welcome feedback, news tips, corrections, and letters to the editor. Reach our newsroom at{" "}
-                <a href="mailto:octagon@scdsstudent.org" className="text-foreground font-medium underline underline-offset-2 hover:opacity-80 transition-opacity">
-                  octagon@scdsstudent.org
-                </a>
+              We welcome feedback, news tips, corrections, and letters to the editor. Reach our newsroom at{" "}
+              <a href="mailto:scdsoctagon1@gmail.com" className="text-foreground font-medium underline underline-offset-2 hover:opacity-80 transition-opacity">
+                scdsoctagon1@gmail.com
+              </a>
                 {" "}or use our contact form.
               </p>
               <Link to="/contact">
