@@ -28,9 +28,6 @@ export function TopStories({ articles, className }: TopStoriesProps) {
                               />
                             </figure>
               <div className="flex-1 min-w-0">
-                {article.isBreaking && (
-                  <span className="badge-breaking text-[10px] mb-1">Live</span>
-                )}
                 <span className="label text-[10px] text-accent">{article.section}</span>
                 <h3 className="font-serif text-sm md:text-base font-semibold leading-snug text-balance group-hover:text-accent transition-colors mt-0.5 mb-1 line-clamp-2">
                   {article.headline}

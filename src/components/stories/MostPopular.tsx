@@ -11,7 +11,7 @@ export function MostPopular({ articles, className }: MostPopularProps) {
   return (
     <aside className={cn("", className)} aria-labelledby="most-popular-heading">
       <h2 id="most-popular-heading" className="font-sans text-sm font-bold uppercase tracking-widest text-foreground mb-6">
-        Most Popular
+        Latest Stories
       </h2>
       <ol className="space-y-0">
         {articles.slice(0, 10).map((article, index) => (
@@ -30,12 +30,6 @@ export function MostPopular({ articles, className }: MostPopularProps) {
                 </h3>
                 <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
                   <span>{formatTimestamp(article.publishedAt)}</span>
-                  {(article.views ?? 0) > 0 && (
-                    <>
-                      <span aria-hidden>·</span>
-                      <span>{article.views!.toLocaleString()} views</span>
-                    </>
-                  )}
                 </div>
               </div>
             </Link>

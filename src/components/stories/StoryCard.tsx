@@ -20,7 +20,7 @@ export function StoryCard({
   showByline = true,
   className,
 }: StoryCardProps) {
-  const { slug, headline, dek, image, images, imageCaption, section, author, publishedAt, readingTime, isBreaking } = article;
+  const { slug, headline, dek, image, images, imageCaption, section, author, publishedAt, readingTime } = article;
 
   if (variant === "lead") {
     return (
@@ -39,7 +39,6 @@ export function StoryCard({
             </figure>
           )}
           <div className="space-y-3">
-            {isBreaking && <span className="badge-breaking">Live</span>}
             <span className="label text-accent">{section}</span>
             <h2 className="headline-xl text-balance group-hover:opacity-80 transition-opacity">
               {headline}
@@ -76,7 +75,6 @@ export function StoryCard({
             </figure>
           )}
           <div className="p-4 md:p-5 space-y-2">
-            {isBreaking && <span className="badge-breaking">Live</span>}
             <span className="label text-accent">{section}</span>
             <h3 className="headline-md text-balance group-hover:text-accent transition-colors">
               {headline}
@@ -111,7 +109,6 @@ export function StoryCard({
             </figure>
           )}
           <div className="flex-1 min-w-0 space-y-1">
-            {isBreaking && <span className="badge-breaking text-[10px]">Live</span>}
             <span className="label text-accent text-[10px]">{section}</span>
             <h4 className="headline-sm text-balance group-hover:text-accent transition-colors line-clamp-3">
               {headline}

@@ -202,9 +202,6 @@ if (channel.item) {
       image, images: articleImages, imageCaption: '',
       section: mapCategoryToSection(itemCategories, slug),
       author, publishedAt, readingTime, tags,
-      isBreaking: false,
-      isFeatured: index < 3,
-      views: Math.floor(Math.random() * 100000) + 1000,
     });
   });
 }

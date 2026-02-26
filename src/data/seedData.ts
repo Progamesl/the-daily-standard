@@ -22,7 +22,7 @@ export interface Article {
   dek: string;
   body: string;
   image: string;
-  images?: string[]; // All images from the article
+  images?: string[];
   imageCaption: string;
   section: string;
   author: Author;
@@ -30,9 +30,6 @@ export interface Article {
   updatedAt?: Date;
   readingTime: number;
   tags: string[];
-  isBreaking?: boolean;
-  isFeatured?: boolean;
-  views?: number;
 }
 
 export interface Section {
@@ -74,16 +71,19 @@ export const getArticlesBySection = (sectionSlug: string): Article[] => {
   return articles.filter((article) => article.section === sectionSlug);
 };
 
+/** Most recent article overall — used as the homepage hero. */
 export const getFeaturedArticle = (): Article | undefined => {
-  return articles.find((article) => article.isFeatured);
+  return [...articles].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())[0];
 };
 
-export const getBreakingNews = (): Article[] => {
-  return articles.filter((article) => article.isBreaking);
-};
+/** No real breaking-news flag exists in the data — always empty. */
+export const getBreakingNews = (): Article[] => [];
 
+/** "Most read" sidebar — sorted by publish date since no real view counts exist. */
 export const getMostPopular = (limit: number = 5): Article[] => {
-  return [...articles].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, limit);
+  return [...articles]
+    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+    .slice(0, limit);
 };
 
 export const getLatestArticles = (limit: number = 10): Article[] => {
@@ -93,8 +93,8 @@ export const getLatestArticles = (limit: number = 10): Article[] => {
 };
 
 export const getTopStories = (limit: number = 4): Article[] => {
-  return articles
-    .filter((article) => !article.isFeatured)
+  return [...articles]
+    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
     .slice(0, limit);
 };
 
@@ -106,14 +106,11 @@ export const getLongReadArticles = (limit: number = 6): Article[] => {
     .slice(0, limit);
 };
 
-/** Editors' picks: featured + high views or recent */
+/** Editors' picks: most recent articles across all sections. */
 export const getEditorsPicks = (limit: number = 5): Article[] => {
-  const featured = getFeaturedArticle();
-  const rest = [...articles]
-    .filter((a) => a.id !== featured?.id)
-    .sort((a, b) => (b.views ?? 0) - (a.views ?? 0) || b.publishedAt.getTime() - a.publishedAt.getTime())
-    .slice(0, limit - (featured ? 1 : 0));
-  return featured ? [featured, ...rest] : rest;
+  return [...articles]
+    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+    .slice(0, limit);
 };
 
 export const getSectionBySlug = (slug: string): Section | undefined => {
