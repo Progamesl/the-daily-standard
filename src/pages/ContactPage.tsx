@@ -12,7 +12,7 @@ import { Mail, MapPin, CheckCircle, Loader2 } from "lucide-react";
 //  2. Create a new form → it gives you a Form ID like "xyzabcde".
 //  3. Replace the placeholder below with that ID.
 // ──────────────────────────────────────────────────────────────────────────
-const FORMSPREE_FORM_ID = "YOUR_FORM_ID_HERE";
+const FORMSPREE_FORM_ID = "mwvnylbg";
 const FORMSPREE_URL = `https://formspree.io/f/${FORMSPREE_FORM_ID}`;
 
 type Status = "idle" | "loading" | "success" | "error";

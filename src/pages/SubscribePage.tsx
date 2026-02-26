@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, Mail, Newspaper, Zap, BookOpen, Bell, ArrowRight, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { subscribeToList } from "@/lib/emailOctopus";
 
 const STORAGE_KEY = "octagon-newsletter-sub";
 
@@ -62,15 +63,16 @@ export default function SubscribePage() {
     }
     setStatus("submitting");
     setErrorMsg("");
-    // Simulate network delay
-    await new Promise((r) => setTimeout(r, 1200));
-    try {
-      localStorage.setItem(STORAGE_KEY, trimmed);
-      localStorage.setItem(STORAGE_KEY + "-prefs", JSON.stringify(prefs));
-      if (firstName.trim()) localStorage.setItem(STORAGE_KEY + "-name", firstName.trim());
+    const result = await subscribeToList(trimmed, firstName.trim() || undefined);
+    if (result.ok || (result as { alreadySubscribed?: boolean }).alreadySubscribed) {
+      try {
+        localStorage.setItem(STORAGE_KEY, trimmed);
+        localStorage.setItem(STORAGE_KEY + "-prefs", JSON.stringify(prefs));
+        if (firstName.trim()) localStorage.setItem(STORAGE_KEY + "-name", firstName.trim());
+      } catch { /* ignore storage errors */ }
       setStatus("success");
-    } catch {
-      setErrorMsg("Something went wrong. Please try again.");
+    } else {
+      setErrorMsg((result as { message: string }).message);
       setStatus("error");
     }
   };

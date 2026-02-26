@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { subscribeToList } from "@/lib/emailOctopus";
 
 const SUB_KEY = "octagon-newsletter-sub";
 
@@ -21,10 +22,15 @@ export function NewsletterStrip({ className }: NewsletterStripProps) {
     const trimmed = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) { setStatus("error"); return; }
     setStatus("submitting");
-    await new Promise((r) => setTimeout(r, 800));
-    localStorage.setItem(SUB_KEY, trimmed);
-    localStorage.setItem(SUB_KEY + "-prefs", JSON.stringify({ breaking: true, daily: true }));
-    setStatus("success");
+    const result = await subscribeToList(trimmed);
+    if (result.ok || (result as { alreadySubscribed?: boolean }).alreadySubscribed) {
+      try {
+        localStorage.setItem(SUB_KEY, trimmed);
+      } catch { /* ignore */ }
+      setStatus("success");
+    } else {
+      setStatus("error");
+    }
   };
 
   return (
