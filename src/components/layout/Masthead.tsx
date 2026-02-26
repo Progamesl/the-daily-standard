@@ -35,11 +35,34 @@ export function Masthead() {
   const { temp, weatherCode, loading, error } = useSacramentoWeather();
 
   useEffect(() => {
+    // Hysteresis thresholds — wide gap prevents rapid back-and-forth flipping
+    // when the user is scrolling right at the boundary.
+    const SCROLL_DOWN_THRESHOLD = 120;  // condense when scrolling past this
+    const SCROLL_UP_THRESHOLD   =  60;  // expand  when scrolling back above this
+
+    let rafId: number | null = null;
+    let lastScrolled = false;
+
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 100);
+      if (rafId !== null) return; // already queued, skip
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const y = window.scrollY;
+        const next = lastScrolled
+          ? y > SCROLL_UP_THRESHOLD    // already condensed → stay condensed until below 60
+          : y > SCROLL_DOWN_THRESHOLD; // not condensed   → condense once past 120
+        if (next !== lastScrolled) {
+          lastScrolled = next;
+          setIsScrolled(next);
+        }
+      });
     };
+
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   useEffect(() => {
@@ -60,7 +83,7 @@ export function Masthead() {
     <>
       <header
         className={cn(
-          "masthead-sticky border-b border-border bg-background transition-all duration-300",
+          "masthead-sticky border-b border-border bg-background",
           isScrolled && "masthead-condensed"
         )}
       >
@@ -117,13 +140,13 @@ export function Masthead() {
                 width={80}
                 height={80}
                 className={cn(
-                  "object-contain transition-[height] duration-500 ease-in-out",
+                  "object-contain transition-[height] duration-400 ease-in-out",
                   isScrolled ? "h-6 sm:h-7" : "h-10 sm:h-14 md:h-[4.5rem]"
                 )}
               />
               <h1
                 className={cn(
-                  "font-serif font-bold tracking-tight transition-[font-size,margin] duration-500 ease-in-out",
+                  "font-serif font-bold tracking-tight transition-[font-size,margin] duration-400 ease-in-out",
                   isScrolled ? "text-lg sm:text-xl md:text-2xl mt-0.5" : "text-2xl sm:text-3xl md:text-5xl mt-1"
                 )}
               >
