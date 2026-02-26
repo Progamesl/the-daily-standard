@@ -9,16 +9,11 @@ import { SearchDialog } from "@/components/search/SearchDialog";
 import { UserMenu } from "@/components/user/UserMenu";
 
 const sections = [
-  { name: "World", slug: "world" },
-  { name: "U.S.", slug: "us" },
-  { name: "Politics", slug: "politics" },
-  { name: "Business", slug: "business" },
-  { name: "Technology", slug: "technology" },
-  { name: "Science", slug: "science" },
-  { name: "Health", slug: "health" },
-  { name: "Sports", slug: "sports" },
-  { name: "Arts", slug: "arts" },
+  { name: "News", slug: "us" },
+  { name: "Arts & Entertainment", slug: "arts" },
   { name: "Opinion", slug: "opinion" },
+  { name: "Editorial", slug: "editorial" },
+  { name: "Sports", slug: "sports" },
 ];
 
 function WeatherIcon({ code }: { code: number }) {

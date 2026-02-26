@@ -48,18 +48,24 @@ if (channel['wp:author']) {
 
 const categoryToSection = {
   'news': 'us', 'arts-entertainment': 'arts', 'arts': 'arts', 'sports': 'sports',
-  'opinion': 'opinion', 'features': 'us', 'books': 'arts', 'movies-tv': 'arts',
-  'music': 'arts', 'media': 'arts', 'games-apps': 'technology', 'food-service': 'us',
-  'science': 'science', 'health': 'health', 'covid-19': 'health',
+  'opinion': 'opinion', 'editorial': 'editorial', 'features': 'us', 'books': 'arts',
+  'movies-tv': 'arts', 'music': 'arts', 'media': 'arts', 'games-apps': 'us',
+  'food-service': 'us', 'science': 'us', 'health': 'us', 'covid-19': 'us',
 };
 
-function mapCategoryToSection(categories) {
-  if (!categories || categories.length === 0) return 'us';
+function mapCategoryToSection(categories, slug) {
+  if (!categories || categories.length === 0) {
+    // Fallback: detect editorial by slug
+    if (slug && typeof slug === 'string' && slug.startsWith('editorial-')) return 'editorial';
+    return 'us';
+  }
   const cats = Array.isArray(categories) ? categories : [categories];
   for (const cat of cats) {
-    const catSlug = typeof cat === 'string' ? cat : cat['@_nicename'] || cat['#text'];
+    const catSlug = typeof cat === 'string' ? cat.toLowerCase() : (cat['@_nicename'] || cat['#text'] || '').toLowerCase();
     if (categoryToSection[catSlug]) return categoryToSection[catSlug];
   }
+  // Slug-based fallback even when categories exist
+  if (slug && typeof slug === 'string' && slug.startsWith('editorial-')) return 'editorial';
   return 'us';
 }
 
@@ -194,7 +200,7 @@ if (channel.item) {
       id: item['wp:post_id']?.['#text'] || item['wp:post_id'] || `article-${index + 1}`,
       slug, headline: title, dek: cleanExcerpt, body: content,
       image, images: articleImages, imageCaption: '',
-      section: mapCategoryToSection(itemCategories),
+      section: mapCategoryToSection(itemCategories, slug),
       author, publishedAt, readingTime, tags,
       isBreaking: false,
       isFeatured: index < 3,
@@ -207,16 +213,11 @@ articles.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 
 const output = {
   sections: [
-    { id: "world", name: "World", slug: "world", description: "International news and global affairs" },
-    { id: "us", name: "U.S.", slug: "us", description: "National and school news" },
-    { id: "politics", name: "Politics", slug: "politics", description: "Political news and analysis" },
-    { id: "business", name: "Business", slug: "business", description: "Markets, economy, and corporate news" },
-    { id: "technology", name: "Technology", slug: "technology", description: "Tech industry and innovation" },
-    { id: "science", name: "Science", slug: "science", description: "Scientific discoveries and research" },
-    { id: "health", name: "Health", slug: "health", description: "Medical news and wellness" },
+    { id: "us", name: "News", slug: "us", description: "School, national, and community news" },
+    { id: "arts", name: "Arts & Entertainment", slug: "arts", description: "Culture, film, music, and the arts" },
+    { id: "opinion", name: "Opinion", slug: "opinion", description: "Columns, op-eds, and commentary" },
+    { id: "editorial", name: "Editorial", slug: "editorial", description: "Official editorials from the Octagon staff" },
     { id: "sports", name: "Sports", slug: "sports", description: "Sports news and analysis" },
-    { id: "arts", name: "Arts", slug: "arts", description: "Culture, entertainment, and the arts" },
-    { id: "opinion", name: "Opinion", slug: "opinion", description: "Editorials and op-eds" },
   ],
   authors: Object.values(authorsMap),
   articles,

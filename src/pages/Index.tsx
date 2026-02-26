@@ -62,14 +62,12 @@ const Index = () => {
   const mixPool = withImages(latestTwelve);
   const mixStories = take(mixPool, 6);
 
-  // Section pools — all pre-filtered for images
-  const usArticles = take(withImages(getArticlesBySection("us")), 5);
-  const techArticles = take(withImages(getArticlesBySection("technology")), 6);
-  const businessArticles = take(withImages(getArticlesBySection("business")), 4);
-  const longReads = take(withImages(getLongReadArticles(12)), 6);
+  // Section pools — all pre-filtered for images, matching the 5 real Octagon sections
+  const newsArticles = take(withImages(getArticlesBySection("us")), 5);
   const artsArticles = take(withImages(getArticlesBySection("arts")), 4);
   const sportsArticles = take(withImages(getArticlesBySection("sports")), 4);
   const opinionArticles = take(withImages(getArticlesBySection("opinion")), 6);
+  const editorialArticles = take(withImages(getArticlesBySection("editorial")), 3);
 
   return (
     <Layout>
@@ -253,21 +251,21 @@ const Index = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
               <div className="lg:col-span-8 space-y-10 sm:space-y-16">
                 {/* News */}
-                {usArticles.length > 0 && (
+                {newsArticles.length > 0 && (
                   <div className="section-divider">
                     <div className="flex items-center justify-between mb-6">
                       <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">News</h2>
                       <Link to="/section/us" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
-                      {usArticles.map((article, idx) => (
+                      {newsArticles.map((article, idx) => (
                         <div key={article.id} className={idx === 0 ? "md:col-span-2" : ""}>
                           <Link to={`/article/${article.slug}`} className="group block">
                             <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow">
                               <figure className={`${idx === 0 ? 'aspect-[2.35/1]' : 'aspect-[3/2]'} overflow-hidden bg-muted relative`}>
                                 <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading={idx === 0 ? "eager" : "lazy"} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                                 <div className="absolute top-3 left-3">
-                                  <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
+                                  <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">News</span>
                                 </div>
                               </figure>
                               <div className="p-4 md:p-5 flex-1 flex flex-col">
@@ -286,96 +284,48 @@ const Index = () => {
                   </div>
                 )}
 
-                {/* Technology */}
-                {techArticles.length > 0 && (
+                {/* Arts & Entertainment */}
+                {artsArticles.length > 0 && (
                   <div className="section-divider">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Technology</h2>
-                      <Link to="/section/technology" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
+                    <div className="flex items-center justify-between mb-5">
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Arts &amp; Entertainment</h2>
+                      <Link to="/section/arts" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-                      {techArticles.map((article) => (
-                        <Link key={article.id} to={`/article/${article.slug}`} className="group block">
-                          <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow">
-                            <figure className="aspect-[3/2] overflow-hidden bg-muted relative">
-                              <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                              <div className="absolute top-3 left-3">
-                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
-                              </div>
-                            </figure>
-                            <div className="p-4 md:p-5 flex-1 flex flex-col">
-                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
-                              <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2">
-                                <span className="font-medium">{article.author.name}</span>
-                                <span>{formatTimestamp(article.publishedAt)}</span>
-                              </div>
-                            </div>
-                          </article>
+                    <div className="space-y-5">
+                      {artsArticles.map((article) => (
+                        <Link key={article.id} to={`/article/${article.slug}`} className="group flex gap-4">
+                          <figure className="flex-shrink-0 w-36 h-28 rounded-xl overflow-hidden bg-muted shadow-md">
+                            <img src={imgSrc(article)} alt={article.headline} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                          </figure>
+                          <div className="flex-1 min-w-0">
+                            <span className="label text-[10px] text-accent uppercase tracking-widest font-bold">Arts &amp; Entertainment</span>
+                            <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
+                            <span className="timestamp text-xs mt-2 block">{formatTimestamp(article.publishedAt)}</span>
+                          </div>
                         </Link>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Business */}
-                {businessArticles.length > 0 && (
+                {/* Sports */}
+                {sportsArticles.length > 0 && (
                   <div className="section-divider">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Business</h2>
-                      <Link to="/section/business" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
+                    <div className="flex items-center justify-between mb-5">
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Sports</h2>
+                      <Link to="/section/sports" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
-                      {businessArticles.map((article) => (
-                        <Link key={article.id} to={`/article/${article.slug}`} className="group block">
-                          <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow">
-                            <figure className="aspect-[3/2] overflow-hidden bg-muted relative">
-                              <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                              <div className="absolute top-3 left-3">
-                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
-                              </div>
-                            </figure>
-                            <div className="p-4 md:p-5 flex-1 flex flex-col">
-                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">{article.dek}</p>
-                              <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2.5 border-t border-border/50">
-                                <span className="font-medium">{article.author.name}</span>
-                                <span>{formatTimestamp(article.publishedAt)}</span>
-                              </div>
-                            </div>
-                          </article>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* In-Depth / Long Reads */}
-                {longReads.length > 0 && (
-                  <div className="section-divider">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">In-Depth</h2>
-                      <span className="text-xs text-muted-foreground">Long reads</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-                      {longReads.map((article) => (
-                        <Link key={article.id} to={`/article/${article.slug}`} className="group block">
-                          <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow border border-border/50">
-                            <figure className="aspect-[3/2] overflow-hidden bg-muted relative">
-                              <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                              <div className="absolute bottom-2 left-2 right-2 flex justify-between items-end">
-                                <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
-                                <span className="text-[10px] font-medium text-white/90 bg-black/50 px-2 py-1 rounded">{article.readingTime} min read</span>
-                              </div>
-                            </figure>
-                            <div className="p-4 md:p-5 flex-1 flex flex-col">
-                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">{article.dek}</p>
-                              <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2 border-t border-border/50">
-                                <span className="font-medium">{article.author.name}</span>
-                                <span>{formatTimestamp(article.publishedAt)}</span>
-                              </div>
-                            </div>
-                          </article>
+                    <div className="space-y-4">
+                      {sportsArticles.map((article) => (
+                        <Link key={article.id} to={`/article/${article.slug}`} className="group flex gap-3">
+                          <figure className="flex-shrink-0 w-28 rounded-lg overflow-hidden bg-muted shadow-sm aspect-[4/3]">
+                            <img src={imgSrc(article)} alt={article.headline} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                          </figure>
+                          <div className="flex-1 min-w-0">
+                            <span className="label text-[10px] text-accent uppercase tracking-widest font-bold">Sports</span>
+                            <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
+                            <span className="timestamp text-xs mt-2 block">{formatTimestamp(article.publishedAt)}</span>
+                          </div>
                         </Link>
                       ))}
                     </div>
@@ -385,54 +335,6 @@ const Index = () => {
                 {/* Newsletter */}
                 <div className="py-10 lg:py-12">
                   <NewsletterStrip />
-                </div>
-
-                {/* Arts & Sports */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-12 section-divider">
-                  {artsArticles.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-5">
-                        <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Arts</h2>
-                        <Link to="/section/arts" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
-                      </div>
-                      <div className="space-y-5">
-                        {artsArticles.map((article) => (
-                          <Link key={article.id} to={`/article/${article.slug}`} className="group flex gap-4">
-                            <figure className="flex-shrink-0 w-36 h-28 rounded-xl overflow-hidden bg-muted shadow-md">
-                              <img src={imgSrc(article)} alt={article.headline} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                            </figure>
-                            <div className="flex-1 min-w-0">
-                              <span className="label text-[10px] text-accent">{article.section}</span>
-                              <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
-                              <span className="timestamp text-xs mt-2 block">{formatTimestamp(article.publishedAt)}</span>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {sportsArticles.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-5">
-                        <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Sports</h2>
-                        <Link to="/section/sports" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
-                      </div>
-                      <div className="space-y-4">
-                        {sportsArticles.map((article) => (
-                          <Link key={article.id} to={`/article/${article.slug}`} className="group flex gap-3">
-                            <figure className="flex-shrink-0 w-28 rounded-lg overflow-hidden bg-muted shadow-sm aspect-[4/3]">
-                              <img src={imgSrc(article)} alt={article.headline} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                            </figure>
-                            <div className="flex-1 min-w-0">
-                              <span className="label text-[10px] text-accent">{article.section}</span>
-                              <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
-                              <span className="timestamp text-xs mt-2 block">{formatTimestamp(article.publishedAt)}</span>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Opinion */}
@@ -449,7 +351,38 @@ const Index = () => {
                             <figure className="aspect-[3/2] overflow-hidden bg-muted relative">
                               <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                               <div className="absolute top-3 left-3">
-                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">{article.section}</span>
+                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">Opinion</span>
+                              </div>
+                            </figure>
+                            <div className="p-4 md:p-5 flex-1 flex flex-col">
+                              <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
+                              <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2">
+                                <span className="font-medium">{article.author.name}</span>
+                                <span>{formatTimestamp(article.publishedAt)}</span>
+                              </div>
+                            </div>
+                          </article>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Editorial */}
+                {editorialArticles.length > 0 && (
+                  <div className="section-divider">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Editorial</h2>
+                      <Link to="/section/editorial" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6">
+                      {editorialArticles.map((article) => (
+                        <Link key={article.id} to={`/article/${article.slug}`} className="group block">
+                          <article className="card-editorial rounded-xl overflow-hidden bg-card h-full flex flex-col shadow-md hover:shadow-lg transition-flow border border-border/50">
+                            <figure className="aspect-[3/2] overflow-hidden bg-muted relative">
+                              <img src={imgSrc(article)} alt={article.headline} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                              <div className="absolute top-3 left-3">
+                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-1 bg-background/90 backdrop-blur-sm rounded text-accent">Editorial</span>
                               </div>
                             </figure>
                             <div className="p-4 md:p-5 flex-1 flex flex-col">

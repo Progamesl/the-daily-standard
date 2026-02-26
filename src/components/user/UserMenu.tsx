@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   User, Bookmark, History, Settings, Moon, Sun, Mail,
@@ -119,7 +120,7 @@ export function UserMenu({ open, onClose }: UserMenuProps) {
 
   const allSections = ["world", "us", "politics", "business", "technology", "science", "health", "sports", "arts", "opinion"];
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -389,7 +390,8 @@ export function UserMenu({ open, onClose }: UserMenuProps) {
           </Button>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
