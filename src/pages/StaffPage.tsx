@@ -123,41 +123,47 @@ function StaffCard({ member, onSelect }: { member: Member; onSelect: (m: Member)
   return (
     <button
       onClick={() => onSelect(member)}
-      className="group w-full text-left bg-white rounded-2xl overflow-hidden border border-stone-200 hover:border-stone-300 hover:shadow-[0_8px_32px_rgba(0,0,0,0.10)] hover:-translate-y-1 transition-all duration-200 ease-out cursor-pointer"
+      className="group p-0 w-full text-left bg-white rounded-2xl overflow-hidden border border-stone-200 hover:border-stone-300 hover:shadow-[0_8px_36px_rgba(0,0,0,0.11)] hover:-translate-y-1 transition-all duration-200 ease-out cursor-pointer flex flex-col"
     >
       {/* Photo */}
-      <div className="relative aspect-square overflow-hidden bg-stone-100">
+      <div className="relative aspect-square overflow-hidden bg-stone-100 shrink-0">
         {hasPhoto ? (
           <img
             src={member.photo!}
             alt={member.name}
-            className="w-full h-full object-cover object-top group-hover:scale-[1.04] transition-transform duration-500 ease-out"
+            className="w-full h-full object-cover object-center group-hover:scale-[1.04] transition-transform duration-500 ease-out"
             referrerPolicy="no-referrer"
             onError={() => setErr(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-4xl font-bold text-stone-300 select-none font-serif">
+            <span className="text-5xl font-bold text-stone-300 select-none font-serif">
               {initials(member.name)}
             </span>
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/40 to-transparent" />
+        {/* Only show gradient over real photos */}
+        {hasPhoto && (
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/50 to-transparent" />
+        )}
         <div className="absolute bottom-3 left-3">
-          <span className="inline-block bg-stone-900 text-white text-[9px] font-black uppercase tracking-[0.18em] px-3 py-[5px] rounded-full leading-none">
+          <span className="inline-block bg-stone-900 text-white text-[9px] font-black uppercase tracking-[0.18em] px-3 py-[5px] rounded-full leading-none shadow-sm">
             {member.role}
           </span>
         </div>
       </div>
 
-      {/* Info */}
-      <div className="px-4 pt-3.5 pb-4">
-        <h3 className="font-serif text-[1.05rem] font-bold text-stone-900 leading-snug">
+      {/* Info — flex-1 so cards in same row share height */}
+      <div className="px-5 pt-4 pb-5 flex flex-col flex-1">
+        <h3 className="font-serif text-[1.05rem] font-bold text-stone-900 leading-snug mb-2">
           {member.name}
         </h3>
-        <p className="text-[12px] text-stone-400 mt-1.5 leading-relaxed line-clamp-3">
-          {member.bio ?? "Bio coming soon."}
-        </p>
+        {/* Fixed-height bio area so all cards align regardless of bio length */}
+        <div className="flex-1 overflow-hidden">
+          <p className="text-[12px] text-stone-400 leading-[1.65] line-clamp-3">
+            {member.bio ?? "Bio coming soon."}
+          </p>
+        </div>
       </div>
     </button>
   );
@@ -169,7 +175,7 @@ function ProfileModal({ member, onClose }: { member: Member; onClose: () => void
   const memberArticles = articlesByName(member.name);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-6" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[3px]" />
       <div
         className="relative z-10 bg-white w-full max-w-[540px] max-h-[92dvh] rounded-t-[28px] sm:rounded-[28px] shadow-2xl flex flex-col overflow-hidden"
@@ -318,7 +324,7 @@ export default function StaffPage() {
               <p className="text-stone-400 text-sm">No staff members found.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 md:gap-6 lg:gap-7">
               {visible.map((m) => (
                 <StaffCard key={m.name + m.primarySection} member={m} onSelect={setSelected} />
               ))}
