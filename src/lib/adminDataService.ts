@@ -146,6 +146,7 @@ const TRASH_KEY           = 'octagon_admin_trash_v2';  // Full article snapshots
 const AUTHORS_KEY         = 'octagon_admin_authors';
 const DELETED_AUTHORS_KEY = 'octagon_admin_deleted_authors';
 const SETTINGS_KEY        = 'octagon_admin_settings';
+const BACKUP_KEY          = 'octagon_admin_backups';  // Automatic backups
 
 // ─── Storage Helpers with Caching ──────────────────────────────────────────────
 const storageCache = new Map<string, { data: unknown; timestamp: number }>();
@@ -182,12 +183,98 @@ function setStorage<T>(key: string, value: T): void {
     localStorage.setItem(key, json);
     // Invalidate cache on write
     storageCache.delete(key);
+    
+    // Auto-backup on article/author changes
+    if (key === ARTICLES_KEY || key === AUTHORS_KEY) {
+      createAutoBackup();
+    }
   } catch (err) {
     if (err instanceof DOMException && err.code === 22) {
       // QuotaExceededError
       throw new Error(`Storage quota exceeded. The data is too large (likely due to large base64 images). Please use image URLs instead of uploading files directly.`);
     }
     throw err;
+  }
+}
+
+// ─── Automatic Backup System ──────────────────────────────────────────────────
+interface Backup {
+  id: string;
+  timestamp: string;
+  articles: Record<string, AdminArticle>;
+  authors: Record<string, AdminAuthor>;
+  deletedArticleIds: string[];
+  deletedAuthorIds: string[];
+}
+
+function createAutoBackup(): void {
+  try {
+    const backups: Backup[] = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
+    const now = new Date();
+    
+    // Only backup if last backup was more than 1 hour ago (to avoid too many backups)
+    const lastBackup = backups[0];
+    if (lastBackup) {
+      const lastBackupTime = new Date(lastBackup.timestamp).getTime();
+      if (now.getTime() - lastBackupTime < 60 * 60 * 1000) {
+        return; // Too soon, skip backup
+      }
+    }
+    
+    const backup: Backup = {
+      id: `backup_${Date.now()}`,
+      timestamp: now.toISOString(),
+      articles: getAdminArticlesMap(),
+      authors: getAdminAuthorsMap(),
+      deletedArticleIds: getDeletedArticleIds(),
+      deletedAuthorIds: getDeletedAuthorIds(),
+    };
+    
+    backups.unshift(backup);
+    // Keep last 10 backups (about 10 hours of hourly backups)
+    const trimmed = backups.slice(0, 10);
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(trimmed));
+  } catch {
+    // Non-fatal - backup failure shouldn't break the app
+  }
+}
+
+export function getAutoBackups(): Backup[] {
+  try {
+    return JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export function restoreFromBackup(backupId: string): boolean {
+  try {
+    const backups: Backup[] = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
+    const backup = backups.find(b => b.id === backupId);
+    if (!backup) return false;
+    
+    setStorage(ARTICLES_KEY, backup.articles);
+    setStorage(AUTHORS_KEY, backup.authors);
+    setStorage(DELETED_KEY, backup.deletedArticleIds);
+    setStorage(DELETED_AUTHORS_KEY, backup.deletedAuthorIds);
+    
+    // Don't create a backup of a backup restore
+    storageCache.delete(ARTICLES_KEY);
+    storageCache.delete(AUTHORS_KEY);
+    
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function deleteBackup(backupId: string): void {
+  try {
+    const backups: Backup[] = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
+    const filtered = backups.filter(b => b.id !== backupId);
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(filtered));
+  } catch {
+    // Non-fatal
   }
 }
 

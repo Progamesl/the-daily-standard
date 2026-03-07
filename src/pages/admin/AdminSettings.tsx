@@ -10,12 +10,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   Save, Download, Upload, Trash2, AlertTriangle,
-  Globe, Mail, Share2, Database, Users,
+  Globe, Mail, Share2, Database, Users, Clock, RotateCcw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getSiteSettings, saveSiteSettings, exportAdminData,
   importAdminDataFromJson, clearAdminData, mergeDuplicateAuthors,
+  getAutoBackups, restoreFromBackup, deleteBackup,
   type SiteSettings,
 } from '@/lib/adminDataService';
 
@@ -213,6 +214,28 @@ export default function AdminSettings() {
           </div>
         </section>
 
+        {/* ── IMPORTANT: localStorage Warning ─────────────────────────────── */}
+        <section className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-red-900 mb-1">⚠️ CRITICAL: Data Storage Warning</h3>
+              <p className="text-xs text-red-700 leading-relaxed mb-3">
+                Your stories are stored in your browser's localStorage. This means:
+              </p>
+              <ul className="text-xs text-red-700 space-y-1 mb-3 list-disc list-inside">
+                <li>Data is <strong>only saved in THIS browser</strong> on THIS device</li>
+                <li>If you use a different browser or device, your stories won't be there</li>
+                <li>If you clear browser data, all stories will be deleted</li>
+                <li>Rebuilds don't affect localStorage, but switching browsers/devices will lose data</li>
+              </ul>
+              <p className="text-xs font-semibold text-red-900">
+                🔒 SOLUTION: Export your data regularly! Use the Export button below after every session.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* ── Data Management ──────────────────────────────────────────────── */}
         <section className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="flex items-center gap-2 mb-5">
@@ -222,17 +245,78 @@ export default function AdminSettings() {
 
           <div className="space-y-4">
             {/* Export */}
-            <div className="flex items-start justify-between p-4 bg-slate-50 rounded-xl">
+            <div className="flex items-start justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
               <div>
-                <p className="text-sm font-medium text-slate-700">Export All Data</p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Download a JSON backup of all articles and authors. Keep this safe.
+                <p className="text-sm font-bold text-blue-900">📥 Export All Data (REQUIRED)</p>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  Download a JSON backup of all articles and authors. <strong>Do this after every editing session!</strong>
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 shrink-0 ml-4">
-                <Download className="h-4 w-4" />Export
+              <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 shrink-0 ml-4 border-blue-300 text-blue-700 hover:bg-blue-100">
+                <Download className="h-4 w-4" />Export Now
               </Button>
             </div>
+            
+            {/* Automatic Backups */}
+            <div className="flex items-start justify-between p-4 bg-slate-50 rounded-xl">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Automatic Backups</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {backups.length > 0 
+                    ? `${backups.length} automatic backup${backups.length === 1 ? '' : 's'} available (created hourly)`
+                    : 'No backups yet. Backups are created automatically when you save articles.'}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowBackups(!showBackups)} className="gap-1.5 shrink-0 ml-4">
+                <Clock className="h-4 w-4" />{showBackups ? 'Hide' : 'View'} Backups
+              </Button>
+            </div>
+            {showBackups && backups.length > 0 && (
+              <div className="border border-slate-200 rounded-xl p-4 space-y-2 max-h-64 overflow-y-auto">
+                {backups.map(backup => (
+                  <div key={backup.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-slate-700">
+                        {new Date(backup.timestamp).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {Object.keys(backup.articles).length} articles, {Object.keys(backup.authors).length} authors
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (restoreFromBackup(backup.id)) {
+                            toast.success('Backup restored! Page will refresh.');
+                            setTimeout(() => window.location.reload(), 1000);
+                          } else {
+                            toast.error('Failed to restore backup');
+                          }
+                        }}
+                        className="gap-1.5 text-xs"
+                      >
+                        <RotateCcw className="h-3 w-3" />Restore
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          deleteBackup(backup.id);
+                          toast.success('Backup deleted');
+                          setShowBackups(false);
+                          setTimeout(() => setShowBackups(true), 100);
+                        }}
+                        className="text-xs text-red-600 hover:text-red-700"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Import */}
             <div className="flex items-start justify-between p-4 bg-slate-50 rounded-xl">
