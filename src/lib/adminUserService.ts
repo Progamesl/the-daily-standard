@@ -306,18 +306,50 @@ export function createUser(data: {
   avatar?: string;
   phone?: string;
   graduationYear?: string;
+  approvedBy?: string;  // Super admin who created this account
 }): AdminUser {
   const { password, ...rest } = data;
+  
+  // Validate password strength
+  const passwordValidation = validatePasswordStrength(password);
+  if (!passwordValidation.valid) {
+    throw new Error(`Password validation failed: ${passwordValidation.errors.join(', ')}`);
+  }
+  
+  const now = new Date();
+  const passwordExpiresAt = new Date(now.getTime() + PASSWORD_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+  
   const user: AdminUser = {
     ...rest,
     id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     passwordHash: simpleHash(password),
-    createdAt: new Date().toISOString(),
+    createdAt: now.toISOString(),
     active: true,
+    emailVerified: false,  // Requires email verification
+    twoFactorEnabled: false,  // Can be enabled later
+    approvedBy: data.approvedBy || undefined,
+    approvedAt: data.approvedBy ? now.toISOString() : undefined,
+    passwordChangedAt: now.toISOString(),
+    passwordExpiresAt: passwordExpiresAt.toISOString(),
+    requiresPasswordChange: false,
   };
+  
   const users = loadUsers();
   users.push(user);
   saveUsers(users);
+  
+  // Send email verification code
+  const verificationCode = generateVerificationCode();
+  sendEmailVerificationCode(user.email, verificationCode, 'email_verification');
+  saveVerificationCode({
+    code: verificationCode,
+    type: 'email_verification',
+    userId: user.id,
+    expiresAt: new Date(Date.now() + VERIFICATION_CODE_EXPIRY).toISOString(),
+    attempts: 0,
+    used: false,
+  });
+  
   logActivity('user_created', `New staff member "${user.displayName}" added as ${ROLE_LABELS[user.role]}`);
   return user;
 }
