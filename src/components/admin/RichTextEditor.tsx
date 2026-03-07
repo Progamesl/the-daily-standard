@@ -58,6 +58,124 @@ export function RichTextEditor({
     }
   }, [onChange]);
 
+  // Clean pasted HTML - strip inline styles, normalize to semantic tags
+  const cleanPastedHtml = useCallback((html: string): string => {
+    // Create a temporary div to parse the HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+
+    // Remove all inline styles and non-semantic attributes
+    const allElements = temp.querySelectorAll('*');
+    allElements.forEach((el) => {
+      // Remove style attribute (this removes ALL inline CSS)
+      el.removeAttribute('style');
+      // Remove deprecated font attributes
+      el.removeAttribute('face');
+      el.removeAttribute('size');
+      el.removeAttribute('color');
+      
+      // Remove Google Docs specific classes/attributes
+      el.removeAttribute('class');
+      el.removeAttribute('id');
+      el.removeAttribute('dir');
+      el.removeAttribute('lang');
+      
+      // Remove all data-* attributes (Google Docs uses these heavily)
+      Array.from(el.attributes).forEach(attr => {
+        if (attr.name.startsWith('data-')) {
+          el.removeAttribute(attr.name);
+        }
+      });
+      
+      // Keep only semantic attributes for links and images
+      if (el.tagName === 'A') {
+        const href = el.getAttribute('href');
+        el.removeAttribute('href');
+        if (href) el.setAttribute('href', href);
+      }
+      if (el.tagName === 'IMG') {
+        const src = el.getAttribute('src');
+        const alt = el.getAttribute('alt');
+        el.removeAttribute('src');
+        el.removeAttribute('alt');
+        if (src) el.setAttribute('src', src);
+        if (alt) el.setAttribute('alt', alt);
+      }
+    });
+
+    // Convert Google Docs specific tags to standard HTML
+    // Replace <span> with no attributes with plain text
+    const spans = temp.querySelectorAll('span');
+    spans.forEach((span) => {
+      if (!span.hasAttributes() || (span.attributes.length === 0)) {
+        const parent = span.parentNode;
+        if (parent) {
+          while (span.firstChild) {
+            parent.insertBefore(span.firstChild, span);
+          }
+          parent.removeChild(span);
+        }
+      }
+    });
+
+    // Normalize line breaks and paragraphs
+    let cleaned = temp.innerHTML
+      .replace(/<div><br><\/div>/gi, '<p><br></p>')
+      .replace(/<div>/gi, '<p>')
+      .replace(/<\/div>/gi, '</p>')
+      .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '</p><p>')
+      .replace(/(<p><\/p>)+/gi, '<p><br></p>')
+      .trim();
+
+    // Ensure proper paragraph structure
+    if (!cleaned.startsWith('<p>') && !cleaned.startsWith('<h')) {
+      cleaned = `<p>${cleaned}</p>`;
+    }
+
+    return cleaned;
+  }, []);
+
+  // Handle paste events - clean the pasted content
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text/html') || e.clipboardData.getData('text/plain');
+    
+    if (!editorRef.current) return;
+
+    // Get current selection
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+
+    // If HTML was pasted, clean it
+    if (e.clipboardData.getData('text/html')) {
+      const cleaned = cleanPastedHtml(pastedData);
+      const temp = document.createElement('div');
+      temp.innerHTML = cleaned;
+      
+      // Insert cleaned nodes
+      const fragment = document.createDocumentFragment();
+      while (temp.firstChild) {
+        fragment.appendChild(temp.firstChild);
+      }
+      range.insertNode(fragment);
+    } else {
+      // Plain text - insert as text node
+      const textNode = document.createTextNode(pastedData);
+      range.insertNode(textNode);
+    }
+
+    // Move cursor to end of inserted content
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    // Trigger input event to update state
+    handleInput();
+  }, [cleanPastedHtml, handleInput]);
+
   // execCommand wrapper
   const exec = useCallback(
     (command: string, val?: string) => {
@@ -276,12 +394,18 @@ export function RichTextEditor({
             contentEditable
             className="min-h-[400px] max-h-[600px] overflow-y-auto p-4 prose prose-sm max-w-none focus:outline-none
                        prose-headings:font-serif prose-headings:text-slate-900
-                       prose-p:text-slate-700 prose-p:leading-relaxed
+                       prose-p:text-slate-700 prose-p:leading-relaxed prose-p:text-base
                        prose-blockquote:border-l-slate-300 prose-blockquote:text-slate-600
                        prose-a:text-blue-600 prose-a:underline
-                       prose-img:rounded-lg prose-img:my-4"
+                       prose-img:rounded-lg prose-img:my-4
+                       [&_*]:!text-base [&_*]:!font-sans [&_*]:!leading-relaxed
+                       [&_p]:!text-slate-700 [&_p]:!mb-4 [&_p]:!text-base
+                       [&_strong]:!font-bold [&_em]:!italic
+                       [&_h2]:!font-serif [&_h2]:!text-2xl [&_h2]:!mt-6 [&_h2]:!mb-3
+                       [&_h3]:!font-serif [&_h3]:!text-xl [&_h3]:!mt-4 [&_h3]:!mb-2"
             onInput={handleInput}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             suppressContentEditableWarning
           />
         </div>
