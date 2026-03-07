@@ -587,6 +587,9 @@ export function verifyCode(userId: string, code: string, type: 'email_verificati
   success: boolean;
   error: string | null;
   user?: AdminUser;
+  requires2FA?: boolean;
+  requiresEmailVerification?: boolean;
+  requiresDeviceVerification?: boolean;
 } {
   const storedCode = getVerificationCode(userId, type);
   
@@ -614,13 +617,26 @@ export function verifyCode(userId: string, code: string, type: 'email_verificati
   if (type === 'email_verification') {
     updateUser(userId, { emailVerified: true });
     const updatedUser = getUser(userId);
-    return { success: true, error: null, user: updatedUser };
+    return { 
+      success: true, 
+      error: null, 
+      user: updatedUser,
+      requires2FA: false,
+      requiresEmailVerification: false,
+      requiresDeviceVerification: false,
+    };
   }
   
   if (type === 'device_verification') {
     const pendingLogin = JSON.parse(localStorage.getItem('pending_login') || '{}');
     if (pendingLogin.userId !== userId) {
-      return { success: false, error: 'Invalid verification session.' };
+      return { 
+        success: false, 
+        error: 'Invalid verification session.',
+        requires2FA: false,
+        requiresEmailVerification: false,
+        requiresDeviceVerification: false,
+      };
     }
     
     // Add device to trusted devices
@@ -636,20 +652,48 @@ export function verifyCode(userId: string, code: string, type: 'email_verificati
     updateUser(userId, { trustedDevices });
     
     // Complete login
-    return completeLogin(userId, pendingLogin.deviceFingerprint, pendingLogin.ip, pendingLogin.userAgent);
+    const loginResult = completeLogin(userId, pendingLogin.deviceFingerprint, pendingLogin.ip, pendingLogin.userAgent);
+    return {
+      success: loginResult.success,
+      error: loginResult.error,
+      user: loginResult.user,
+      requires2FA: loginResult.requires2FA,
+      requiresEmailVerification: loginResult.requiresEmailVerification,
+      requiresDeviceVerification: loginResult.requiresDeviceVerification,
+    };
   }
   
   if (type === '2fa') {
     const pendingLogin = JSON.parse(localStorage.getItem('pending_login') || '{}');
     if (pendingLogin.userId !== userId) {
-      return { success: false, error: 'Invalid verification session.' };
+      return { 
+        success: false, 
+        error: 'Invalid verification session.',
+        requires2FA: false,
+        requiresEmailVerification: false,
+        requiresDeviceVerification: false,
+      };
     }
     
     // Complete login
-    return completeLogin(userId, pendingLogin.deviceFingerprint, pendingLogin.ip, pendingLogin.userAgent);
+    const loginResult = completeLogin(userId, pendingLogin.deviceFingerprint, pendingLogin.ip, pendingLogin.userAgent);
+    return {
+      success: loginResult.success,
+      error: loginResult.error,
+      user: loginResult.user,
+      requires2FA: loginResult.requires2FA,
+      requiresEmailVerification: loginResult.requiresEmailVerification,
+      requiresDeviceVerification: loginResult.requiresDeviceVerification,
+    };
   }
   
-  return { success: false, error: 'Unknown verification type.' };
+  return { 
+    success: false, 
+    error: 'Unknown verification type.',
+    requires2FA: false,
+    requiresEmailVerification: false,
+    requiresDeviceVerification: false,
+  };
 }
 
 function completeLogin(userId: string, deviceFingerprint: string, ip: string, userAgent: string): {
@@ -658,7 +702,7 @@ function completeLogin(userId: string, deviceFingerprint: string, ip: string, us
   requires2FA: boolean;
   requiresEmailVerification: boolean;
   requiresDeviceVerification: boolean;
-  user?: AdminUser;
+  user: AdminUser;
 } {
   const user = getUser(userId);
   if (!user) {
