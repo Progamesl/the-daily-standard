@@ -33,6 +33,20 @@ export function ArticleContent({ html, className = "" }: ArticleContentProps) {
       }
     );
 
+    // Add drop cap to first paragraph (first letter only)
+    // Match first <p> tag and capture first letter after any whitespace/tags
+    cleaned = cleaned.replace(
+      /(<p[^>]*>)(\s*)([A-Za-z])/,
+      (match, pTag, whitespace, firstLetter) => {
+        // Only apply if this is the first paragraph in the body
+        // (not if there's already a drop-cap or if it's inside a blockquote/div)
+        if (cleaned.indexOf(match) === cleaned.indexOf('<p')) {
+          return `${pTag}${whitespace}<span class="drop-cap">${firstLetter}</span>`;
+        }
+        return match;
+      }
+    );
+
     containerRef.current.innerHTML = cleaned;
 
     // On error: remove image (or its parent figure). No placeholder.
@@ -66,7 +80,7 @@ export function ArticleContent({ html, className = "" }: ArticleContentProps) {
   return (
     <div
       ref={containerRef}
-      className={`article-body prose prose-lg max-w-none ${className}`}
+      className={`article-body prose prose-lg max-w-none ap-style ${className}`}
       style={{ color: '#334155', opacity: 1 }}
     />
   );

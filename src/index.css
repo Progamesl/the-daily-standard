@@ -454,7 +454,40 @@
     }
   }
   
-  /* Article body – readable, solid color, responsive font sizing */
+  /* Article body – AP Style typography */
+  .article-body.ap-style {
+    font-family: var(--font-serif);
+    font-size: 1.125rem;
+    line-height: 1.75; /* AP Style: 1.7-1.8 for readability */
+    color: #334155;
+    text-align: left;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+  }
+
+  /* AP Style: Single space after periods (not double) */
+  .article-body.ap-style p {
+    margin-bottom: 1.5rem; /* AP Style: consistent paragraph spacing */
+    text-indent: 0; /* No first-line indent in AP Style */
+  }
+
+  /* AP Style: Proper number formatting */
+  .article-body.ap-style {
+    font-variant-numeric: oldstyle-nums;
+    -webkit-font-feature-settings: "onum";
+    font-feature-settings: "onum";
+  }
+
+  /* AP Style: Proper quotation marks */
+  .article-body.ap-style q::before {
+    content: '"';
+  }
+  .article-body.ap-style q::after {
+    content: '"';
+  }
+
+  /* Article body – readable, solid color, responsive font sizing (fallback) */
   .article-body {
     font-family: var(--font-serif);
     font-size: 1.125rem;
@@ -518,22 +551,42 @@
     margin-top: 0.5rem;
   }
 
-  /* Drop cap: only the very first paragraph */
-  .article-body > p:first-child::first-letter {
-    font-size: 2.75rem;
+  /* Drop cap: large decorative initial (4 line spaces) */
+  .article-body .drop-cap {
+    font-size: 4.5rem;
     font-weight: 700;
+    font-family: var(--font-serif);
     float: left;
-    line-height: 0.85;
-    margin-right: 0.3rem;
-    margin-top: 0.05em;
+    line-height: 0.9;
+    margin-right: 0.5rem;
+    margin-top: 0.1em;
+    margin-bottom: -0.05em;
     color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
   }
 
   @media (min-width: 640px) {
-    .article-body > p:first-child::first-letter {
-      font-size: 3.5rem;
-      margin-right: 0.4rem;
+    .article-body .drop-cap {
+      font-size: 5.5rem;
+      margin-right: 0.6rem;
     }
+  }
+
+  @media (min-width: 1024px) {
+    .article-body .drop-cap {
+      font-size: 6rem;
+      margin-right: 0.7rem;
+    }
+  }
+
+  /* Ensure first paragraph flows correctly with drop cap */
+  .article-body > p:first-child {
+    text-indent: 0;
+  }
+
+  .article-body > p:first-child::first-letter {
+    display: none; /* Hide default ::first-letter since we use .drop-cap span */
   }
 
   /* Mobile: prevent horizontal overflow from body images/embeds */
