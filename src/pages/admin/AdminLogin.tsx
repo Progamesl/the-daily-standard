@@ -28,12 +28,14 @@ export default function AdminLogin() {
     setError('');
 
     setTimeout(() => {
-      const success = login(username.trim(), password);
-      if (success) {
+      const result = login(username.trim(), password);
+      if (result.user) {
         navigate('/admin', { replace: true });
       } else {
-        setError('Invalid username or password. Please try again.');
-        setPassword('');
+        setError(result.error || 'Invalid username or password. Please try again.');
+        if (!result.locked) {
+          setPassword(''); // Only clear password if not locked (locked message shows time)
+        }
       }
       setLoading(false);
     }, 300);

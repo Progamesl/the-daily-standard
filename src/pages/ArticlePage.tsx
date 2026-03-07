@@ -18,6 +18,7 @@ import {
 import { getAdminArticleBySlug } from "@/lib/adminDataService";
 import { getImageOrNull } from "@/lib/imageHelpers";
 import { DocumentHead } from "@/components/seo/DocumentHead";
+import { trackArticleView } from "@/lib/analyticsService";
 import { ArrowLeft, EyeOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -64,6 +65,36 @@ export default function ArticlePage() {
   useEffect(() => {
     if (slug && !isPreview) addToHistory(slug);
   }, [slug, isPreview]);
+
+  // Track article view
+  useEffect(() => {
+    if (article && !isPreview) {
+      trackArticleView(article.id, article.slug, {
+        referrer: document.referrer,
+      });
+      
+      // Track scroll depth
+      let maxScroll = 0;
+      const handleScroll = () => {
+        const scrollPercent = Math.round(
+          ((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight) * 100
+        );
+        maxScroll = Math.max(maxScroll, scrollPercent);
+      };
+      window.addEventListener('scroll', handleScroll);
+      
+      // Track reading time
+      const startTime = Date.now();
+      return () => {
+        window.removeEventListener('scroll', handleScroll);
+        const duration = (Date.now() - startTime) / 1000;
+        trackArticleView(article.id, article.slug, {
+          duration,
+          scrollDepth: maxScroll,
+        });
+      };
+    }
+  }, [article, isPreview]);
 
   if (!article) {
     return (

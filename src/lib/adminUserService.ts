@@ -35,6 +35,32 @@ export interface AdminUser {
   createdAt: string;
   lastLogin?: string;
   active: boolean;
+  lockedUntil?: string;  // ISO timestamp when account unlocks
+  failedAttempts?: number; // Count of failed login attempts
+  approvedBy?: string;     // Super admin who approved this account
+  approvedAt?: string;     // When account was approved
+}
+
+export interface LoginAttempt {
+  id: string;
+  username: string;
+  ip: string;
+  userAgent: string;
+  success: boolean;
+  timestamp: string;
+  userId?: string;
+}
+
+export interface SecurityAlert {
+  id: string;
+  type: 'brute_force' | 'suspicious_ip' | 'account_locked' | 'multiple_failures' | 'unusual_activity';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  message: string;
+  details: Record<string, unknown>;
+  timestamp: string;
+  resolved: boolean;
+  resolvedBy?: string;
+  resolvedAt?: string;
 }
 
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -69,6 +95,16 @@ const ROLE_LEVEL: Record<UserRole, number> = {
 const USERS_KEY    = 'octagon_users_v2';
 const SESSION_KEY  = 'octagon_session_v2';
 export const ACTIVITY_KEY = 'octagon_activity_log';
+const LOGIN_ATTEMPTS_KEY = 'octagon_login_attempts_v2';
+const BLOCKED_IPS_KEY = 'octagon_blocked_ips_v2';
+const SECURITY_ALERTS_KEY = 'octagon_security_alerts_v2';
+
+// ─── Security Configuration ───────────────────────────────────────────────────
+const MAX_LOGIN_ATTEMPTS = 5;           // Lock account after 5 failed attempts
+const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes lockout
+const IP_BLOCK_DURATION = 60 * 60 * 1000; // 1 hour IP block
+const MAX_ATTEMPTS_PER_IP = 10;          // Block IP after 10 total failed attempts
+const SUSPICIOUS_ACTIVITY_THRESHOLD = 3; // Alert after 3 suspicious events
 
 // ─── Password hashing ─────────────────────────────────────────────────────────
 // NOTE: For a production backend, replace with server-side bcrypt.
@@ -170,22 +206,239 @@ export function deleteUser(id: string): void {
   saveUsers(loadUsers().filter(u => u.id !== id));
 }
 
-// ─── Authentication ───────────────────────────────────────────────────────────
-export function loginUser(username: string, password: string): AdminUser | null {
-  ensureDefaultAdmin();
-  const user = loadUsers().find(
-    u => u.username.toLowerCase() === username.toLowerCase() &&
-         u.passwordHash === simpleHash(password) &&
-         u.active
+// ─── Security Helpers ──────────────────────────────────────────────────────────
+function getClientIP(): string {
+  // In browser, we can't get real IP, but we can use a fingerprint
+  // For production, this should come from server-side
+  return typeof window !== 'undefined' 
+    ? `${navigator.userAgent.slice(0, 50)}_${navigator.language}_${screen.width}x${screen.height}`
+    : 'unknown';
+}
+
+function getUserAgent(): string {
+  return typeof window !== 'undefined' ? navigator.userAgent : 'unknown';
+}
+
+function getLoginAttempts(): LoginAttempt[] {
+  try {
+    return JSON.parse(localStorage.getItem(LOGIN_ATTEMPTS_KEY) || '[]');
+  } catch { return []; }
+}
+
+function saveLoginAttempt(attempt: LoginAttempt): void {
+  const attempts = getLoginAttempts();
+  attempts.unshift(attempt);
+  // Keep last 500 attempts
+  localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts.slice(0, 500)));
+}
+
+function getBlockedIPs(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(BLOCKED_IPS_KEY) || '{}');
+  } catch { return {}; }
+}
+
+export function blockIP(ip: string): void {
+  const blocked = getBlockedIPs();
+  blocked[ip] = Date.now() + IP_BLOCK_DURATION;
+  localStorage.setItem(BLOCKED_IPS_KEY, JSON.stringify(blocked));
+  createSecurityAlert('suspicious_ip', 'high', `IP blocked due to excessive failed login attempts: ${ip.slice(0, 30)}...`, { ip });
+}
+
+function isIPBlocked(ip: string): boolean {
+  const blocked = getBlockedIPs();
+  const blockUntil = blocked[ip];
+  if (!blockUntil) return false;
+  if (blockUntil < Date.now()) {
+    // Expired, remove
+    const updated = { ...blocked };
+    delete updated[ip];
+    localStorage.setItem(BLOCKED_IPS_KEY, JSON.stringify(updated));
+    return false;
+  }
+  return true;
+}
+
+function createSecurityAlert(
+  type: SecurityAlert['type'],
+  severity: SecurityAlert['severity'],
+  message: string,
+  details: Record<string, unknown>
+): void {
+  try {
+    const alerts: SecurityAlert[] = JSON.parse(localStorage.getItem(SECURITY_ALERTS_KEY) || '[]');
+    alerts.unshift({
+      id: `alert_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      type,
+      severity,
+      message,
+      details,
+      timestamp: new Date().toISOString(),
+      resolved: false,
+    });
+    // Keep last 200 alerts
+    localStorage.setItem(SECURITY_ALERTS_KEY, JSON.stringify(alerts.slice(0, 200)));
+  } catch { /* non-fatal */ }
+}
+
+function checkAccountLockout(user: AdminUser): boolean {
+  if (!user.lockedUntil) return false;
+  const lockTime = new Date(user.lockedUntil).getTime();
+  if (lockTime < Date.now()) {
+    // Lock expired, clear it
+    updateUser(user.id, { lockedUntil: undefined, failedAttempts: 0 });
+    return false;
+  }
+  return true;
+}
+
+function incrementFailedAttempts(user: AdminUser, ip: string): void {
+  const attempts = (user.failedAttempts || 0) + 1;
+  const updates: Partial<AdminUser> = { failedAttempts: attempts };
+  
+  if (attempts >= MAX_LOGIN_ATTEMPTS) {
+    updates.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION).toISOString();
+    createSecurityAlert(
+      'account_locked',
+      'high',
+      `Account "${user.username}" locked due to ${attempts} failed login attempts`,
+      { username: user.username, userId: user.id, attempts }
+    );
+    logActivity('security_lock', `Account "${user.username}" locked due to failed attempts`, user.id);
+  } else if (attempts >= SUSPICIOUS_ACTIVITY_THRESHOLD) {
+    createSecurityAlert(
+      'multiple_failures',
+      'medium',
+      `Multiple failed login attempts for "${user.username}" (${attempts}/${MAX_LOGIN_ATTEMPTS})`,
+      { username: user.username, userId: user.id, attempts }
+    );
+  }
+  
+  updateUser(user.id, updates);
+}
+
+function checkIPAttempts(ip: string): boolean {
+  const attempts = getLoginAttempts();
+  const recentFailures = attempts.filter(
+    a => a.ip === ip && !a.success && new Date(a.timestamp).getTime() > Date.now() - IP_BLOCK_DURATION
   );
-  if (!user) return null;
-  updateUser(user.id, { lastLogin: new Date().toISOString() });
+  
+  if (recentFailures.length >= MAX_ATTEMPTS_PER_IP) {
+    blockIP(ip);
+    return false; // Blocked
+  }
+  
+  return true; // Allowed
+}
+
+// ─── Authentication ───────────────────────────────────────────────────────────
+export function loginUser(username: string, password: string): { user: AdminUser | null; error: string | null; locked: boolean } {
+  ensureDefaultAdmin();
+  const ip = getClientIP();
+  const userAgent = getUserAgent();
+  
+  // Check IP block
+  if (isIPBlocked(ip)) {
+    saveLoginAttempt({
+      id: `attempt_${Date.now()}`,
+      username,
+      ip,
+      userAgent,
+      success: false,
+      timestamp: new Date().toISOString(),
+    });
+    return { user: null, error: 'Access denied. Too many failed attempts from this location.', locked: false };
+  }
+  
+  // Check IP attempt rate
+  if (!checkIPAttempts(ip)) {
+    return { user: null, error: 'Access denied. Too many failed attempts from this location.', locked: false };
+  }
+  
+  const user = loadUsers().find(
+    u => u.username.toLowerCase() === username.toLowerCase() && u.active
+  );
+  
+  if (!user) {
+    // Don't reveal if username exists - security best practice
+    saveLoginAttempt({
+      id: `attempt_${Date.now()}`,
+      username,
+      ip,
+      userAgent,
+      success: false,
+      timestamp: new Date().toISOString(),
+    });
+    return { user: null, error: 'Invalid username or password.', locked: false };
+  }
+  
+  // Check account lockout
+  if (checkAccountLockout(user)) {
+    saveLoginAttempt({
+      id: `attempt_${Date.now()}`,
+      username,
+      ip,
+      userAgent,
+      success: false,
+      timestamp: new Date().toISOString(),
+      userId: user.id,
+    });
+    const lockUntil = new Date(user.lockedUntil!).toLocaleString();
+    return { user: null, error: `Account locked until ${lockUntil}. Too many failed login attempts.`, locked: true };
+  }
+  
+  // Verify password
+  const passwordCorrect = user.passwordHash === simpleHash(password);
+  
+  if (!passwordCorrect) {
+    incrementFailedAttempts(user, ip);
+    saveLoginAttempt({
+      id: `attempt_${Date.now()}`,
+      username,
+      ip,
+      userAgent,
+      success: false,
+      timestamp: new Date().toISOString(),
+      userId: user.id,
+    });
+    
+    // Check if we should block IP
+    const recentFailures = getLoginAttempts().filter(
+      a => a.ip === ip && !a.success && new Date(a.timestamp).getTime() > Date.now() - 60000 // Last minute
+    );
+    if (recentFailures.length >= 5) {
+      blockIP(ip);
+    }
+    
+    return { user: null, error: 'Invalid username or password.', locked: false };
+  }
+  
+  // Success! Clear failed attempts and update last login
+  updateUser(user.id, { 
+    lastLogin: new Date().toISOString(),
+    failedAttempts: 0,
+    lockedUntil: undefined,
+  });
+  
   localStorage.setItem(SESSION_KEY, JSON.stringify({
     userId: user.id,
     expiry: Date.now() + 8 * 60 * 60 * 1000, // 8-hour sessions
+    loginIP: ip,
+    loginUserAgent: userAgent,
   }));
-  logActivity('login', `${user.displayName} signed in`, user.id);
-  return user;
+  
+  saveLoginAttempt({
+    id: `attempt_${Date.now()}`,
+    username,
+    ip,
+    userAgent,
+    success: true,
+    timestamp: new Date().toISOString(),
+    userId: user.id,
+  });
+  
+  logActivity('login', `${user.displayName} signed in from ${ip.slice(0, 30)}...`, user.id);
+  return { user, error: null, locked: false };
 }
 
 export function logoutUser(): void {
@@ -279,4 +532,53 @@ export function getActivityLog(): ActivityLogEntry[] {
 
 export function clearActivityLog(): void {
   localStorage.removeItem(ACTIVITY_KEY);
+}
+
+// ─── Security Functions ───────────────────────────────────────────────────────
+export function getSecurityAlerts(): SecurityAlert[] {
+  try {
+    return JSON.parse(localStorage.getItem(SECURITY_ALERTS_KEY) || '[]');
+  } catch { return []; }
+}
+
+export function resolveSecurityAlert(alertId: string, resolvedBy: string): void {
+  const alerts = getSecurityAlerts();
+  const idx = alerts.findIndex(a => a.id === alertId);
+  if (idx !== -1) {
+    alerts[idx].resolved = true;
+    alerts[idx].resolvedBy = resolvedBy;
+    alerts[idx].resolvedAt = new Date().toISOString();
+    localStorage.setItem(SECURITY_ALERTS_KEY, JSON.stringify(alerts));
+  }
+}
+
+export function getLoginAttemptsHistory(limit = 100): LoginAttempt[] {
+  return getLoginAttempts().slice(0, limit);
+}
+
+export function getBlockedIPsList(): Array<{ ip: string; blockedUntil: string }> {
+  const blocked = getBlockedIPs();
+  return Object.entries(blocked)
+    .filter(([_, until]) => until > Date.now())
+    .map(([ip, until]) => ({
+      ip,
+      blockedUntil: new Date(until).toISOString(),
+    }));
+}
+
+export function unblockIP(ip: string): void {
+  const blocked = getBlockedIPs();
+  delete blocked[ip];
+  localStorage.setItem(BLOCKED_IPS_KEY, JSON.stringify(blocked));
+}
+
+export function unlockUser(userId: string, unlockedBy: string): void {
+  const user = getUser(userId);
+  if (user) {
+    updateUser(userId, { 
+      lockedUntil: undefined, 
+      failedAttempts: 0 
+    });
+    logActivity('security_unlock', `Account "${user.username}" unlocked by ${unlockedBy}`, userId);
+  }
 }

@@ -31,9 +31,9 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const login = (username: string, password: string): boolean => {
-    const user = loginUser(username, password);
-    if (user) {
-      setCurrentUser(user);
+    const result = loginUser(username, password);
+    if (result.user) {
+      setCurrentUser(result.user);
       return true;
     }
     return false;
