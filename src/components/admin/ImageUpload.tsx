@@ -83,15 +83,15 @@ function compressImage(file: File, maxWidth: number = 1920, quality: number = 0.
 }
 
 /**
- * Convert file to base64, with automatic compression for large images.
- * Small images (< 1MB) are preserved at full quality.
- * Large images are compressed to fit within storage limits.
+ * Convert file to base64, with MINIMAL compression only when absolutely necessary.
+ * Maximum quality preservation is the priority.
+ * Only compresses if the image would exceed storage limits.
  */
 function fileToBase64(file: File): Promise<string> {
   const sizeMB = file.size / (1024 * 1024);
   
-  // For small images, use direct conversion (no compression)
-  if (sizeMB < 1) {
+  // For images under 3MB, use direct conversion (NO compression, 100% quality)
+  if (sizeMB < 3) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
@@ -100,20 +100,18 @@ function fileToBase64(file: File): Promise<string> {
     });
   }
   
-  // For larger images, compress them
-  // Adjust quality based on size: larger = more compression
-  let quality = 0.85;
-  let maxWidth = 1920;
+  // Only compress if image is very large (3MB+)
+  // Use very high quality settings to maintain maximum quality
+  let quality = 0.95;  // 95% quality (near-lossless)
+  let maxWidth = 2560;  // Keep high resolution
   
-  if (sizeMB > 5) {
-    quality = 0.7;
-    maxWidth = 1280;
-  } else if (sizeMB > 3) {
-    quality = 0.75;
-    maxWidth = 1600;
-  } else if (sizeMB > 2) {
-    quality = 0.8;
-    maxWidth = 1920;
+  // Only apply more compression if absolutely necessary (5MB+)
+  if (sizeMB > 8) {
+    quality = 0.92;  // Still very high quality
+    maxWidth = 2400;
+  } else if (sizeMB > 5) {
+    quality = 0.94;  // Extremely high quality
+    maxWidth = 2560;
   }
   
   return compressImage(file, maxWidth, quality);
@@ -147,20 +145,24 @@ export function ImageUpload({
     setWarn('');
     setPasting(true);
     try {
-      // Automatically compress large images
+      // Only compress if absolutely necessary (3MB+), maintaining maximum quality
       const b64 = await fileToBase64(file);
       const finalSizeMB = new Blob([b64]).size / (1024 * 1024);
       
-      if (sizeMB > 1) {
-        // Show compression info if image was compressed
+      // Only show compression message if image was actually compressed (3MB+)
+      if (sizeMB >= 3) {
         const compressionRatio = ((1 - finalSizeMB / sizeMB) * 100).toFixed(0);
-        if (compressionRatio !== '0') {
-          setWarn(`✓ Image compressed from ${sizeMB.toFixed(1)} MB to ${finalSizeMB.toFixed(1)} MB (${compressionRatio}% smaller) to fit storage limits.`);
+        if (compressionRatio !== '0' && parseFloat(compressionRatio) > 5) {
+          setWarn(`✓ Image optimized from ${sizeMB.toFixed(1)} MB to ${finalSizeMB.toFixed(1)} MB (${compressionRatio}% smaller) while maintaining maximum quality.`);
+        } else {
+          // Image was processed but minimal/no compression applied
+          setWarn(`✓ Image processed at maximum quality (${finalSizeMB.toFixed(1)} MB).`);
         }
       }
       
-      if (finalSizeMB > 2.5) {
-        setWarn(`⚠️ Large image (${finalSizeMB.toFixed(1)} MB). If you encounter storage errors, consider using an image URL instead.`);
+      // Only warn if final size is very large (approaching storage limit)
+      if (finalSizeMB > 4) {
+        setWarn(`⚠️ Very large image (${finalSizeMB.toFixed(1)} MB). If you encounter storage errors, consider using an image URL instead.`);
       }
       
       onChange(b64);
