@@ -60,14 +60,20 @@ export default function AdminSettings() {
     toast.success('Data exported');
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     try {
-      importAdminDataFromJson(importText);
-      toast.success('Data imported successfully');
+      setSaving(true);
+      const result = await importAdminDataFromJson(importText);
+      toast.success(`✅ Imported ${result.articles} articles and ${result.authors} authors! Saved to Supabase for cross-device sync.`);
       setShowImport(false);
       setImportText('');
-    } catch {
-      toast.error('Invalid JSON. Please check your file and try again.');
+      // Refresh page to show imported data
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      console.error('Import error:', err);
+      toast.error('Invalid JSON or import failed. Check console for details.');
+    } finally {
+      setSaving(false);
     }
   };
 

@@ -955,12 +955,66 @@ export function exportAdminData(): string {
   }, null, 2);
 }
 
-export function importAdminDataFromJson(json: string): void {
+export async function importAdminDataFromJson(json: string): Promise<{ articles: number; authors: number }> {
   const data = JSON.parse(json);
-  if (data.articles) setStorage(ARTICLES_KEY, data.articles);
+  
+  let articlesCount = 0;
+  let authorsCount = 0;
+  
+  // Save to localStorage first
+  if (data.articles) {
+    setStorage(ARTICLES_KEY, data.articles);
+    articlesCount = Object.keys(data.articles).length;
+  }
   if (data.deletedArticleIds) setStorage(DELETED_KEY, data.deletedArticleIds);
-  if (data.authors) setStorage(AUTHORS_KEY, data.authors);
+  if (data.authors) {
+    setStorage(AUTHORS_KEY, data.authors);
+    authorsCount = Object.keys(data.authors).length;
+  }
   if (data.deletedAuthorIds) setStorage(DELETED_AUTHORS_KEY, data.deletedAuthorIds);
+  
+  // CRITICAL: Also save to Supabase (so it persists across devices)
+  if (typeof window !== 'undefined') {
+    const { isSupabaseConfigured } = await import('./supabaseClient');
+    if (isSupabaseConfigured()) {
+      console.log('💾 Importing to Supabase...');
+      const { saveArticleToSupabase, saveAuthorToSupabase } = await import('./supabaseDataService');
+      
+      // Save all articles to Supabase
+      if (data.articles) {
+        const articles = Object.values(data.articles) as AdminArticle[];
+        let savedArticles = 0;
+        for (const article of articles) {
+          try {
+            if (await saveArticleToSupabase(article)) {
+              savedArticles++;
+            }
+          } catch (err) {
+            console.warn(`Failed to save article ${article.id} to Supabase:`, err);
+          }
+        }
+        console.log(`✅ Saved ${savedArticles}/${articles.length} articles to Supabase`);
+      }
+      
+      // Save all authors to Supabase
+      if (data.authors) {
+        const authors = Object.values(data.authors) as AdminAuthor[];
+        let savedAuthors = 0;
+        for (const author of authors) {
+          try {
+            if (await saveAuthorToSupabase(author)) {
+              savedAuthors++;
+            }
+          } catch (err) {
+            console.warn(`Failed to save author ${author.id} to Supabase:`, err);
+          }
+        }
+        console.log(`✅ Saved ${savedAuthors}/${authors.length} authors to Supabase`);
+      }
+    }
+  }
+  
+  return { articles: articlesCount, authors: authorsCount };
 }
 
 export function clearAdminData(): void {
