@@ -116,7 +116,7 @@ export async function saveArticleToSupabase(article: AdminArticle): Promise<bool
         author_id: article.author.id,
         author_name: article.author.name,
         published_at: article.publishedAt,
-        updated_at: article.updatedAt || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         reading_time: article.readingTime,
         tags: article.tags || [],
         status: article.status,
@@ -135,7 +135,6 @@ export async function saveArticleToSupabase(article: AdminArticle): Promise<bool
         internal_notes: article.internalNotes || [],
         revisions: article.revisions || [],
         word_count: article.wordCount,
-        updated_at: new Date().toISOString(),
       }, {
         onConflict: 'id',
       });

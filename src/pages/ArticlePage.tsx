@@ -18,6 +18,7 @@ import {
 import { getAdminArticleBySlug } from "@/lib/adminDataService";
 import { getImageOrNull } from "@/lib/imageHelpers";
 import { DocumentHead } from "@/components/seo/DocumentHead";
+import { useDataSync } from "@/contexts/DataSyncContext";
 import { trackArticleView } from "@/lib/analyticsService";
 import { ArrowLeft, EyeOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,10 @@ function adminToArticleShape(admin: ReturnType<typeof getAdminArticleBySlug>): A
 }
 
 export default function ArticlePage() {
+  // Subscribe to Supabase sync — re-renders automatically when fresh data arrives
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { syncVersion } = useDataSync();
+
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get("preview") === "1";

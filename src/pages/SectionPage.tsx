@@ -14,8 +14,12 @@ import {
 } from "@/lib/publicDataService";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDataSync } from "@/contexts/DataSyncContext";
 
 export default function SectionPage() {
+  // Subscribe to Supabase sync — re-renders automatically when fresh data arrives
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { syncVersion } = useDataSync();
   const { slug } = useParams<{ slug: string }>();
   const section = slug ? getSectionBySlug(slug) : undefined;
   const articles = slug ? getPublicArticlesBySection(slug) : [];

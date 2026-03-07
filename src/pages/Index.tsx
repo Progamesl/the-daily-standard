@@ -17,6 +17,7 @@ import {
   getLongReadPublicArticles,
 } from "@/lib/publicDataService";
 import { getImageOrNull, enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
+import { useDataSync } from "@/contexts/DataSyncContext";
 
 /** Only keep articles that have a real image (not null/empty/placeholder). */
 function withImages(list: Article[]): Article[] {
@@ -29,6 +30,10 @@ function imgSrc(a: Article): string {
 }
 
 const Index = () => {
+  // Subscribe to Supabase sync — re-renders automatically when fresh data arrives
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { syncVersion } = useDataSync();
+
   const featured = getFeaturedPublicArticle();
   const latest = getLatestPublicArticles(1)[0];
   const latestTwelve = getLatestPublicArticles(12);

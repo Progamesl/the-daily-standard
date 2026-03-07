@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 
 // Admin
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
+import { DataSyncProvider } from "./contexts/DataSyncContext";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -44,6 +45,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AdminAuthProvider>
+        <DataSyncProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -79,6 +81,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </DataSyncProvider>
       </AdminAuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
