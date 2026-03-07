@@ -513,7 +513,6 @@ export function initiateLogin(username: string, password: string): {
   ensureDefaultAdmin();
   const ip = getClientIP();
   const userAgent = getUserAgent();
-  const deviceFingerprint = generateDeviceFingerprint();
   
   // Check IP block
   if (isIPBlocked(ip)) {
@@ -529,9 +528,7 @@ export function initiateLogin(username: string, password: string): {
       success: false, 
       error: 'Access denied. Too many failed attempts from this location.', 
       locked: false,
-      requires2FA: false,
       requiresEmailVerification: false,
-      requiresDeviceVerification: false,
     };
   }
   
@@ -541,9 +538,7 @@ export function initiateLogin(username: string, password: string): {
       success: false, 
       error: 'Access denied. Too many failed attempts from this location.', 
       locked: false,
-      requires2FA: false,
       requiresEmailVerification: false,
-      requiresDeviceVerification: false,
     };
   }
   
@@ -565,46 +560,58 @@ export function initiateLogin(username: string, password: string): {
       success: false, 
       error: 'Invalid username or password.', 
       locked: false,
-      requires2FA: false,
       requiresEmailVerification: false,
-      requiresDeviceVerification: false,
     };
   }
   
-  // Check admin approval
-  if (!user.approvedBy && user.role !== 'super_admin') {
+  // Check account lockout
+  if (checkAccountLockout(user)) {
+    saveLoginAttempt({
+      id: `attempt_${Date.now()}`,
+      username,
+      ip,
+      userAgent,
+      success: false,
+      timestamp: new Date().toISOString(),
+      userId: user.id,
+    });
+    const lockUntil = new Date(user.lockedUntil!).toLocaleString();
     return { 
       success: false, 
-      error: 'Your account is pending approval by an administrator.', 
-      locked: false,
-      requires2FA: false,
+      error: `Account locked until ${lockUntil}. Too many failed login attempts.`, 
+      locked: true,
       requiresEmailVerification: false,
-      requiresDeviceVerification: false,
     };
   }
   
-  // Check email verification
-  if (!user.emailVerified) {
-    // Resend verification code
-    const code = generateVerificationCode();
-    sendEmailVerificationCode(user.email, code, 'email_verification');
-    saveVerificationCode({
-      code,
-      type: 'email_verification',
+  // Verify password
+  const passwordCorrect = user.passwordHash === simpleHash(password);
+  
+  if (!passwordCorrect) {
+    incrementFailedAttempts(user, ip);
+    saveLoginAttempt({
+      id: `attempt_${Date.now()}`,
+      username,
+      ip,
+      userAgent,
+      success: false,
+      timestamp: new Date().toISOString(),
       userId: user.id,
-      expiresAt: new Date(Date.now() + VERIFICATION_CODE_EXPIRY).toISOString(),
-      attempts: 0,
-      used: false,
     });
+    
+    // Check if we should block IP
+    const recentFailures = getLoginAttempts().filter(
+      a => a.ip === ip && !a.success && new Date(a.timestamp).getTime() > Date.now() - 60000
+    );
+    if (recentFailures.length >= 5) {
+      blockIP(ip);
+    }
     
     return { 
       success: false, 
-      error: 'Please verify your email address. A verification code has been sent.', 
+      error: 'Invalid username or password.', 
       locked: false,
-      requires2FA: false,
-      requiresEmailVerification: true,
-      requiresDeviceVerification: false,
-      userId: user.id,
+      requiresEmailVerification: false,
     };
   }
   
