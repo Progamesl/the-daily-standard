@@ -16,7 +16,7 @@ import NotFound from "./pages/NotFound";
 
 // Admin
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
-import { DataSyncProvider, useDataSync } from "./contexts/DataSyncContext";
+import { DataSyncProvider } from "./contexts/DataSyncContext";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -41,33 +41,15 @@ function ScrollToTop() {
   return null;
 }
 
-function DataSyncLoader() {
-  const { isReady, isSyncing } = useDataSync();
-  
-  // Don't show loader on admin pages (they have their own auth flow)
-  const isAdminPage = window.location.pathname.startsWith('/admin');
-  
-  if (isAdminPage || isReady) return null;
-  
-  return (
-    <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mx-auto mb-4"></div>
-        <p className="text-sm text-slate-600">Loading from database...</p>
-      </div>
-    </div>
-  );
-}
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AdminAuthProvider>
         <DataSyncProvider>
-        <DataSyncLoader />
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+          <DataSyncLoader />
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
           <ScrollToTop />
           <Routes>
             {/* Public routes */}

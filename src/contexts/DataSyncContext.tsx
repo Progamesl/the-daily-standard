@@ -1,11 +1,10 @@
 /**
- * DataSyncContext - PRODUCTION PATTERN
+ * DataSyncContext - NYTimes Pattern
  * 
- * Like NYTimes/WordPress: Supabase is PRIMARY source of truth.
- * Blocks rendering until Supabase data is loaded (or timeout).
- * localStorage is just a cache for performance.
+ * Optimistic rendering: Show cached content INSTANTLY, update from Supabase in background.
+ * Supabase is PRIMARY source of truth for writes, localStorage is cache for reads.
  * 
- * This ensures ALL browsers/devices see the same data from Supabase.
+ * This gives instant page loads (like NYTimes) while ensuring data consistency.
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
@@ -16,8 +15,6 @@ interface DataSyncContextType {
   /** Increments each time Supabase data is successfully loaded */
   syncVersion: number;
   isSyncing: boolean;
-  /** Whether initial sync is complete (app can render) */
-  isReady: boolean;
   /** Manually trigger a re-sync */
   triggerSync: () => void;
 }
@@ -25,61 +22,44 @@ interface DataSyncContextType {
 const DataSyncContext = createContext<DataSyncContextType>({
   syncVersion: 0,
   isSyncing: false,
-  isReady: false,
   triggerSync: () => {},
 });
 
-const SYNC_TIMEOUT = 10000; // 10 seconds max wait
-
 export function DataSyncProvider({ children }: { children: React.ReactNode }) {
   const [syncVersion, setSyncVersion] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(true); // Start as loading
-  const [isReady, setIsReady] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const runSync = useCallback(async () => {
     setIsSyncing(true);
-    console.log('🔄 DataSync: Loading from Supabase (PRIMARY source)...');
     
-    const startTime = Date.now();
-    
+    // Sync in background (non-blocking) - pages render instantly from cache
     try {
-      // If Supabase is configured, wait for sync (this is the source of truth)
       if (isSupabaseConfigured()) {
-        const synced = await Promise.race([
-          syncArticlesFromSupabase(),
-          new Promise<boolean>(resolve => setTimeout(() => resolve(false), SYNC_TIMEOUT))
-        ]);
-        
+        console.log('🔄 Background sync from Supabase...');
+        const synced = await syncArticlesFromSupabase();
         if (synced) {
-          const elapsed = Date.now() - startTime;
-          console.log(`✅ DataSync: Loaded from Supabase in ${elapsed}ms`);
-        } else {
-          console.warn('⚠️ DataSync: Sync timed out or returned false. Using localStorage cache.');
+          console.log('✅ Background sync complete - pages will update automatically');
+          setSyncVersion(v => v + 1); // Trigger re-render with fresh data
         }
-      } else {
-        console.log('ℹ️ DataSync: Supabase not configured, using localStorage only');
       }
-      
-      // Always mark as ready (even if sync failed, we have localStorage cache)
-      setSyncVersion(v => v + 1);
-      setIsReady(true);
     } catch (err) {
-      console.error('❌ DataSync: Sync failed:', err);
-      // Still mark as ready (fallback to localStorage)
-      setIsReady(true);
-      setSyncVersion(v => v + 1);
+      console.warn('⚠️ Background sync failed (using cache):', err);
     } finally {
       setIsSyncing(false);
     }
   }, []);
 
-  // Run sync once on app start - BLOCKS until complete (or timeout)
+  // Run sync in background on app start (non-blocking)
   useEffect(() => {
-    runSync();
+    // Small delay to let page render first (instant load)
+    const timer = setTimeout(() => {
+      runSync();
+    }, 100);
+    return () => clearTimeout(timer);
   }, [runSync]);
 
   return (
-    <DataSyncContext.Provider value={{ syncVersion, isSyncing, isReady, triggerSync: runSync }}>
+    <DataSyncContext.Provider value={{ syncVersion, isSyncing, triggerSync: runSync }}>
       {children}
     </DataSyncContext.Provider>
   );
