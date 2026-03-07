@@ -12,6 +12,20 @@ interface ArticleContentProps {
 export function ArticleContent({ html, className = "" }: ArticleContentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Extract font size from className and apply via inline style for higher specificity
+  const fontSizeStyle: { fontSize?: string; lineHeight?: number; color: string; opacity: number } = { color: '#334155', opacity: 1 };
+  if (className.includes('text-xl')) {
+    fontSizeStyle.fontSize = '1.25rem';
+    fontSizeStyle.lineHeight = 1.9;
+  } else if (className.includes('text-lg')) {
+    fontSizeStyle.fontSize = '1.125rem';
+    fontSizeStyle.lineHeight = 1.85;
+  } else {
+    // text-base or default
+    fontSizeStyle.fontSize = '1rem';
+    fontSizeStyle.lineHeight = 1.8;
+  }
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -81,7 +95,7 @@ export function ArticleContent({ html, className = "" }: ArticleContentProps) {
     <div
       ref={containerRef}
       className={`article-body prose prose-lg max-w-none ap-style ${className}`}
-      style={{ color: '#334155', opacity: 1 }}
+      style={fontSizeStyle}
     />
   );
 }
