@@ -76,22 +76,45 @@ export default function AdminLayout() {
         </div>
 
         {/* Current User */}
-        {!collapsed && currentUser && (
+        {currentUser && (
           <div className="px-4 py-3 border-b border-white/10 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                {initials}
+            {!collapsed ? (
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  {initials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-white truncate">{currentUser.displayName}</p>
+                  <span className={cn(
+                    'text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full',
+                    ROLE_COLORS[currentUser.role]
+                  )}>
+                    {ROLE_LABELS[currentUser.role]}
+                  </span>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-white truncate">{currentUser.displayName}</p>
-                <span className={cn(
-                  'text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full',
-                  ROLE_COLORS[currentUser.role]
-                )}>
-                  {ROLE_LABELS[currentUser.role]}
-                </span>
+            ) : (
+              <div className="flex justify-center">
+                <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-white">
+                  {initials}
+                </div>
               </div>
-            </div>
+            )}
+            {/* Logout button in user section */}
+            <button
+              onClick={() => {
+                logout();
+                window.location.href = '/admin/login';
+              }}
+              title="Sign Out"
+              className={cn(
+                'mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-red-400 hover:bg-white/5 transition-colors w-full',
+                collapsed && 'justify-center'
+              )}
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>Sign Out</span>}
+            </button>
           </div>
         )}
 
