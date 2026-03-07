@@ -394,15 +394,15 @@ export function RichTextEditor({
             contentEditable
             className="min-h-[400px] max-h-[600px] overflow-y-auto p-4 prose prose-sm max-w-none focus:outline-none
                        prose-headings:font-serif prose-headings:text-slate-900
-                       prose-p:text-slate-700 prose-p:leading-relaxed prose-p:text-base
+                       prose-p:text-slate-700 prose-p:leading-relaxed
                        prose-blockquote:border-l-slate-300 prose-blockquote:text-slate-600
                        prose-a:text-blue-600 prose-a:underline
                        prose-img:rounded-lg prose-img:my-4
-                       [&_*]:!text-base [&_*]:!font-sans [&_*]:!leading-relaxed
-                       [&_p]:!text-slate-700 [&_p]:!mb-4 [&_p]:!text-base
-                       [&_strong]:!font-bold [&_em]:!italic
-                       [&_h2]:!font-serif [&_h2]:!text-2xl [&_h2]:!mt-6 [&_h2]:!mb-3
-                       [&_h3]:!font-serif [&_h3]:!text-xl [&_h3]:!mt-4 [&_h3]:!mb-2"
+                       [&_*]:font-sans [&_*]:leading-relaxed
+                       [&_p]:text-slate-700 [&_p]:mb-4
+                       [&_strong]:font-bold [&_em]:italic
+                       [&_h2]:font-serif [&_h2]:text-2xl [&_h2]:mt-6 [&_h2]:mb-3
+                       [&_h3]:font-serif [&_h3]:text-xl [&_h3]:mt-4 [&_h3]:mb-2"
             onInput={handleInput}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
