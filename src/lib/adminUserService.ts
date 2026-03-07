@@ -702,7 +702,7 @@ function completeLogin(userId: string, deviceFingerprint: string, ip: string, us
   requires2FA: boolean;
   requiresEmailVerification: boolean;
   requiresDeviceVerification: boolean;
-  user: AdminUser;
+  user?: AdminUser;
 } {
   const user = getUser(userId);
   if (!user) {
