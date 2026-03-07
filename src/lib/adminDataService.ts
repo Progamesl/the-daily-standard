@@ -266,26 +266,36 @@ export async function syncArticlesFromSupabase(): Promise<boolean> {
     
     console.log('🔄 Syncing articles from Supabase...');
     const supabaseArticles = await getArticlesFromSupabase();
-    console.log(`📦 Loaded ${Object.keys(supabaseArticles).length} articles from Supabase`);
+    const count = Object.keys(supabaseArticles).length;
+    console.log(`📦 Loaded ${count} articles from Supabase`);
     
-    if (Object.keys(supabaseArticles).length === 0) {
-      console.log('ℹ️ No articles in Supabase yet');
-      return false;
-    }
-    
+    // Always update localStorage, even if Supabase has 0 articles (clears stale data)
     // Merge with localStorage (Supabase is source of truth, localStorage for recent edits)
     const localArticles = getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
     const merged = { ...supabaseArticles, ...localArticles };
     
     // Update localStorage
-    setStorage(ARTICLES_KEY, merged);
-    supabaseArticlesCache = supabaseArticles;
-    supabaseArticlesCacheTime = Date.now();
-    
-    console.log('✅ Synced articles from Supabase');
-    return true;
+    try {
+      setStorage(ARTICLES_KEY, merged);
+      supabaseArticlesCache = supabaseArticles;
+      supabaseArticlesCacheTime = Date.now();
+      
+      if (count > 0) {
+        console.log(`✅ Synced ${count} articles from Supabase to localStorage`);
+      } else {
+        console.log('ℹ️ Supabase has no articles yet (localStorage kept as-is)');
+      }
+      return true;
+    } catch (storageError) {
+      console.error('❌ Failed to write to localStorage:', storageError);
+      return false;
+    }
   } catch (error) {
     console.error('❌ Error syncing from Supabase:', error);
+    // Log the full error for debugging
+    if (error instanceof Error) {
+      console.error('Error details:', error.message, error.stack);
+    }
     return false;
   }
 }

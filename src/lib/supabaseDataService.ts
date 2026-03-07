@@ -39,12 +39,18 @@ export async function getArticlesFromSupabase(): Promise<Record<string, AdminArt
   if (!client) return {};
   
   try {
+    console.log('📡 Fetching articles from Supabase...');
     const { data, error } = await client
       .from('articles')
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase query error:', error);
+      throw error;
+    }
+    
+    console.log(`📥 Received ${data?.length || 0} articles from Supabase`);
     
     const articles: Record<string, AdminArticle> = {};
     data?.forEach((row: any) => {

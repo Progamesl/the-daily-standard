@@ -21,6 +21,7 @@ import {
 } from '@/lib/adminDataService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { migrateLocalStorageToSupabase } from '@/lib/supabaseDataService';
+import { syncArticlesFromSupabase } from '@/lib/adminDataService';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<SiteSettings>(getSiteSettings);
@@ -30,6 +31,7 @@ export default function AdminSettings() {
   const [showImport, setShowImport] = useState(false);
   const [merging, setMerging] = useState(false);
   const [migrating, setMigrating] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [showBackups, setShowBackups] = useState(false);
   const backups = getAutoBackups();
   const supabaseEnabled = isSupabaseConfigured();
@@ -85,6 +87,30 @@ export default function AdminSettings() {
       toast.error('Failed to merge duplicates');
     } finally {
       setMerging(false);
+    }
+  };
+
+  const handleSyncFromSupabase = async () => {
+    if (!supabaseEnabled) {
+      toast.error('Supabase is not configured.');
+      return;
+    }
+    
+    setSyncing(true);
+    try {
+      const success = await syncArticlesFromSupabase();
+      if (success) {
+        toast.success('✅ Synced articles from Supabase! Refresh the page to see updates.');
+        // Force a page reload to show the synced data
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        toast.error('Failed to sync from Supabase. Check console for details.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Error syncing from Supabase. Check console for details.');
+    } finally {
+      setSyncing(false);
     }
   };
 
