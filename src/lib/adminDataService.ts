@@ -521,6 +521,27 @@ export function deleteAdminArticle(
     deleted.push(String(id));
     setStorage(DELETED_KEY, deleted);
   }
+
+  // Also delete from Supabase if configured (async, non-blocking)
+  if (typeof window !== 'undefined') {
+    import('./supabaseDataService').then(({ deleteArticleFromSupabase }) => {
+      import('./supabaseClient').then(({ isSupabaseConfigured }) => {
+        if (isSupabaseConfigured()) {
+          deleteArticleFromSupabase(id).then(success => {
+            if (success) {
+              console.log('✅ Article deleted from Supabase:', id);
+            } else {
+              console.warn('⚠️ Failed to delete article from Supabase:', id);
+            }
+          }).catch(err => {
+            console.error('❌ Error deleting from Supabase:', err);
+          });
+        }
+      }).catch(() => {});
+    }).catch(() => {
+      // Supabase not available
+    });
+  }
 }
 
 export function getTrashedArticles(): TrashedArticle[] {
@@ -556,6 +577,27 @@ export function permanentlyDeleteTrashedArticle(trashId: string): void {
   if (idx > -1) {
     trash.splice(idx, 1);
     setStorage(TRASH_KEY, trash);
+  }
+
+  // Also permanently delete from Supabase if configured (async, non-blocking)
+  if (typeof window !== 'undefined') {
+    import('./supabaseDataService').then(({ deleteArticleFromSupabase }) => {
+      import('./supabaseClient').then(({ isSupabaseConfigured }) => {
+        if (isSupabaseConfigured()) {
+          deleteArticleFromSupabase(trashId).then(success => {
+            if (success) {
+              console.log('✅ Article permanently deleted from Supabase:', trashId);
+            } else {
+              console.warn('⚠️ Failed to permanently delete article from Supabase:', trashId);
+            }
+          }).catch(err => {
+            console.error('❌ Error permanently deleting from Supabase:', err);
+          });
+        }
+      }).catch(() => {});
+    }).catch(() => {
+      // Supabase not available
+    });
   }
 }
 

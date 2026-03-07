@@ -153,18 +153,26 @@ export async function saveArticleToSupabase(article: AdminArticle): Promise<bool
 
 export async function deleteArticleFromSupabase(articleId: string): Promise<boolean> {
   const client = await initSupabase();
-  if (!client) return false;
+  if (!client) {
+    console.warn('⚠️ Supabase client not initialized');
+    return false;
+  }
   
   try {
+    console.log('🗑️ Deleting article from Supabase:', articleId);
     const { error } = await client
       .from('articles')
       .delete()
       .eq('id', articleId);
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase error:', error);
+      throw error;
+    }
+    console.log('✅ Article deleted from Supabase successfully');
     return true;
   } catch (error) {
-    console.error('Error deleting article from Supabase:', error);
+    console.error('❌ Error deleting article from Supabase:', error);
     return false;
   }
 }
