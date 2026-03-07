@@ -39,6 +39,38 @@ export interface AdminUser {
   failedAttempts?: number; // Count of failed login attempts
   approvedBy?: string;     // Super admin who approved this account
   approvedAt?: string;     // When account was approved
+  
+  // Enhanced Security Fields
+  emailVerified: boolean;           // Email verified via code
+  twoFactorEnabled: boolean;        // 2FA enabled
+  twoFactorSecret?: string;         // TOTP secret (if using authenticator app)
+  trustedDevices?: TrustedDevice[];  // Trusted devices (fingerprint)
+  securityQuestions?: SecurityQuestion[]; // Backup authentication
+  passwordChangedAt?: string;       // Last password change
+  passwordExpiresAt?: string;        // Password expiration (90 days)
+  requiresPasswordChange?: boolean;  // Force password change on next login
+}
+
+export interface TrustedDevice {
+  fingerprint: string;    // Device fingerprint hash
+  name: string;          // User-friendly device name
+  lastUsed: string;      // ISO timestamp
+  ip?: string;           // Last known IP
+  userAgent?: string;    // Browser/device info
+}
+
+export interface SecurityQuestion {
+  question: string;
+  answerHash: string;    // Hashed answer
+}
+
+export interface VerificationCode {
+  code: string;
+  type: 'email_verification' | '2fa' | 'password_reset' | 'device_verification';
+  userId: string;
+  expiresAt: string;     // ISO timestamp
+  attempts: number;      // Failed attempts
+  used: boolean;
 }
 
 export interface LoginAttempt {
@@ -92,12 +124,14 @@ const ROLE_LEVEL: Record<UserRole, number> = {
 };
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
-const USERS_KEY    = 'octagon_users_v2';
-const SESSION_KEY  = 'octagon_session_v2';
+const USERS_KEY    = 'octagon_users_v3';  // v3 for enhanced security fields
+const SESSION_KEY  = 'octagon_session_v3';
 export const ACTIVITY_KEY = 'octagon_activity_log';
 const LOGIN_ATTEMPTS_KEY = 'octagon_login_attempts_v2';
 const BLOCKED_IPS_KEY = 'octagon_blocked_ips_v2';
 const SECURITY_ALERTS_KEY = 'octagon_security_alerts_v2';
+const VERIFICATION_CODES_KEY = 'octagon_verification_codes_v1';
+const TRUSTED_DEVICES_KEY = 'octagon_trusted_devices_v1';
 
 // ─── Security Configuration ───────────────────────────────────────────────────
 const MAX_LOGIN_ATTEMPTS = 5;           // Lock account after 5 failed attempts
@@ -105,6 +139,11 @@ const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes lockout
 const IP_BLOCK_DURATION = 60 * 60 * 1000; // 1 hour IP block
 const MAX_ATTEMPTS_PER_IP = 10;          // Block IP after 10 total failed attempts
 const SUSPICIOUS_ACTIVITY_THRESHOLD = 3; // Alert after 3 suspicious events
+const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours session
+const VERIFICATION_CODE_EXPIRY = 10 * 60 * 1000; // 10 minutes for codes
+const PASSWORD_EXPIRY_DAYS = 90;        // Password expires after 90 days
+const MIN_PASSWORD_LENGTH = 12;         // Minimum password length
+const REQUIRE_PASSWORD_COMPLEXITY = true; // Require uppercase, lowercase, number, special char
 
 // ─── Password hashing ─────────────────────────────────────────────────────────
 // NOTE: For a production backend, replace with server-side bcrypt.
@@ -138,6 +177,10 @@ export function ensureDefaultAdmin(): void {
       role: 'super_admin',
       createdAt: new Date().toISOString(),
       active: true,
+      emailVerified: true,  // Default admin is pre-verified
+      twoFactorEnabled: false,  // Can be enabled later
+      approvedBy: 'system',
+      approvedAt: new Date().toISOString(),
     }]);
   }
 }
@@ -331,11 +374,21 @@ function checkIPAttempts(ip: string): boolean {
   return true; // Allowed
 }
 
-// ─── Authentication ───────────────────────────────────────────────────────────
-export function loginUser(username: string, password: string): { user: AdminUser | null; error: string | null; locked: boolean } {
+// ─── Enhanced Authentication Functions ───────────────────────────────────────
+export function initiateLogin(username: string, password: string): { 
+  success: boolean; 
+  error: string | null; 
+  locked: boolean;
+  requires2FA: boolean;
+  requiresEmailVerification: boolean;
+  requiresDeviceVerification: boolean;
+  userId?: string;
+  deviceFingerprint?: string;
+} {
   ensureDefaultAdmin();
   const ip = getClientIP();
   const userAgent = getUserAgent();
+  const deviceFingerprint = generateDeviceFingerprint();
   
   // Check IP block
   if (isIPBlocked(ip)) {
@@ -347,12 +400,26 @@ export function loginUser(username: string, password: string): { user: AdminUser
       success: false,
       timestamp: new Date().toISOString(),
     });
-    return { user: null, error: 'Access denied. Too many failed attempts from this location.', locked: false };
+    return { 
+      success: false, 
+      error: 'Access denied. Too many failed attempts from this location.', 
+      locked: false,
+      requires2FA: false,
+      requiresEmailVerification: false,
+      requiresDeviceVerification: false,
+    };
   }
   
   // Check IP attempt rate
   if (!checkIPAttempts(ip)) {
-    return { user: null, error: 'Access denied. Too many failed attempts from this location.', locked: false };
+    return { 
+      success: false, 
+      error: 'Access denied. Too many failed attempts from this location.', 
+      locked: false,
+      requires2FA: false,
+      requiresEmailVerification: false,
+      requiresDeviceVerification: false,
+    };
   }
   
   const user = loadUsers().find(
@@ -369,7 +436,51 @@ export function loginUser(username: string, password: string): { user: AdminUser
       success: false,
       timestamp: new Date().toISOString(),
     });
-    return { user: null, error: 'Invalid username or password.', locked: false };
+    return { 
+      success: false, 
+      error: 'Invalid username or password.', 
+      locked: false,
+      requires2FA: false,
+      requiresEmailVerification: false,
+      requiresDeviceVerification: false,
+    };
+  }
+  
+  // Check admin approval
+  if (!user.approvedBy && user.role !== 'super_admin') {
+    return { 
+      success: false, 
+      error: 'Your account is pending approval by an administrator.', 
+      locked: false,
+      requires2FA: false,
+      requiresEmailVerification: false,
+      requiresDeviceVerification: false,
+    };
+  }
+  
+  // Check email verification
+  if (!user.emailVerified) {
+    // Resend verification code
+    const code = generateVerificationCode();
+    sendEmailVerificationCode(user.email, code, 'email_verification');
+    saveVerificationCode({
+      code,
+      type: 'email_verification',
+      userId: user.id,
+      expiresAt: new Date(Date.now() + VERIFICATION_CODE_EXPIRY).toISOString(),
+      attempts: 0,
+      used: false,
+    });
+    
+    return { 
+      success: false, 
+      error: 'Please verify your email address. A verification code has been sent.', 
+      locked: false,
+      requires2FA: false,
+      requiresEmailVerification: true,
+      requiresDeviceVerification: false,
+      userId: user.id,
+    };
   }
   
   // Check account lockout
@@ -384,7 +495,15 @@ export function loginUser(username: string, password: string): { user: AdminUser
       userId: user.id,
     });
     const lockUntil = new Date(user.lockedUntil!).toLocaleString();
-    return { user: null, error: `Account locked until ${lockUntil}. Too many failed login attempts.`, locked: true };
+    return { 
+      success: false, 
+      error: `Account locked until ${lockUntil}. Too many failed login attempts.`, 
+      locked: true,
+      requires2FA: false,
+      requiresEmailVerification: false,
+      requiresDeviceVerification: false,
+      userId: user.id,
+    };
   }
   
   // Verify password
@@ -404,41 +523,220 @@ export function loginUser(username: string, password: string): { user: AdminUser
     
     // Check if we should block IP
     const recentFailures = getLoginAttempts().filter(
-      a => a.ip === ip && !a.success && new Date(a.timestamp).getTime() > Date.now() - 60000 // Last minute
+      a => a.ip === ip && !a.success && new Date(a.timestamp).getTime() > Date.now() - 60000
     );
     if (recentFailures.length >= 5) {
       blockIP(ip);
     }
     
-    return { user: null, error: 'Invalid username or password.', locked: false };
+    return { 
+      success: false, 
+      error: 'Invalid username or password.', 
+      locked: false,
+      requires2FA: false,
+      requiresEmailVerification: false,
+      requiresDeviceVerification: false,
+    };
   }
   
-  // Success! Clear failed attempts and update last login
-  updateUser(user.id, { 
+  // Password correct! Check for 2FA and device verification
+  const isTrustedDevice = user.trustedDevices?.some(d => d.fingerprint === deviceFingerprint);
+  const requiresDeviceVerification = !isTrustedDevice;
+  const requires2FA = user.twoFactorEnabled;
+  
+  // Store pending login for 2FA/device verification
+  if (requires2FA || requiresDeviceVerification) {
+    const code = generateVerificationCode();
+    const codeType = requires2FA ? '2fa' : 'device_verification';
+    sendEmailVerificationCode(user.email, code, codeType);
+    saveVerificationCode({
+      code,
+      type: codeType,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + VERIFICATION_CODE_EXPIRY).toISOString(),
+      attempts: 0,
+      used: false,
+    });
+    
+    // Store pending login session
+    localStorage.setItem('pending_login', JSON.stringify({
+      userId: user.id,
+      deviceFingerprint,
+      ip,
+      userAgent,
+      timestamp: Date.now(),
+    }));
+    
+    return { 
+      success: false, 
+      error: requires2FA ? 'Two-factor authentication required. Check your email for a code.' : 'New device detected. Check your email for a verification code.', 
+      locked: false,
+      requires2FA,
+      requiresEmailVerification: false,
+      requiresDeviceVerification,
+      userId: user.id,
+      deviceFingerprint,
+    };
+  }
+  
+  // All checks passed - complete login
+  return completeLogin(user.id, deviceFingerprint, ip, userAgent);
+}
+
+export function verifyCode(userId: string, code: string, type: 'email_verification' | '2fa' | 'device_verification'): {
+  success: boolean;
+  error: string | null;
+  user?: AdminUser;
+} {
+  const storedCode = getVerificationCode(userId, type);
+  
+  if (!storedCode) {
+    return { success: false, error: 'Invalid or expired code. Please request a new one.' };
+  }
+  
+  if (storedCode.code !== code) {
+    storedCode.attempts++;
+    if (storedCode.attempts >= 5) {
+      // Too many failed attempts, invalidate code
+      markCodeUsed(userId, type);
+      return { success: false, error: 'Too many failed attempts. Please request a new code.' };
+    }
+    return { success: false, error: 'Invalid code. Please try again.' };
+  }
+  
+  // Code is valid
+  markCodeUsed(userId, type);
+  
+  const user = getUser(userId);
+  if (!user) return { success: false, error: 'User not found.' };
+  
+  // Handle different verification types
+  if (type === 'email_verification') {
+    updateUser(userId, { emailVerified: true });
+    const updatedUser = getUser(userId);
+    return { success: true, error: null, user: updatedUser };
+  }
+  
+  if (type === 'device_verification') {
+    const pendingLogin = JSON.parse(localStorage.getItem('pending_login') || '{}');
+    if (pendingLogin.userId !== userId) {
+      return { success: false, error: 'Invalid verification session.' };
+    }
+    
+    // Add device to trusted devices
+    const deviceName = getDeviceName();
+    const trustedDevices = user.trustedDevices || [];
+    trustedDevices.push({
+      fingerprint: pendingLogin.deviceFingerprint,
+      name: deviceName,
+      lastUsed: new Date().toISOString(),
+      ip: pendingLogin.ip,
+      userAgent: pendingLogin.userAgent,
+    });
+    updateUser(userId, { trustedDevices });
+    
+    // Complete login
+    return completeLogin(userId, pendingLogin.deviceFingerprint, pendingLogin.ip, pendingLogin.userAgent);
+  }
+  
+  if (type === '2fa') {
+    const pendingLogin = JSON.parse(localStorage.getItem('pending_login') || '{}');
+    if (pendingLogin.userId !== userId) {
+      return { success: false, error: 'Invalid verification session.' };
+    }
+    
+    // Complete login
+    return completeLogin(userId, pendingLogin.deviceFingerprint, pendingLogin.ip, pendingLogin.userAgent);
+  }
+  
+  return { success: false, error: 'Unknown verification type.' };
+}
+
+function completeLogin(userId: string, deviceFingerprint: string, ip: string, userAgent: string): {
+  success: boolean;
+  error: string | null;
+  requires2FA: boolean;
+  requiresEmailVerification: boolean;
+  requiresDeviceVerification: boolean;
+  user?: AdminUser;
+} {
+  const user = getUser(userId);
+  if (!user) {
+    return { 
+      success: false, 
+      error: 'User not found.',
+      requires2FA: false,
+      requiresEmailVerification: false,
+      requiresDeviceVerification: false,
+    };
+  }
+  
+  // Clear pending login
+  localStorage.removeItem('pending_login');
+  
+  // Update last login and clear failed attempts
+  updateUser(userId, { 
     lastLogin: new Date().toISOString(),
     failedAttempts: 0,
     lockedUntil: undefined,
   });
   
+  // Update trusted device last used
+  if (user.trustedDevices) {
+    const updatedDevices = user.trustedDevices.map(d => 
+      d.fingerprint === deviceFingerprint 
+        ? { ...d, lastUsed: new Date().toISOString(), ip, userAgent }
+        : d
+    );
+    updateUser(userId, { trustedDevices: updatedDevices });
+  }
+  
+  // Create session
   localStorage.setItem(SESSION_KEY, JSON.stringify({
-    userId: user.id,
-    expiry: Date.now() + 8 * 60 * 60 * 1000, // 8-hour sessions
+    userId,
+    expiry: Date.now() + SESSION_DURATION,
     loginIP: ip,
     loginUserAgent: userAgent,
+    deviceFingerprint,
   }));
   
   saveLoginAttempt({
     id: `attempt_${Date.now()}`,
-    username,
+    username: user.username,
     ip,
     userAgent,
     success: true,
     timestamp: new Date().toISOString(),
-    userId: user.id,
+    userId,
   });
   
-  logActivity('login', `${user.displayName} signed in from ${ip.slice(0, 30)}...`, user.id);
-  return { user, error: null, locked: false };
+  logActivity('login', `${user.displayName} signed in from ${ip.slice(0, 30)}...`, userId);
+  
+  return { 
+    success: true, 
+    error: null,
+    requires2FA: false,
+    requiresEmailVerification: false,
+    requiresDeviceVerification: false,
+    user,
+  };
+}
+
+// Legacy login function for backward compatibility (now calls initiateLogin)
+export function loginUser(username: string, password: string): { user: AdminUser | null; error: string | null; locked: boolean } {
+  const result = initiateLogin(username, password);
+  
+  if (!result.success) {
+    return { user: null, error: result.error, locked: result.locked };
+  }
+  
+  // If login requires additional steps, return error
+  if (result.requires2FA || result.requiresEmailVerification || result.requiresDeviceVerification) {
+    return { user: null, error: result.error || 'Additional verification required.', locked: false };
+  }
+  
+  const user = result.userId ? getUser(result.userId) : null;
+  return { user: user || null, error: null, locked: false };
 }
 
 export function logoutUser(): void {
