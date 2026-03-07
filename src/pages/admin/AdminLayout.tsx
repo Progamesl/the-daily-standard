@@ -134,7 +134,10 @@ export default function AdminLayout() {
             {!collapsed && <span>View Live Site</span>}
           </Link>
           <button
-            onClick={logout}
+            onClick={() => {
+              logout();
+              window.location.href = '/admin/login';
+            }}
             title={collapsed ? 'Sign Out' : undefined}
             className={cn(
               'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-white/5 transition-colors w-full',
