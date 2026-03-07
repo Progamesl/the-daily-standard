@@ -105,12 +105,12 @@ const Index = () => {
                   loading="eager"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
-                {/* Multiple gradient overlays for maximum contrast on light images */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90" />
-                {/* Additional dark overlay at bottom for text area */}
-                <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/95 via-black/85 to-transparent" />
+                {/* Gradient overlays for text readability - balanced to preserve image visibility */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/50 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/75" />
+                {/* Subtle dark overlay at bottom for text area only */}
+                <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/80 via-black/65 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 md:p-10 lg:p-12 xl:p-16">
                   <div className="flow-container">
                     <div className="max-w-4xl">
@@ -158,10 +158,10 @@ const Index = () => {
                           loading="eager"
                           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                         />
-                        {/* Stronger gradient overlay for better contrast on light images */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 via-black/50 to-black/20" />
-                        {/* Additional dark overlay at bottom for text area */}
-                        <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/95 via-black/80 to-transparent" />
+                        {/* Gradient overlay for text readability - lighter to preserve image visibility */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent" />
+                        {/* Subtle dark overlay at bottom for text area only */}
+                        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/85 via-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white z-10">
                           <span className="text-[11px] font-bold uppercase tracking-widest text-white mb-1.5 block drop-shadow-lg">
                             {article.section}
