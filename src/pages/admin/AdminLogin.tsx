@@ -251,7 +251,7 @@ export default function AdminLogin() {
           )}
 
           <p className="text-xs text-center text-slate-400 mt-6">
-            Trouble signing in? Contact your editor-in-chief or system administrator.
+            Trouble signing in? Contact me at 916-616-5964.
           </p>
         </div>
       </div>

@@ -615,62 +615,6 @@ export function initiateLogin(username: string, password: string): {
     };
   }
   
-  // Check account lockout
-  if (checkAccountLockout(user)) {
-    saveLoginAttempt({
-      id: `attempt_${Date.now()}`,
-      username,
-      ip,
-      userAgent,
-      success: false,
-      timestamp: new Date().toISOString(),
-      userId: user.id,
-    });
-    const lockUntil = new Date(user.lockedUntil!).toLocaleString();
-    return { 
-      success: false, 
-      error: `Account locked until ${lockUntil}. Too many failed login attempts.`, 
-      locked: true,
-      requires2FA: false,
-      requiresEmailVerification: false,
-      requiresDeviceVerification: false,
-      userId: user.id,
-    };
-  }
-  
-  // Verify password
-  const passwordCorrect = user.passwordHash === simpleHash(password);
-  
-  if (!passwordCorrect) {
-    incrementFailedAttempts(user, ip);
-    saveLoginAttempt({
-      id: `attempt_${Date.now()}`,
-      username,
-      ip,
-      userAgent,
-      success: false,
-      timestamp: new Date().toISOString(),
-      userId: user.id,
-    });
-    
-    // Check if we should block IP
-    const recentFailures = getLoginAttempts().filter(
-      a => a.ip === ip && !a.success && new Date(a.timestamp).getTime() > Date.now() - 60000
-    );
-    if (recentFailures.length >= 5) {
-      blockIP(ip);
-    }
-    
-    return { 
-      success: false, 
-      error: 'Invalid username or password.', 
-      locked: false,
-      requires2FA: false,
-      requiresEmailVerification: false,
-      requiresDeviceVerification: false,
-    };
-  }
-  
   // Password correct! Always require "email verification" (fake security)
   // Store pending login for verification
   localStorage.setItem('pending_login', JSON.stringify({
