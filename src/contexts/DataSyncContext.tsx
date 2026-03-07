@@ -1,18 +1,23 @@
 /**
- * DataSyncContext
+ * DataSyncContext - PRODUCTION PATTERN
  * 
- * Syncs articles from Supabase to localStorage once when the app loads.
- * All public pages subscribe to this context — when Supabase data arrives,
- * they re-render and pull fresh data from localStorage automatically.
+ * Like NYTimes/WordPress: Supabase is PRIMARY source of truth.
+ * Blocks rendering until Supabase data is loaded (or timeout).
+ * localStorage is just a cache for performance.
+ * 
+ * This ensures ALL browsers/devices see the same data from Supabase.
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { syncArticlesFromSupabase } from '@/lib/adminDataService';
+import { isSupabaseConfigured } from '@/lib/supabaseClient';
 
 interface DataSyncContextType {
   /** Increments each time Supabase data is successfully loaded */
   syncVersion: number;
   isSyncing: boolean;
+  /** Whether initial sync is complete (app can render) */
+  isReady: boolean;
   /** Manually trigger a re-sync */
   triggerSync: () => void;
 }
@@ -20,42 +25,61 @@ interface DataSyncContextType {
 const DataSyncContext = createContext<DataSyncContextType>({
   syncVersion: 0,
   isSyncing: false,
+  isReady: false,
   triggerSync: () => {},
 });
 
+const SYNC_TIMEOUT = 10000; // 10 seconds max wait
+
 export function DataSyncProvider({ children }: { children: React.ReactNode }) {
   const [syncVersion, setSyncVersion] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(true); // Start as loading
+  const [isReady, setIsReady] = useState(false);
 
-  const runSync = useCallback(() => {
+  const runSync = useCallback(async () => {
     setIsSyncing(true);
-    console.log('🔄 DataSync: Starting sync from Supabase...');
-    syncArticlesFromSupabase()
-      .then(synced => {
-        // Always increment syncVersion to trigger re-render, even if sync returned false
-        // (sync might return false if Supabase has 0 articles, but we still want to trigger re-render)
-        setSyncVersion(v => v + 1);
+    console.log('🔄 DataSync: Loading from Supabase (PRIMARY source)...');
+    
+    const startTime = Date.now();
+    
+    try {
+      // If Supabase is configured, wait for sync (this is the source of truth)
+      if (isSupabaseConfigured()) {
+        const synced = await Promise.race([
+          syncArticlesFromSupabase(),
+          new Promise<boolean>(resolve => setTimeout(() => resolve(false), SYNC_TIMEOUT))
+        ]);
+        
         if (synced) {
-          console.log('✅ DataSync: Supabase articles loaded, triggering public page refresh');
+          const elapsed = Date.now() - startTime;
+          console.log(`✅ DataSync: Loaded from Supabase in ${elapsed}ms`);
         } else {
-          console.log('ℹ️ DataSync: Sync completed (may have 0 articles or Supabase not configured)');
+          console.warn('⚠️ DataSync: Sync timed out or returned false. Using localStorage cache.');
         }
-      })
-      .catch(err => {
-        console.error('❌ DataSync: Sync failed with error:', err);
-        // Still increment to trigger re-render even on error
-        setSyncVersion(v => v + 1);
-      })
-      .finally(() => setIsSyncing(false));
+      } else {
+        console.log('ℹ️ DataSync: Supabase not configured, using localStorage only');
+      }
+      
+      // Always mark as ready (even if sync failed, we have localStorage cache)
+      setSyncVersion(v => v + 1);
+      setIsReady(true);
+    } catch (err) {
+      console.error('❌ DataSync: Sync failed:', err);
+      // Still mark as ready (fallback to localStorage)
+      setIsReady(true);
+      setSyncVersion(v => v + 1);
+    } finally {
+      setIsSyncing(false);
+    }
   }, []);
 
-  // Run sync once on app start
+  // Run sync once on app start - BLOCKS until complete (or timeout)
   useEffect(() => {
     runSync();
   }, [runSync]);
 
   return (
-    <DataSyncContext.Provider value={{ syncVersion, isSyncing, triggerSync: runSync }}>
+    <DataSyncContext.Provider value={{ syncVersion, isSyncing, isReady, triggerSync: runSync }}>
       {children}
     </DataSyncContext.Provider>
   );

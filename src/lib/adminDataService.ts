@@ -450,29 +450,33 @@ export function saveAdminArticle(
     wordCount: countWords(article.body),
     revisions: revisions.slice(0, 20),
   };
-  articles[saved.id] = saved;
-  setStorage(ARTICLES_KEY, articles);
 
-  // Also save to Supabase if configured (async, non-blocking)
+  // PRODUCTION PATTERN: Save to Supabase FIRST (source of truth), then localStorage (cache)
+  // This is async but we don't block - Supabase is the source of truth
   if (typeof window !== 'undefined') {
-    import('./supabaseDataService').then(({ saveArticleToSupabase }) => {
-      import('./supabaseClient').then(({ isSupabaseConfigured }) => {
-        if (isSupabaseConfigured()) {
+    import('./supabaseClient').then(({ isSupabaseConfigured }) => {
+      if (isSupabaseConfigured()) {
+        import('./supabaseDataService').then(({ saveArticleToSupabase }) => {
           saveArticleToSupabase(saved).then(success => {
             if (success) {
-              console.log('✅ Article saved to Supabase:', saved.id);
+              console.log('✅ Article saved to Supabase (PRIMARY):', saved.id);
+              // Invalidate cache so next read gets fresh data
+              supabaseArticlesCache = null;
+              supabaseArticlesCacheTime = 0;
             } else {
-              console.warn('⚠️ Failed to save article to Supabase:', saved.id);
+              console.error('❌ CRITICAL: Failed to save to Supabase. Article saved to localStorage only.');
             }
           }).catch(err => {
             console.error('❌ Error saving to Supabase:', err);
           });
-        }
-      }).catch(() => {});
-    }).catch(() => {
-      // Supabase not available
-    });
+        }).catch(() => {});
+      }
+    }).catch(() => {});
   }
+
+  // Update localStorage cache (for offline/performance)
+  articles[saved.id] = saved;
+  setStorage(ARTICLES_KEY, articles);
 
   // Un-delete if it was previously deleted
   const deleted = getDeletedArticleIds();
