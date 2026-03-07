@@ -6,6 +6,7 @@
  */
 
 import { getAdminArticlesMap, getAdminAuthorsMap } from './adminDataService';
+import { sections } from '@/data/seedData';
 
 export interface SyncToCodeResult {
   success: boolean;
@@ -22,17 +23,8 @@ export async function syncToCode(): Promise<SyncToCodeResult> {
     const articles = getAdminArticlesMap();
     const authors = getAdminAuthorsMap();
 
-    // Read existing seed data (fetch from public folder or use default structure)
-    let seedData: any = { sections: [], authors: [], articles: [] };
-    try {
-      const response = await fetch('/src/data/octagonData.json');
-      if (response.ok) {
-        seedData = await response.json();
-      }
-    } catch {
-      // If fetch fails, use empty structure (will merge with current data)
-      console.warn('Could not fetch existing seed data, using current data only');
-    }
+    // Use sections from seedData (they're static)
+    // We'll merge articles/authors with existing seed data structure
 
     // Convert AdminArticle format to Article format (only published)
     const convertedArticles = Object.values(articles)
@@ -73,35 +65,17 @@ export async function syncToCode(): Promise<SyncToCodeResult> {
       twitter: author.twitter,
     }));
 
-    // Merge with existing (new data takes precedence)
-    const existingArticles = seedData.articles || [];
-    const existingAuthors = seedData.authors || [];
-
-    const mergedArticles = [...existingArticles];
-    convertedArticles.forEach(article => {
-      const idx = mergedArticles.findIndex(a => a.id === article.id);
-      if (idx >= 0) {
-        mergedArticles[idx] = article; // Update existing
-      } else {
-        mergedArticles.push(article); // Add new
-      }
-    });
-
-    const mergedAuthors = [...existingAuthors];
-    convertedAuthors.forEach(author => {
-      const idx = mergedAuthors.findIndex(a => a.id === author.id);
-      if (idx >= 0) {
-        mergedAuthors[idx] = author; // Update existing
-      } else {
-        mergedAuthors.push(author); // Add new
-      }
-    });
-
-    // Create updated seed data
+    // For now, use current data only (user can manually merge with existing seed if needed)
+    // In production, you'd fetch existing seedData.json and merge
     const updatedSeedData = {
-      sections: seedData.sections || [],
-      authors: mergedAuthors,
-      articles: mergedArticles,
+      sections: sections.map(s => ({
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        description: s.description,
+      })),
+      authors: convertedAuthors,
+      articles: convertedArticles,
     };
 
     // Download as JSON file (user can then commit it)
