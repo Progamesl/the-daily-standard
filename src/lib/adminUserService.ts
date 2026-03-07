@@ -149,7 +149,103 @@ const REQUIRE_PASSWORD_COMPLEXITY = true; // Require uppercase, lowercase, numbe
 // NOTE: For a production backend, replace with server-side bcrypt.
 // This is a client-side fallback that's far better than plain text.
 function simpleHash(password: string): string {
-  return btoa(encodeURIComponent(password + '_octagon_salt_2025_secure_v2'));
+  return btoa(encodeURIComponent(password + '_octagon_salt_2025_secure_v3'));
+}
+
+// ─── Password Validation ──────────────────────────────────────────────────────
+export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    errors.push(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  }
+  
+  if (REQUIRE_PASSWORD_COMPLEXITY) {
+    if (!/[a-z]/.test(password)) errors.push('Password must contain lowercase letters');
+    if (!/[A-Z]/.test(password)) errors.push('Password must contain uppercase letters');
+    if (!/[0-9]/.test(password)) errors.push('Password must contain numbers');
+    if (!/[^a-zA-Z0-9]/.test(password)) errors.push('Password must contain special characters');
+  }
+  
+  // Check for common weak passwords
+  const commonPasswords = ['password', '12345678', 'qwerty', 'octagon', 'admin'];
+  if (commonPasswords.some(weak => password.toLowerCase().includes(weak))) {
+    errors.push('Password is too common or weak');
+  }
+  
+  return { valid: errors.length === 0, errors };
+}
+
+// ─── Device Fingerprinting ────────────────────────────────────────────────────
+function generateDeviceFingerprint(): string {
+  if (typeof window === 'undefined') return 'unknown';
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx?.fillText('Device fingerprint', 2, 2);
+  const fingerprint = [
+    navigator.userAgent,
+    navigator.language,
+    screen.width + 'x' + screen.height,
+    new Date().getTimezoneOffset(),
+    canvas.toDataURL(),
+  ].join('|');
+  return btoa(fingerprint).slice(0, 32);
+}
+
+function getDeviceName(): string {
+  if (typeof window === 'undefined') return 'Unknown Device';
+  const ua = navigator.userAgent;
+  if (ua.includes('iPhone')) return 'iPhone';
+  if (ua.includes('iPad')) return 'iPad';
+  if (ua.includes('Android')) return 'Android Device';
+  if (ua.includes('Mac')) return 'Mac';
+  if (ua.includes('Windows')) return 'Windows PC';
+  if (ua.includes('Linux')) return 'Linux PC';
+  return 'Unknown Device';
+}
+
+// ─── Verification Code Management ────────────────────────────────────────────
+function generateVerificationCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+}
+
+function saveVerificationCode(code: VerificationCode): void {
+  const codes: VerificationCode[] = JSON.parse(localStorage.getItem(VERIFICATION_CODES_KEY) || '[]');
+  codes.push(code);
+  // Keep only last 100 codes
+  localStorage.setItem(VERIFICATION_CODES_KEY, JSON.stringify(codes.slice(-100)));
+}
+
+function getVerificationCode(userId: string, type: VerificationCode['type']): VerificationCode | null {
+  const codes: VerificationCode[] = JSON.parse(localStorage.getItem(VERIFICATION_CODES_KEY) || '[]');
+  const code = codes.find(c => c.userId === userId && c.type === type && !c.used && new Date(c.expiresAt) > new Date());
+  return code || null;
+}
+
+function markCodeUsed(userId: string, type: VerificationCode['type']): void {
+  const codes: VerificationCode[] = JSON.parse(localStorage.getItem(VERIFICATION_CODES_KEY) || '[]');
+  const updated = codes.map(c => 
+    c.userId === userId && c.type === type && !c.used ? { ...c, used: true } : c
+  );
+  localStorage.setItem(VERIFICATION_CODES_KEY, JSON.stringify(updated));
+}
+
+// ─── Email Service (Mock - Replace with real email service) ───────────────────
+function sendEmailVerificationCode(email: string, code: string, type: 'email_verification' | '2fa' | 'password_reset' | 'device_verification'): void {
+  // In production, integrate with Resend, SendGrid, or similar
+  console.log(`[EMAIL] To: ${email}, Code: ${code}, Type: ${type}`);
+  // For now, we'll store it in localStorage and show it in console
+  // In production, this would send an actual email
+  localStorage.setItem(`email_code_${email}`, JSON.stringify({ code, type, sentAt: new Date().toISOString() }));
+}
+
+export function getEmailCodeForTesting(email: string): string | null {
+  const stored = localStorage.getItem(`email_code_${email}`);
+  if (!stored) return null;
+  const data = JSON.parse(stored);
+  // Code expires after 10 minutes
+  if (new Date(data.sentAt).getTime() + VERIFICATION_CODE_EXPIRY < Date.now()) return null;
+  return data.code;
 }
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
