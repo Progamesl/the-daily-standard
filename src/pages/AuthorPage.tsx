@@ -3,14 +3,14 @@ import { Layout } from "@/components/layout/Layout";
 import { StoryCard } from "@/components/stories/StoryCard";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { DocumentHead } from "@/components/seo/DocumentHead";
-import { getAuthorById, articles } from "@/data/seedData";
+import { getPublicAuthorById, getAllPublicArticles } from "@/lib/publicDataService";
 import { ArrowLeft, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AuthorPage() {
   const { id } = useParams<{ id: string }>();
-  const author = id ? getAuthorById(id) : undefined;
-  const authorArticles = articles.filter((a) => a.author.id === id);
+  const author = id ? getPublicAuthorById(id) : undefined;
+  const authorArticles = getAllPublicArticles().filter((a) => a.author.id === id);
 
   if (!author) {
     return (

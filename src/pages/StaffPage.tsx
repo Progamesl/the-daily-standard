@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { X, ArrowUpRight, Search } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
-import { articles } from "@/data/seedData";
+import { getArticles } from "@/data/seedData";
 import type { Article } from "@/data/seedData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ function initials(name: string) {
 }
 
 function articlesByName(name: string): Article[] {
-  return articles.filter((a) => a.author?.name?.toLowerCase() === name.toLowerCase());
+  return getArticles().filter((a) => a.author?.name?.toLowerCase() === name.toLowerCase());
 }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────

@@ -7,12 +7,14 @@ import { ReadingProgress } from "@/components/article/ReadingProgress";
 import { ArticleReadingToolbar } from "@/components/article/ArticleReadingToolbar";
 import { ArticleContent } from "@/components/ui/ArticleContent";
 import {
-  getArticleBySlug,
-  getMostPopular,
-  getArticlesBySection,
   getSectionBySlug,
   formatDate,
 } from "@/data/seedData";
+import {
+  getPublicArticleBySlug,
+  getMostPopularPublic,
+  getPublicArticlesBySection,
+} from "@/lib/publicDataService";
 import { getImageOrNull } from "@/lib/imageHelpers";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { ArrowLeft } from "lucide-react";
@@ -22,8 +24,8 @@ import { addToHistory } from "@/components/user/UserMenu";
 
 export default function ArticlePage() {
   const { slug } = useParams<{ slug: string }>();
-  const article = slug ? getArticleBySlug(slug) : undefined;
-  const mostPopular = getMostPopular(5);
+  const article = slug ? getPublicArticleBySlug(slug) : undefined;
+  const mostPopular = getMostPopularPublic(5);
   const [fontSize, setFontSize] = useState<"normal" | "large" | "xlarge">("normal");
 
   useEffect(() => {
@@ -42,9 +44,8 @@ export default function ArticlePage() {
     );
   }
 
-  const relatedArticles = getArticlesBySection(article.section)
+  const relatedArticles = getPublicArticlesBySection(article.section)
     .filter((a) => a.id !== article.id)
-    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
     .slice(0, 6);
 
   const heroImage = getImageOrNull(article.image, article.images);

@@ -4,16 +4,18 @@ import { DocumentHead } from "@/components/seo/DocumentHead";
 import { NewsletterStrip } from "@/components/newsletter/NewsletterStrip";
 import { MostPopular } from "@/components/stories/MostPopular";
 import {
-  getFeaturedArticle,
-  getMostPopular,
-  getArticlesBySection,
-  getLatestArticles,
-  getBreakingNews,
-  getEditorsPicks,
-  getLongReadArticles,
   formatTimestamp,
   Article,
 } from "@/data/seedData";
+import {
+  getFeaturedPublicArticle,
+  getMostPopularPublic,
+  getPublicArticlesBySection,
+  getLatestPublicArticles,
+  getBreakingPublicNews,
+  getEditorsPicksPublic,
+  getLongReadPublicArticles,
+} from "@/lib/publicDataService";
 import { getImageOrNull, enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
 
 /** Only keep articles that have a real image (not null/empty/placeholder). */
@@ -27,12 +29,12 @@ function imgSrc(a: Article): string {
 }
 
 const Index = () => {
-  const featured = getFeaturedArticle();
-  const latest = getLatestArticles(1)[0];
-  const latestTwelve = getLatestArticles(12);
-  const breakingNews = getBreakingNews(3);
-  const editorsPicksRaw = getEditorsPicks(5);
-  const mostPopular = getMostPopular(10);
+  const featured = getFeaturedPublicArticle();
+  const latest = getLatestPublicArticles(1)[0];
+  const latestTwelve = getLatestPublicArticles(12);
+  const breakingNews = getBreakingPublicNews(3);
+  const editorsPicksRaw = getEditorsPicksPublic(5);
+  const mostPopular = getMostPopularPublic(10);
 
   // Global dedup tracker — no story appears more than once on the homepage
   const usedIds = new Set<string>();
@@ -63,11 +65,11 @@ const Index = () => {
   const mixStories = take(mixPool, 6);
 
   // Section pools — all pre-filtered for images, matching the 5 real Octagon sections
-  const newsArticles = take(withImages(getArticlesBySection("us")), 5);
-  const artsArticles = take(withImages(getArticlesBySection("arts")), 4);
-  const sportsArticles = take(withImages(getArticlesBySection("sports")), 4);
-  const opinionArticles = take(withImages(getArticlesBySection("opinion")), 6);
-  const editorialArticles = take(withImages(getArticlesBySection("editorial")), 3);
+  const newsArticles = take(withImages(getPublicArticlesBySection("us")), 5);
+  const artsArticles = take(withImages(getPublicArticlesBySection("arts")), 4);
+  const sportsArticles = take(withImages(getPublicArticlesBySection("sports")), 4);
+  const opinionArticles = take(withImages(getPublicArticlesBySection("opinion")), 6);
+  const editorialArticles = take(withImages(getPublicArticlesBySection("editorial")), 3);
 
   return (
     <Layout>

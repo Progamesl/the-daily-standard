@@ -6,18 +6,20 @@ import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import {
   getSectionBySlug,
-  getArticlesBySection,
-  getMostPopular,
   sections,
 } from "@/data/seedData";
+import {
+  getPublicArticlesBySection,
+  getMostPopularPublic,
+} from "@/lib/publicDataService";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function SectionPage() {
   const { slug } = useParams<{ slug: string }>();
   const section = slug ? getSectionBySlug(slug) : undefined;
-  const articles = slug ? getArticlesBySection(slug) : [];
-  const mostPopular = getMostPopular(5);
+  const articles = slug ? getPublicArticlesBySection(slug) : [];
+  const mostPopular = getMostPopularPublic(5);
 
   if (!section) {
     return (

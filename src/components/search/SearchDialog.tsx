@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { articles } from "@/data/seedData";
+import { getArticles } from "@/data/seedData";
 import { Search, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +24,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase().trim();
-    return articles.filter(
+    return getArticles().filter(
       (a) =>
         a.headline.toLowerCase().includes(q) ||
         a.dek?.toLowerCase().includes(q) ||
