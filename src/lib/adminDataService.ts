@@ -723,7 +723,7 @@ export interface SiteSettings {
 }
 
 export const DEFAULT_SETTINGS: SiteSettings = {
-  siteName: 'The Daily Standard',
+  siteName: 'The Octagon',
   tagline: 'The official student newspaper of Sacramento Country Day School',
   contactEmail: 'octagon@saccds.org',
   socialTwitter: '',

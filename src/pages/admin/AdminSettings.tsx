@@ -111,7 +111,7 @@ export default function AdminSettings() {
               <Label htmlFor="siteName">Publication Name</Label>
               <Input id="siteName" value={settings.siteName}
                 onChange={(e) => update('siteName', e.target.value)}
-                placeholder="The Daily Standard" className="mt-1" />
+                placeholder="The Octagon" className="mt-1" />
             </div>
             <div>
               <Label htmlFor="tagline">Tagline</Label>

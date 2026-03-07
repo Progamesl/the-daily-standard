@@ -102,7 +102,7 @@ export default function AdminLogin() {
           <div className="inline-flex items-center justify-center w-14 h-14 bg-slate-900 rounded-2xl mb-4">
             <Newspaper className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 font-serif">The Daily Standard</h1>
+          <h1 className="text-2xl font-bold text-slate-900 font-serif">The Octagon</h1>
           <p className="text-sm text-slate-500 mt-1">Staff Portal</p>
         </div>
 

@@ -69,7 +69,7 @@ export default function AdminLayout() {
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-sm font-bold text-white leading-tight truncate">The Daily Standard</p>
+              <p className="text-sm font-bold text-white leading-tight truncate">The Octagon</p>
               <p className="text-[10px] text-slate-400 truncate">Admin Portal</p>
             </div>
           )}
