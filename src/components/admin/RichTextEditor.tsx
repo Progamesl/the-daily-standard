@@ -135,10 +135,38 @@ export function RichTextEditor({
     return cleaned;
   }, []);
 
+  // Convert plain text to formatted HTML (for PDFs, Google Docs plain text, etc.)
+  const convertPlainTextToHtml = useCallback((text: string): string => {
+    if (!text.trim()) return '<p><br></p>';
+    
+    // Split by double line breaks (paragraph breaks)
+    const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
+    
+    if (paragraphs.length === 0) return '<p><br></p>';
+    
+    // Convert each paragraph, preserving single line breaks within paragraphs
+    const html = paragraphs.map(para => {
+      const trimmed = para.trim();
+      if (!trimmed) return '<p><br></p>';
+      
+      // Replace single line breaks with <br> tags
+      const withBreaks = trimmed
+        .split(/\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('<br>');
+      
+      return `<p>${withBreaks}</p>`;
+    }).join('');
+    
+    return html;
+  }, []);
+
   // Handle paste events - clean the pasted content
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text/html') || e.clipboardData.getData('text/plain');
+    const htmlData = e.clipboardData.getData('text/html');
+    const plainData = e.clipboardData.getData('text/plain');
     
     if (!editorRef.current) return;
 
@@ -150,8 +178,8 @@ export function RichTextEditor({
     range.deleteContents();
 
     // If HTML was pasted, clean it
-    if (e.clipboardData.getData('text/html')) {
-      const cleaned = cleanPastedHtml(pastedData);
+    if (htmlData && htmlData.trim().length > 0) {
+      const cleaned = cleanPastedHtml(htmlData);
       const temp = document.createElement('div');
       temp.innerHTML = cleaned;
       
@@ -161,10 +189,18 @@ export function RichTextEditor({
         fragment.appendChild(temp.firstChild);
       }
       range.insertNode(fragment);
-    } else {
-      // Plain text - insert as text node
-      const textNode = document.createTextNode(pastedData);
-      range.insertNode(textNode);
+    } else if (plainData) {
+      // Plain text (PDF, etc.) - convert to formatted HTML
+      const html = convertPlainTextToHtml(plainData);
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      
+      // Insert formatted nodes
+      const fragment = document.createDocumentFragment();
+      while (temp.firstChild) {
+        fragment.appendChild(temp.firstChild);
+      }
+      range.insertNode(fragment);
     }
 
     // Move cursor to end of inserted content
@@ -174,7 +210,7 @@ export function RichTextEditor({
 
     // Trigger input event to update state
     handleInput();
-  }, [cleanPastedHtml, handleInput]);
+  }, [cleanPastedHtml, convertPlainTextToHtml, handleInput]);
 
   // execCommand wrapper
   const exec = useCallback(

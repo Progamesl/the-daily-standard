@@ -28,11 +28,24 @@ interface ImageUploadProps {
 
 const MAX_B64_MB = 2; // warn if base64 exceeds this size
 
+/**
+ * Convert file to base64 with maximum quality preservation.
+ * For images, we use FileReader directly to preserve 100% quality (no compression).
+ * Canvas is only used as a fallback if needed.
+ */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
+    // Use FileReader directly for maximum quality - it converts file to base64
+    // without any compression or quality loss
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Clean up object URL if we created one
+      resolve(result);
+    };
+    reader.onerror = () => {
+      reject(new Error('Failed to read file'));
+    };
     reader.readAsDataURL(file);
   });
 }
@@ -65,6 +78,7 @@ export function ImageUpload({
     setWarn('');
     setPasting(true);
     try {
+      // FileReader preserves 100% quality - no compression
       const b64 = await fileToBase64(file);
       if (sizeMB > MAX_B64_MB) {
         setWarn(`Large image (${sizeMB.toFixed(1)} MB) stored as base64. For best performance, upload to Imgur or Google Photos and paste the URL.`);
