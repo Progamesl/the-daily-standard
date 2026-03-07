@@ -175,14 +175,14 @@ export default function AdminDashboard() {
       {/* Secondary Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         {[
-          { label: 'Pitches',    value: stats.pitchCount,      color: 'bg-slate-100 text-slate-700' },
-          { label: 'Drafts',     value: stats.draftArticles,   color: 'bg-amber-100 text-amber-700' },
-          { label: 'Submitted',  value: stats.submittedCount,  color: 'bg-orange-100 text-orange-700' },
-          { label: 'Overdue',    value: stats.overdueCount,    color: 'bg-red-100 text-red-700' },
+          { label: 'Pitches',    value: stats.pitchCount,      color: 'bg-slate-100 text-slate-700 border border-slate-200' },
+          { label: 'Drafts',     value: stats.draftArticles,   color: 'bg-amber-100 text-amber-700 border border-amber-200' },
+          { label: 'Submitted',  value: stats.submittedCount,  color: 'bg-orange-100 text-orange-700 border border-orange-200' },
+          { label: 'Overdue',    value: stats.overdueCount,    color: 'bg-red-100 text-red-700 border border-red-200' },
         ].map(({ label, value, color }) => (
-          <div key={label} className={cn('rounded-xl p-4', color)}>
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-xs font-medium mt-0.5 opacity-80">{label}</p>
+          <div key={label} className={cn('rounded-xl p-4 min-h-[80px] flex flex-col justify-center', color)}>
+            <p className="text-2xl font-bold leading-none">{value}</p>
+            <p className="text-xs font-medium mt-1.5 opacity-90 uppercase tracking-wider">{label}</p>
           </div>
         ))}
       </div>
