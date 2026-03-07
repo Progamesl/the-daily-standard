@@ -2,8 +2,9 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Bold, Italic, Underline, Heading2, Heading3,
   List, ListOrdered, Quote, Link as LinkIcon, ImageIcon,
-  Minus, Undo2, Redo2, Eye, Code2, RemoveFormatting, Type,
+  Minus, Undo2, Redo2, Eye, Code2, RemoveFormatting, Type, Wand2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import {
@@ -150,6 +151,18 @@ export function RichTextEditor({
     
     return cleaned;
   }, []);
+
+  // Auto Format: apply all formatting rules to current content
+  const handleAutoFormat = useCallback(() => {
+    if (!editorRef.current) return;
+    const current = editorRef.current.innerHTML;
+    if (!current || current === '<br>') return;
+    const formatted = cleanPastedHtml(current);
+    editorRef.current.innerHTML = formatted;
+    isInternalUpdate.current = true;
+    onChange(formatted);
+    toast.success('Auto-formatted to AP Style ✓');
+  }, [cleanPastedHtml, onChange]);
 
   // Convert plain text to formatted HTML (for PDFs, Google Docs plain text, etc.)
   // Matches existing article formatting: clean <p> tags, AP Style rules
@@ -411,6 +424,19 @@ export function RichTextEditor({
             <TB icon={Undo2} label="Undo" onClick={() => exec('undo')} />
             <TB icon={Redo2} label="Redo" onClick={() => exec('redo')} />
             <TB icon={RemoveFormatting} label="Clear Formatting" onClick={() => exec('removeFormat')} />
+
+            <Separator orientation="vertical" className="h-5 mx-1" />
+
+            {/* Auto Format */}
+            <button
+              type="button"
+              onClick={handleAutoFormat}
+              title="Auto Format — strip inline styles, fix spacing, AP Style"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              Auto Format
+            </button>
           </>
         )}
 

@@ -26,6 +26,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminActivityLog from "./pages/admin/AdminActivityLog";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminTrash from "./pages/admin/AdminTrash";
+import AdminPdfImport from "./pages/admin/AdminPdfImport";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="users" element={<AdminUsers />} />
               <Route path="activity" element={<AdminActivityLog />} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="pdf-import" element={<AdminPdfImport />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

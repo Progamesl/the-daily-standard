@@ -133,6 +133,24 @@ export default function AdminStoryEditor() {
         toast.error('Article not found');
         navigate('/admin/stories');
       }
+    } else {
+      // Check for PDF pre-fill data (from PDF Import tool)
+      const raw = sessionStorage.getItem('pdf_prefill');
+      if (raw) {
+        try {
+          const prefill = JSON.parse(raw) as { headline?: string; byline?: string; body?: string };
+          sessionStorage.removeItem('pdf_prefill');
+          setForm(prev => ({
+            ...prev,
+            headline: prefill.headline ?? prev.headline,
+            body: prefill.body ?? prev.body,
+            slug: prefill.headline ? generateSlug(prefill.headline) : prev.slug,
+          }));
+          toast.success('Story pre-filled from PDF import');
+        } catch {
+          sessionStorage.removeItem('pdf_prefill');
+        }
+      }
     }
     setLoaded(true);
   }, [id, navigate]);
