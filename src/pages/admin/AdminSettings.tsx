@@ -10,12 +10,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   Save, Download, Upload, Trash2, AlertTriangle,
-  Globe, Mail, Share2, Database,
+  Globe, Mail, Share2, Database, Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getSiteSettings, saveSiteSettings, exportAdminData,
-  importAdminDataFromJson, clearAdminData, type SiteSettings,
+  importAdminDataFromJson, clearAdminData, mergeDuplicateAuthors,
+  type SiteSettings,
 } from '@/lib/adminDataService';
 
 export default function AdminSettings() {
@@ -24,6 +25,7 @@ export default function AdminSettings() {
   const [clearOpen, setClearOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
+  const [merging, setMerging] = useState(false);
 
   const update = <K extends keyof SiteSettings>(key: K, value: SiteSettings[K]) =>
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -57,6 +59,25 @@ export default function AdminSettings() {
       setImportText('');
     } catch {
       toast.error('Invalid JSON. Please check your file and try again.');
+    }
+  };
+
+  const handleMergeDuplicates = () => {
+    setMerging(true);
+    try {
+      const result = mergeDuplicateAuthors();
+      if (result.merged > 0 || result.articlesUpdated > 0) {
+        toast.success(
+          `Merged ${result.merged} duplicate author${result.merged === 1 ? '' : 's'} and updated ${result.articlesUpdated} article${result.articlesUpdated === 1 ? '' : 's'}`
+        );
+      } else {
+        toast.info('No duplicate authors found');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to merge duplicates');
+    } finally {
+      setMerging(false);
     }
   };
 
@@ -241,6 +262,26 @@ export default function AdminSettings() {
                 </div>
               </div>
             )}
+
+            {/* Merge Duplicate Authors */}
+            <div className="flex items-start justify-between p-4 bg-violet-50 rounded-xl border border-violet-100">
+              <div>
+                <p className="text-sm font-medium text-violet-700">Merge Duplicate Authors</p>
+                <p className="text-xs text-violet-400 mt-0.5">
+                  Automatically finds and merges authors with the same name. Stories are reassigned to the kept author.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleMergeDuplicates}
+                disabled={merging}
+                className="gap-1.5 shrink-0 ml-4 text-violet-600 border-violet-200 hover:bg-violet-100"
+              >
+                <Users className="h-4 w-4" />
+                {merging ? 'Merging…' : 'Merge Duplicates'}
+              </Button>
+            </div>
 
             {/* Clear Data */}
             <div className="flex items-start justify-between p-4 bg-red-50 rounded-xl border border-red-100">

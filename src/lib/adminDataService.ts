@@ -496,6 +496,114 @@ export function getDeletedAuthorIds(): string[] {
   return getStorage<string[]>(DELETED_AUTHORS_KEY, []);
 }
 
+/**
+ * Merge duplicate authors and reassign their stories.
+ * Finds authors with the same normalized name (case-insensitive) and merges them:
+ * - Keeps the author with more stories, or admin-created over seed if tied
+ * - Updates all articles to reference the kept author
+ * - Deletes duplicate authors
+ * 
+ * @returns Object with stats: { merged: number, articlesUpdated: number }
+ */
+export function mergeDuplicateAuthors(): { merged: number; articlesUpdated: number } {
+  // Dynamic import to avoid circular dependency
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { authors: seedAuthors } = require('@/data/seedData') as { authors: AdminAuthor[] };
+  const authors = getAdminAuthorsMap();
+  const articles = getAdminArticlesMap();
+  
+  // Build a map of normalized name -> author IDs
+  const byName = new Map<string, string[]>();
+  
+  // Collect all authors (seed + admin)
+  const allAuthorIds = new Set<string>();
+  seedAuthors.forEach((a: AdminAuthor) => {
+    allAuthorIds.add(a.id);
+    const normalized = a.name.trim().toLowerCase();
+    if (!byName.has(normalized)) byName.set(normalized, []);
+    byName.get(normalized)!.push(a.id);
+  });
+  
+  Object.keys(authors).forEach(id => {
+    allAuthorIds.add(id);
+    const normalized = authors[id].name.trim().toLowerCase();
+    if (!byName.has(normalized)) byName.set(normalized, []);
+    if (!byName.get(normalized)!.includes(id)) {
+      byName.get(normalized)!.push(id);
+    }
+  });
+  
+  let merged = 0;
+  let articlesUpdated = 0;
+  
+  // Process each duplicate group
+  byName.forEach((authorIds, normalizedName) => {
+    if (authorIds.length <= 1) return; // No duplicates
+    
+    // Count stories per author
+    const storyCounts = new Map<string, number>();
+    authorIds.forEach(aid => {
+      const count = Object.values(articles).filter(a => a.author.id === aid).length;
+      storyCounts.set(aid, count);
+    });
+    
+    // Pick the author to keep:
+    // 1. Prefer admin-created over seed (admin authors exist in authors map)
+    // 2. If both/neither are admin, prefer the one with more stories
+    // 3. If tied, prefer the first one alphabetically by ID
+    const keepId = authorIds.reduce((best, current) => {
+      const bestIsAdmin = authors[best] !== undefined;
+      const currentIsAdmin = authors[current] !== undefined;
+      
+      if (currentIsAdmin && !bestIsAdmin) return current;
+      if (bestIsAdmin && !currentIsAdmin) return best;
+      
+      const bestCount = storyCounts.get(best) ?? 0;
+      const currentCount = storyCounts.get(current) ?? 0;
+      
+      if (currentCount > bestCount) return current;
+      if (bestCount > currentCount) return best;
+      
+      return current < best ? current : best;
+    });
+    
+    // Get the author object to keep (from admin or seed)
+    const keepAuthor: AdminAuthor = authors[keepId] ?? 
+      seedAuthors.find((a: AdminAuthor) => a.id === keepId) ?? 
+      authors[authorIds[0]] ?? seedAuthors.find((a: AdminAuthor) => a.id === authorIds[0]);
+    
+    if (!keepAuthor) return;
+    
+    // Update all articles referencing duplicate authors
+    const duplicates = authorIds.filter(id => id !== keepId);
+    duplicates.forEach(dupId => {
+      let changed = false;
+      Object.keys(articles).forEach(articleId => {
+        if (articles[articleId].author.id === dupId) {
+          articles[articleId] = {
+            ...articles[articleId],
+            author: keepAuthor,
+          };
+          changed = true;
+          articlesUpdated++;
+        }
+      });
+      
+      if (changed) {
+        setStorage(ARTICLES_KEY, articles);
+      }
+      
+      // Delete duplicate author (if it's admin-created)
+      if (authors[dupId]) {
+        deleteAdminAuthor(dupId);
+        merged++;
+      }
+    });
+  });
+  
+  return { merged, articlesUpdated };
+}
+
 // ─── Utility ──────────────────────────────────────────────────────────────────
 export function importJsonArticle(jsonArticle: Record<string, unknown>): AdminArticle {
   const authorRaw = (jsonArticle.author ?? {}) as Record<string, unknown>;
