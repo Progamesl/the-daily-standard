@@ -125,15 +125,15 @@ import { authors as seedAuthors } from '@/data/seedData';
 import { getAdminAuthorsList } from '@/lib/adminDataService';
 
 function mergeAllAuthors(): Author[] {
-  const map = new Map<string, Author>();
+  // First pass: deduplicate by ID (admin authors override seed authors)
+  const byId = new Map<string, Author>();
 
   seedAuthors.forEach(seed => {
-    map.set(seed.id, seed);
+    byId.set(seed.id, seed);
   });
 
-  // Admin authors override seed authors
   getAdminAuthorsList().forEach(admin => {
-    map.set(admin.id, {
+    byId.set(admin.id, {
       id: admin.id,
       name: admin.name,
       role: admin.role,
@@ -144,7 +144,21 @@ function mergeAllAuthors(): Author[] {
     });
   });
 
-  return Array.from(map.values());
+  // Second pass: deduplicate by normalized name (case-insensitive, trimmed)
+  // If multiple authors have the same name, keep only the first one encountered
+  const result: Author[] = [];
+  const seenNames = new Set<string>();
+  
+  Array.from(byId.values()).forEach(author => {
+    const normalizedName = author.name.trim().toLowerCase();
+    if (!seenNames.has(normalizedName)) {
+      seenNames.add(normalizedName);
+      result.push(author);
+    }
+    // Skip if name already seen (duplicate name, different ID)
+  });
+
+  return result;
 }
 
 export function getAllPublicAuthors(): Author[] {

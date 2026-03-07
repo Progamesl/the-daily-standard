@@ -34,13 +34,29 @@ import { cn } from '@/lib/utils';
 const AUTOSAVE_DELAY = 5000;
 
 function getAllAuthors(): AdminAuthor[] {
-  const map = new Map<string, AdminAuthor>();
-  jsonAuthors.forEach(a => map.set(a.id, {
+  // First pass: deduplicate by ID (admin authors override seed authors)
+  const byId = new Map<string, AdminAuthor>();
+  jsonAuthors.forEach(a => byId.set(a.id, {
     id: a.id, name: a.name, role: a.role, bio: a.bio,
     image: a.image, email: a.email, twitter: a.twitter,
   }));
-  getAdminAuthorsList().forEach(a => map.set(a.id, a));
-  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  getAdminAuthorsList().forEach(a => byId.set(a.id, a));
+  
+  // Second pass: deduplicate by normalized name (case-insensitive, trimmed)
+  // If multiple authors have the same name, keep only the first one encountered
+  const result: AdminAuthor[] = [];
+  const seenNames = new Set<string>();
+  
+  Array.from(byId.values()).forEach(author => {
+    const normalizedName = author.name.trim().toLowerCase();
+    if (!seenNames.has(normalizedName)) {
+      seenNames.add(normalizedName);
+      result.push(author);
+    }
+    // Skip if name already seen (duplicate name, different ID)
+  });
+  
+  return result.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 type WorkflowStatus = AdminArticle['status'];
