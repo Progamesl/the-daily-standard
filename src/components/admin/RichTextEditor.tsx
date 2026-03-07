@@ -118,48 +118,78 @@ export function RichTextEditor({
       }
     });
 
-    // Normalize line breaks and paragraphs
+    // Normalize line breaks and paragraphs to match existing article format
     let cleaned = temp.innerHTML
+      // Convert divs to paragraphs (matching existing article structure)
       .replace(/<div><br><\/div>/gi, '<p><br></p>')
       .replace(/<div>/gi, '<p>')
       .replace(/<\/div>/gi, '</p>')
+      // Double line breaks = new paragraph (AP Style)
       .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '</p><p>')
-      .replace(/(<p><\/p>)+/gi, '<p><br></p>')
+      // Remove empty paragraphs
+      .replace(/(<p><\/p>)+/gi, '')
+      // Normalize whitespace within paragraphs (AP Style: single space)
+      .replace(/\s+/g, ' ')
+      // Remove leading/trailing whitespace from paragraphs
+      .replace(/<p>\s+/g, '<p>')
+      .replace(/\s+<\/p>/g, '</p>')
       .trim();
 
-    // Ensure proper paragraph structure
-    if (!cleaned.startsWith('<p>') && !cleaned.startsWith('<h')) {
+    // Ensure proper paragraph structure (matching existing articles)
+    if (!cleaned) {
+      cleaned = '<p><br></p>';
+    } else if (!cleaned.startsWith('<p>') && !cleaned.startsWith('<h') && !cleaned.startsWith('<figure') && !cleaned.startsWith('<blockquote')) {
       cleaned = `<p>${cleaned}</p>`;
     }
 
+    // AP Style: Ensure single space after periods (not double)
+    cleaned = cleaned.replace(/\.\s{2,}/g, '. ');
+
+    // Remove any remaining inline formatting that shouldn't be there
+    cleaned = cleaned.replace(/style=["'][^"']*["']/gi, '');
+    
     return cleaned;
   }, []);
 
   // Convert plain text to formatted HTML (for PDFs, Google Docs plain text, etc.)
+  // Matches existing article formatting: clean <p> tags, AP Style rules
   const convertPlainTextToHtml = useCallback((text: string): string => {
     if (!text.trim()) return '<p><br></p>';
     
-    // Split by double line breaks (paragraph breaks)
+    // AP Style: Normalize whitespace first (single space, not double)
+    text = text.replace(/\s+/g, ' ').trim();
+    
+    // Split by double line breaks (paragraph breaks - AP Style)
     const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
     
     if (paragraphs.length === 0) return '<p><br></p>';
     
-    // Convert each paragraph, preserving single line breaks within paragraphs
+    // Convert each paragraph to match existing article structure
     const html = paragraphs.map(para => {
       const trimmed = para.trim();
-      if (!trimmed) return '<p><br></p>';
+      if (!trimmed) return '';
       
-      // Replace single line breaks with <br> tags
-      const withBreaks = trimmed
-        .split(/\n/)
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .join('<br>');
+      // AP Style: Single space after periods (not double)
+      const normalized = trimmed.replace(/\.\s{2,}/g, '. ');
       
-      return `<p>${withBreaks}</p>`;
-    }).join('');
+      // For plain text, we typically don't want <br> tags within paragraphs
+      // (AP Style: paragraphs are solid blocks of text)
+      // But if there are intentional line breaks, preserve them
+      const hasLineBreaks = trimmed.includes('\n');
+      if (hasLineBreaks) {
+        // Replace single line breaks with <br> tags
+        const withBreaks = normalized
+          .split(/\n/)
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .join('<br>');
+        return `<p>${withBreaks}</p>`;
+      }
+      
+      return `<p>${normalized}</p>`;
+    }).filter(p => p.length > 0).join('');
     
-    return html;
+    return html || '<p><br></p>';
   }, []);
 
   // Handle paste events - clean the pasted content
