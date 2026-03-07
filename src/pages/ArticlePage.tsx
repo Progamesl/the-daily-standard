@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { StoryCard } from "@/components/stories/StoryCard";
 import { MostPopular } from "@/components/stories/MostPopular";
@@ -15,30 +15,72 @@ import {
   getMostPopularPublic,
   getPublicArticlesBySection,
 } from "@/lib/publicDataService";
+import { getAdminArticleBySlug } from "@/lib/adminDataService";
 import { getImageOrNull } from "@/lib/imageHelpers";
 import { DocumentHead } from "@/components/seo/DocumentHead";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, EyeOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { addToHistory } from "@/components/user/UserMenu";
+import type { Article } from "@/data/seedData";
+
+/** Convert an AdminArticle into the shape ArticlePage expects */
+function adminToArticleShape(admin: ReturnType<typeof getAdminArticleBySlug>): Article | undefined {
+  if (!admin) return undefined;
+  return {
+    id: admin.id,
+    slug: admin.slug,
+    headline: admin.headline,
+    dek: admin.dek,
+    body: admin.body,
+    image: admin.image,
+    images: admin.images ?? [],
+    imageCaption: admin.imageCaption,
+    section: admin.section,
+    author: admin.author,
+    publishedAt: new Date(admin.publishedAt),
+    updatedAt: admin.updatedAt ? new Date(admin.updatedAt) : undefined,
+    readingTime: admin.readingTime,
+    tags: admin.tags ?? [],
+  };
+}
 
 export default function ArticlePage() {
   const { slug } = useParams<{ slug: string }>();
-  const article = slug ? getPublicArticleBySlug(slug) : undefined;
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get("preview") === "1";
+
+  // In preview mode, look up from admin data regardless of publish status.
+  // Otherwise, only show published articles.
+  const article = slug
+    ? isPreview
+      ? adminToArticleShape(getAdminArticleBySlug(slug)) ?? getPublicArticleBySlug(slug)
+      : getPublicArticleBySlug(slug)
+    : undefined;
+
   const mostPopular = getMostPopularPublic(5);
   const [fontSize, setFontSize] = useState<"normal" | "large" | "xlarge">("normal");
 
   useEffect(() => {
-    if (slug) addToHistory(slug);
-  }, [slug]);
+    if (slug && !isPreview) addToHistory(slug);
+  }, [slug, isPreview]);
 
   if (!article) {
     return (
       <Layout>
         <div className="flow-container py-16 text-center">
           <h1 className="font-serif text-2xl font-bold mb-4">Article Not Found</h1>
-          <p className="text-muted-foreground mb-8">The article you're looking for doesn't exist or has been moved.</p>
-          <Link to="/"><Button variant="outline"><ArrowLeft className="h-4 w-4 mr-2" />Back to Home</Button></Link>
+          <p className="text-muted-foreground mb-8">
+            {isPreview
+              ? "This article hasn't been saved yet. Save the draft first, then preview."
+              : "The article you're looking for doesn't exist or has been moved."}
+          </p>
+          <Link to={isPreview ? "/admin/stories" : "/"}>
+            <Button variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {isPreview ? "Back to Stories" : "Back to Home"}
+            </Button>
+          </Link>
         </div>
       </Layout>
     );
@@ -75,6 +117,15 @@ export default function ArticlePage() {
 
   return (
     <Layout>
+      {/* Preview mode banner */}
+      {isPreview && (
+        <div className="sticky top-0 z-50 w-full bg-amber-400 text-amber-950 py-2.5 px-4 flex items-center justify-center gap-3 shadow-md">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="text-sm font-bold uppercase tracking-widest">Preview Mode — Not Published</span>
+          <span className="text-xs font-medium opacity-70 hidden sm:inline">This is how the article will look when published</span>
+          <EyeOff className="h-4 w-4 shrink-0" />
+        </div>
+      )}
       <DocumentHead
         title={article.headline}
         description={article.dek}

@@ -195,6 +195,10 @@ export function getAdminArticle(id: string): AdminArticle | undefined {
   return getAdminArticlesMap()[id];
 }
 
+export function getAdminArticleBySlug(slug: string): AdminArticle | undefined {
+  return Object.values(getAdminArticlesMap()).find(a => a.slug === slug);
+}
+
 export function saveAdminArticle(
   article: AdminArticle,
   savedById?: string,

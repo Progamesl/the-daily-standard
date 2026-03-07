@@ -350,13 +350,22 @@ export default function AdminStoryEditor() {
                 <Redo2 className={cn('h-4 w-4', redoStack.length === 0 && 'text-slate-300')} />
               </Button>
             </div>
-            {form.slug && (
-              <Link to={`/article/${form.slug}`} target="_blank">
-                <Button variant="ghost" size="sm" className="gap-1.5 text-slate-500">
-                  <Eye className="h-4 w-4" />Preview
-                </Button>
-              </Link>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-slate-500"
+              disabled={!form.headline.trim() || saving}
+              title={!form.headline.trim() ? 'Enter a headline first' : 'Save & preview article'}
+              onClick={() => {
+                // Save first so the latest content is persisted, then open preview
+                const slug = form.slug || generateSlug(form.headline);
+                doSave('draft', true);
+                // Small timeout to ensure localStorage write completes before new tab loads
+                setTimeout(() => window.open(`/article/${slug}?preview=1`, '_blank'), 150);
+              }}
+            >
+              <Eye className="h-4 w-4" />Preview
+            </Button>
             <Button variant="outline" size="sm" onClick={handleSubmitForReview}
               disabled={saving || !form.headline.trim()} className="gap-1.5">
               Submit for Review
