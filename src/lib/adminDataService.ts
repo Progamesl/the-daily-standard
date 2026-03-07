@@ -134,6 +134,9 @@ export interface AdminArticle {
   internalNotes?: InternalNote[];
   revisions?: ArticleRevision[];
   wordCount?: number;
+
+  // ── Homepage Feature ─────────────────────────────────────────────────────────
+  featured?: boolean;  // If true, this article appears as the main featured story on homepage
 }
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────

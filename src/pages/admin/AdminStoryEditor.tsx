@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -84,6 +85,8 @@ interface FormState {
   metaDescription: string;
   ogImage: string;
   canonicalUrl: string;
+  // Homepage Feature
+  featured: boolean;
 }
 
 const emptyForm: FormState = {
@@ -92,6 +95,7 @@ const emptyForm: FormState = {
   publishedAt: new Date().toISOString().slice(0, 16),
   assignedToId: '', deadline: '', priority: 'normal', pitchSummary: '',
   metaTitle: '', metaDescription: '', ogImage: '', canonicalUrl: '',
+  featured: false,
 };
 
 export default function AdminStoryEditor() {
@@ -143,6 +147,7 @@ export default function AdminStoryEditor() {
           metaDescription: a.metaDescription ?? '',
           ogImage: a.ogImage ?? '',
           canonicalUrl: a.canonicalUrl ?? '',
+          featured: a.featured ?? false,
         });
         setLastSaved(a.updatedAt ? new Date(a.updatedAt) : null);
       } else {
@@ -247,6 +252,7 @@ export default function AdminStoryEditor() {
       metaDescription: form.metaDescription || undefined,
       ogImage: form.ogImage || undefined,
       canonicalUrl: form.canonicalUrl || undefined,
+      featured: form.featured || undefined,
       // Preserve existing notes / revisions
       internalNotes: article?.internalNotes ?? [],
       revisions: article?.revisions ?? [],
@@ -675,6 +681,26 @@ export default function AdminStoryEditor() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Homepage Feature */}
+            {form.status === 'published' && (
+              <div className="bg-violet-50 rounded-xl border border-violet-200 p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-semibold text-violet-900 block mb-1">
+                      Feature on Homepage
+                    </Label>
+                    <p className="text-xs text-violet-700">
+                      When enabled, this story appears as the main featured story on the homepage
+                    </p>
+                  </div>
+                  <Switch
+                    checked={form.featured}
+                    onCheckedChange={(checked) => updateField('featured', checked)}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Featured Image */}
             <div className="bg-white rounded-xl border border-slate-200 p-5">

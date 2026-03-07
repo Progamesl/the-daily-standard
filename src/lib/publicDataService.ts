@@ -88,6 +88,16 @@ export function getLatestPublicArticles(count: number): Article[] {
 }
 
 export function getFeaturedPublicArticle(): Article | undefined {
+  // First, check for manually featured articles (published only)
+  const adminArticles = getAdminArticlesList()
+    .filter(a => a.status === 'published' && a.featured === true)
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  
+  if (adminArticles.length > 0) {
+    return adminToPublic(adminArticles[0]);
+  }
+  
+  // Fallback to most recent published article
   const latest = getLatestPublicArticles(1);
   return latest[0];
 }
