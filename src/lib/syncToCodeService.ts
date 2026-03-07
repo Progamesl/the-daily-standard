@@ -16,14 +16,23 @@ export interface SyncToCodeResult {
   error?: string;
 }
 
-export function syncToCode(): SyncToCodeResult {
+export async function syncToCode(): Promise<SyncToCodeResult> {
   try {
     // Get current data
     const articles = getAdminArticlesMap();
     const authors = getAdminAuthorsMap();
 
-    // Read existing seed data
-    const seedData = seedDataRaw as any;
+    // Read existing seed data (fetch from public folder or use default structure)
+    let seedData: any = { sections: [], authors: [], articles: [] };
+    try {
+      const response = await fetch('/src/data/octagonData.json');
+      if (response.ok) {
+        seedData = await response.json();
+      }
+    } catch {
+      // If fetch fails, use empty structure (will merge with current data)
+      console.warn('Could not fetch existing seed data, using current data only');
+    }
 
     // Convert AdminArticle format to Article format (only published)
     const convertedArticles = Object.values(articles)

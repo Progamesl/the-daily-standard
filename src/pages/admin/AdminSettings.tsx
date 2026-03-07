@@ -124,10 +124,10 @@ export default function AdminSettings() {
     }
   };
 
-  const handleSyncToCode = () => {
+  const handleSyncToCode = async () => {
     setSyncingToCode(true);
     try {
-      const result = syncToCode();
+      const result = await syncToCode();
       if (result.success) {
         toast.success(
           `✅ Synced ${result.newArticles} articles and ${result.newAuthors} authors to code! ` +
