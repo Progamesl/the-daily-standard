@@ -22,6 +22,7 @@ import {
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { migrateLocalStorageToSupabase } from '@/lib/supabaseDataService';
 import { syncArticlesFromSupabase } from '@/lib/adminDataService';
+import { syncToCode } from '@/lib/syncToCodeService';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<SiteSettings>(getSiteSettings);
@@ -32,6 +33,7 @@ export default function AdminSettings() {
   const [merging, setMerging] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncingToCode, setSyncingToCode] = useState(false);
   const [showBackups, setShowBackups] = useState(false);
   const backups = getAutoBackups();
   const supabaseEnabled = isSupabaseConfigured();
@@ -119,6 +121,26 @@ export default function AdminSettings() {
       toast.error('Failed to merge duplicates');
     } finally {
       setMerging(false);
+    }
+  };
+
+  const handleSyncToCode = () => {
+    setSyncingToCode(true);
+    try {
+      const result = syncToCode();
+      if (result.success) {
+        toast.success(
+          `✅ Synced ${result.newArticles} articles and ${result.newAuthors} authors to code! ` +
+          `Downloaded updated octagonData.json. Replace src/data/octagonData.json and commit to git.`
+        );
+      } else {
+        toast.error(`Failed to sync to code: ${result.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Error syncing to code. Check console for details.');
+    } finally {
+      setSyncingToCode(false);
     }
   };
 
@@ -343,12 +365,40 @@ export default function AdminSettings() {
           </div>
 
           <div className="space-y-4">
+            {/* Sync to Code */}
+            <div className="flex items-start justify-between p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+              <div>
+                <p className="text-sm font-bold text-purple-900">💾 Sync Stories to Code</p>
+                <p className="text-xs text-purple-700 mt-0.5">
+                  Downloads updated <code>octagonData.json</code> with all current stories. 
+                  Replace <code>src/data/octagonData.json</code> and commit to git to hardcode stories into the codebase.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSyncToCode} 
+                disabled={syncingToCode}
+                className="gap-1.5 shrink-0 ml-4 border-purple-300 text-purple-700 hover:bg-purple-100"
+              >
+                {syncingToCode ? (
+                  <>
+                    <Database className="h-4 w-4 animate-spin" />Syncing...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />Sync to Code
+                  </>
+                )}
+              </Button>
+            </div>
+
             {/* Export */}
             <div className="flex items-start justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
               <div>
-                <p className="text-sm font-bold text-blue-900">📥 Export All Data (REQUIRED)</p>
+                <p className="text-sm font-bold text-blue-900">📥 Export All Data (Backup)</p>
                 <p className="text-xs text-blue-700 mt-0.5">
-                  Download a JSON backup of all articles and authors. <strong>Do this after every editing session!</strong>
+                  Download a JSON backup of all articles and authors for backup purposes.
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5 shrink-0 ml-4 border-blue-300 text-blue-700 hover:bg-blue-100">
