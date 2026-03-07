@@ -4,10 +4,10 @@ import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Lock, User, AlertCircle, Newspaper, Shield, Mail, Smartphone } from 'lucide-react';
-import { initiateLogin, verifyCode, getEmailCodeForTesting } from '@/lib/adminUserService';
+import { Lock, User, AlertCircle, Newspaper, Mail } from 'lucide-react';
+import { initiateLogin, verifyCode } from '@/lib/adminUserService';
 
-type LoginStep = 'credentials' | 'email_verification' | '2fa' | 'device_verification';
+type LoginStep = 'credentials' | 'email_verification';
 
 export default function AdminLogin() {
   const [step, setStep] = useState<LoginStep>('credentials');
@@ -17,8 +17,6 @@ export default function AdminLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | undefined>();
-  const [verificationType, setVerificationType] = useState<'email_verification' | '2fa' | 'device_verification'>('email_verification');
-  const [email, setEmail] = useState('');
   const { isAuthenticated, refreshUser } = useAdminAuth();
   const navigate = useNavigate();
 
@@ -48,19 +46,7 @@ export default function AdminLogin() {
       if (result.requiresEmailVerification) {
         setStep('email_verification');
         setUserId(result.userId);
-        setVerificationType('email_verification');
-        setEmail(result.userId ? 'user@example.com' : ''); // In production, get from user
         setError('Please check your email for a verification code.');
-      } else if (result.requires2FA) {
-        setStep('2fa');
-        setUserId(result.userId);
-        setVerificationType('2fa');
-        setError('Please check your email for a two-factor authentication code.');
-      } else if (result.requiresDeviceVerification) {
-        setStep('device_verification');
-        setUserId(result.userId);
-        setVerificationType('device_verification');
-        setError('New device detected. Please check your email for a verification code.');
       } else {
         setError(result.error || 'Invalid username or password. Please try again.');
         if (!result.locked) {
@@ -81,27 +67,21 @@ export default function AdminLogin() {
     setError('');
 
     setTimeout(() => {
-      const result = verifyCode(userId, code.trim(), verificationType);
+      if (!userId) {
+        setError('Invalid session. Please sign in again.');
+        setStep('credentials');
+        setLoading(false);
+        return;
+      }
       
-      if (result.success) {
-        if (verificationType === 'email_verification') {
-          // Email verified, try login again
-          setStep('credentials');
-          setCode('');
-          setError('Email verified! Please sign in again.');
-        } else {
-          // 2FA or device verification complete - login successful
-          if (result.user) {
-            // User is logged in
-            refreshUser();
-            navigate('/admin', { replace: true });
-          } else {
-            setError('Login successful but user session not found. Please try again.');
-            setStep('credentials');
-          }
-        }
+      const result = verifyCode(userId, code.trim());
+      
+      if (result.success && result.user) {
+        // Verification successful - login complete
+        refreshUser();
+        navigate('/admin', { replace: true });
       } else {
-        setError(result.error || 'Invalid code. Please try again.');
+        setError(result.error || 'Invalid code. Please check your email and try again.');
         setCode('');
       }
       setLoading(false);
@@ -109,13 +89,10 @@ export default function AdminLogin() {
   };
 
   const handleResendCode = () => {
-    // In production, this would trigger a new code to be sent
-    setError('A new code has been sent to your email.');
+    // Fake resend - just show message
+    setError('A new verification code has been sent to your email.');
     setCode('');
   };
-
-  // Show test code in development
-  const testCode = email ? getEmailCodeForTesting(email) : null;
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -198,28 +175,18 @@ export default function AdminLogin() {
             </>
           )}
 
-          {/* Step 2: Email Verification / 2FA / Device Verification */}
-          {(step === 'email_verification' || step === '2fa' || step === 'device_verification') && (
+          {/* Step 2: Email Verification */}
+          {step === 'email_verification' && (
             <>
               <div className="mb-6">
                 <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-4 mx-auto">
-                  {step === 'email_verification' ? (
-                    <Mail className="h-6 w-6 text-blue-600" />
-                  ) : step === '2fa' ? (
-                    <Shield className="h-6 w-6 text-blue-600" />
-                  ) : (
-                    <Smartphone className="h-6 w-6 text-blue-600" />
-                  )}
+                  <Mail className="h-6 w-6 text-blue-600" />
                 </div>
                 <h2 className="text-lg font-semibold text-slate-900 text-center">
-                  {step === 'email_verification' && 'Verify Your Email'}
-                  {step === '2fa' && 'Two-Factor Authentication'}
-                  {step === 'device_verification' && 'Verify New Device'}
+                  Verify Your Email
                 </h2>
                 <p className="text-sm text-slate-500 mt-0.5 text-center">
-                  {step === 'email_verification' && 'We sent a verification code to your email address.'}
-                  {step === '2fa' && 'Enter the 6-digit code sent to your email.'}
-                  {step === 'device_verification' && 'We detected a new device. Enter the code sent to your email to verify.'}
+                  We sent a verification code to your email address. Please enter it below to complete sign in.
                 </p>
               </div>
 
@@ -234,18 +201,12 @@ export default function AdminLogin() {
                       id="code"
                       type="text"
                       value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="000000"
-                      className="text-center text-2xl tracking-widest font-mono"
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      placeholder="Enter code from email"
+                      className="text-center text-lg tracking-wider font-mono"
                       autoFocus
-                      maxLength={6}
                     />
                   </div>
-                  {testCode && (
-                    <p className="text-xs text-amber-600 mt-2 text-center">
-                      Development: Code is <strong>{testCode}</strong>
-                    </p>
-                  )}
                 </div>
 
                 {/* Error */}
@@ -258,7 +219,7 @@ export default function AdminLogin() {
 
                 <Button
                   type="submit"
-                  disabled={loading || code.length !== 6}
+                  disabled={loading || !code.trim()}
                   className="w-full"
                 >
                   {loading ? 'Verifying…' : 'Verify Code'}

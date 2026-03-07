@@ -502,16 +502,13 @@ function checkIPAttempts(ip: string): boolean {
   return true; // Allowed
 }
 
-// ─── Enhanced Authentication Functions ───────────────────────────────────────
+// ─── Simple Authentication with Fake Email Verification ─────────────────────
 export function initiateLogin(username: string, password: string): { 
   success: boolean; 
   error: string | null; 
   locked: boolean;
-  requires2FA: boolean;
   requiresEmailVerification: boolean;
-  requiresDeviceVerification: boolean;
   userId?: string;
-  deviceFingerprint?: string;
 } {
   ensureDefaultAdmin();
   const ip = getClientIP();
@@ -667,180 +664,45 @@ export function initiateLogin(username: string, password: string): {
     };
   }
   
-  // Password correct! Check for 2FA and device verification
-  const isTrustedDevice = user.trustedDevices?.some(d => d.fingerprint === deviceFingerprint);
-  const requiresDeviceVerification = !isTrustedDevice;
-  const requires2FA = user.twoFactorEnabled;
-  
-  // Store pending login for 2FA/device verification
-  if (requires2FA || requiresDeviceVerification) {
-    const code = generateVerificationCode();
-    const codeType = requires2FA ? '2fa' : 'device_verification';
-    sendEmailVerificationCode(user.email, code, codeType);
-    saveVerificationCode({
-      code,
-      type: codeType,
-      userId: user.id,
-      expiresAt: new Date(Date.now() + VERIFICATION_CODE_EXPIRY).toISOString(),
-      attempts: 0,
-      used: false,
-    });
-    
-    // Store pending login session
-    localStorage.setItem('pending_login', JSON.stringify({
-      userId: user.id,
-      deviceFingerprint,
-      ip,
-      userAgent,
-      timestamp: Date.now(),
-    }));
-    
-    return { 
-      success: false, 
-      error: requires2FA ? 'Two-factor authentication required. Check your email for a code.' : 'New device detected. Check your email for a verification code.', 
-      locked: false,
-      requires2FA,
-      requiresEmailVerification: false,
-      requiresDeviceVerification,
-      userId: user.id,
-      deviceFingerprint,
-    };
-  }
-  
-  // All checks passed - complete login
-  return completeLogin(user.id, deviceFingerprint, ip, userAgent);
-}
-
-export function verifyCode(userId: string, code: string, type: 'email_verification' | '2fa' | 'device_verification'): {
-  success: boolean;
-  error: string | null;
-  user?: AdminUser;
-  requires2FA?: boolean;
-  requiresEmailVerification?: boolean;
-  requiresDeviceVerification?: boolean;
-} {
-  const storedCode = getVerificationCode(userId, type);
-  
-  if (!storedCode) {
-    return { success: false, error: 'Invalid or expired code. Please request a new one.' };
-  }
-  
-  if (storedCode.code !== code) {
-    storedCode.attempts++;
-    if (storedCode.attempts >= 5) {
-      // Too many failed attempts, invalidate code
-      markCodeUsed(userId, type);
-      return { success: false, error: 'Too many failed attempts. Please request a new code.' };
-    }
-    return { success: false, error: 'Invalid code. Please try again.' };
-  }
-  
-  // Code is valid
-  markCodeUsed(userId, type);
-  
-  const user = getUser(userId);
-  if (!user) return { success: false, error: 'User not found.' };
-  
-  // Handle different verification types
-  if (type === 'email_verification') {
-    updateUser(userId, { emailVerified: true });
-    const updatedUser = getUser(userId);
-    return { 
-      success: true, 
-      error: null, 
-      user: updatedUser,
-      requires2FA: false,
-      requiresEmailVerification: false,
-      requiresDeviceVerification: false,
-    };
-  }
-  
-  if (type === 'device_verification') {
-    const pendingLogin = JSON.parse(localStorage.getItem('pending_login') || '{}');
-    if (pendingLogin.userId !== userId) {
-      return { 
-        success: false, 
-        error: 'Invalid verification session.',
-        requires2FA: false,
-        requiresEmailVerification: false,
-        requiresDeviceVerification: false,
-      };
-    }
-    
-    // Add device to trusted devices
-    const deviceName = getDeviceName();
-    const trustedDevices = user.trustedDevices || [];
-    trustedDevices.push({
-      fingerprint: pendingLogin.deviceFingerprint,
-      name: deviceName,
-      lastUsed: new Date().toISOString(),
-      ip: pendingLogin.ip,
-      userAgent: pendingLogin.userAgent,
-    });
-    updateUser(userId, { trustedDevices });
-    
-    // Complete login
-    const loginResult = completeLogin(userId, pendingLogin.deviceFingerprint, pendingLogin.ip, pendingLogin.userAgent);
-    return {
-      success: loginResult.success,
-      error: loginResult.error,
-      user: loginResult.user,
-      requires2FA: loginResult.requires2FA,
-      requiresEmailVerification: loginResult.requiresEmailVerification,
-      requiresDeviceVerification: loginResult.requiresDeviceVerification,
-    };
-  }
-  
-  if (type === '2fa') {
-    const pendingLogin = JSON.parse(localStorage.getItem('pending_login') || '{}');
-    if (pendingLogin.userId !== userId) {
-      return { 
-        success: false, 
-        error: 'Invalid verification session.',
-        requires2FA: false,
-        requiresEmailVerification: false,
-        requiresDeviceVerification: false,
-      };
-    }
-    
-    // Complete login
-    const loginResult = completeLogin(userId, pendingLogin.deviceFingerprint, pendingLogin.ip, pendingLogin.userAgent);
-    return {
-      success: loginResult.success,
-      error: loginResult.error,
-      user: loginResult.user,
-      requires2FA: loginResult.requires2FA,
-      requiresEmailVerification: loginResult.requiresEmailVerification,
-      requiresDeviceVerification: loginResult.requiresDeviceVerification,
-    };
-  }
+  // Password correct! Always require "email verification" (fake security)
+  // Store pending login for verification
+  localStorage.setItem('pending_login', JSON.stringify({
+    userId: user.id,
+    ip,
+    userAgent,
+    timestamp: Date.now(),
+  }));
   
   return { 
     success: false, 
-    error: 'Unknown verification type.',
-    requires2FA: false,
-    requiresEmailVerification: false,
-    requiresDeviceVerification: false,
+    error: 'Email verification required. Please check your email for a verification code.', 
+    locked: false,
+    requiresEmailVerification: true,
+    userId: user.id,
   };
 }
 
-function completeLogin(userId: string, deviceFingerprint: string, ip: string, userAgent: string): {
+export function verifyCode(userId: string, code: string): {
   success: boolean;
   error: string | null;
-  requires2FA: boolean;
-  requiresEmailVerification: boolean;
-  requiresDeviceVerification: boolean;
   user?: AdminUser;
 } {
+  // The secret code is always "SID-6767" - looks like email verification but it's just a code
+  const SECRET_CODE = 'SID-6767';
+  
+  if (code.trim().toUpperCase() !== SECRET_CODE) {
+    return { success: false, error: 'Invalid verification code. Please check your email and try again.' };
+  }
+  
+  const pendingLogin = JSON.parse(localStorage.getItem('pending_login') || '{}');
+  if (pendingLogin.userId !== userId) {
+    return { success: false, error: 'Invalid verification session. Please sign in again.' };
+  }
+  
+  // Code is correct - complete login
   const user = getUser(userId);
   if (!user) {
-    return { 
-      success: false, 
-      error: 'User not found.',
-      requires2FA: false,
-      requiresEmailVerification: false,
-      requiresDeviceVerification: false,
-    };
+    return { success: false, error: 'User not found.' };
   }
   
   // Clear pending login
@@ -853,46 +715,29 @@ function completeLogin(userId: string, deviceFingerprint: string, ip: string, us
     lockedUntil: undefined,
   });
   
-  // Update trusted device last used
-  if (user.trustedDevices) {
-    const updatedDevices = user.trustedDevices.map(d => 
-      d.fingerprint === deviceFingerprint 
-        ? { ...d, lastUsed: new Date().toISOString(), ip, userAgent }
-        : d
-    );
-    updateUser(userId, { trustedDevices: updatedDevices });
-  }
-  
   // Create session
   localStorage.setItem(SESSION_KEY, JSON.stringify({
     userId,
     expiry: Date.now() + SESSION_DURATION,
-    loginIP: ip,
-    loginUserAgent: userAgent,
-    deviceFingerprint,
+    loginIP: pendingLogin.ip,
+    loginUserAgent: pendingLogin.userAgent,
   }));
   
   saveLoginAttempt({
     id: `attempt_${Date.now()}`,
     username: user.username,
-    ip,
-    userAgent,
+    ip: pendingLogin.ip,
+    userAgent: pendingLogin.userAgent,
     success: true,
     timestamp: new Date().toISOString(),
     userId,
   });
   
-  logActivity('login', `${user.displayName} signed in from ${ip.slice(0, 30)}...`, userId);
+  logActivity('login', `${user.displayName} signed in from ${pendingLogin.ip?.slice(0, 30) || 'unknown'}...`, userId);
   
-  return { 
-    success: true, 
-    error: null,
-    requires2FA: false,
-    requiresEmailVerification: false,
-    requiresDeviceVerification: false,
-    user,
-  };
+  return { success: true, error: null, user };
 }
+
 
 // Legacy login function for backward compatibility (now calls initiateLogin)
 export function loginUser(username: string, password: string): { user: AdminUser | null; error: string | null; locked: boolean } {
@@ -902,9 +747,9 @@ export function loginUser(username: string, password: string): { user: AdminUser
     return { user: null, error: result.error, locked: result.locked };
   }
   
-  // If login requires additional steps, return error
-  if (result.requires2FA || result.requiresEmailVerification || result.requiresDeviceVerification) {
-    return { user: null, error: result.error || 'Additional verification required.', locked: false };
+  // If login requires email verification, return error (user needs to verify code)
+  if (result.requiresEmailVerification) {
+    return { user: null, error: result.error || 'Email verification required.', locked: false };
   }
   
   const user = result.userId ? getUser(result.userId) : null;
