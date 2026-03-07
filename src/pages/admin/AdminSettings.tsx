@@ -458,26 +458,50 @@ export default function AdminSettings() {
                     </p>
                   </div>
                   
-                  <Button
-                    onClick={handleMigrateToSupabase}
-                    disabled={migrating}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
-                  >
-                    {migrating ? (
-                      <>
-                        <Database className="h-4 w-4 animate-spin" /> Migrating...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4" /> Migrate All Data to Supabase
-                      </>
-                    )}
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={handleSyncFromSupabase}
+                      disabled={syncing}
+                      variant="outline"
+                      className="w-full border-green-300 text-green-700 hover:bg-green-50 gap-2"
+                    >
+                      {syncing ? (
+                        <>
+                          <Database className="h-4 w-4 animate-spin" /> Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="h-4 w-4" /> Refresh from Supabase
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      onClick={handleMigrateToSupabase}
+                      disabled={migrating}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
+                    >
+                      {migrating ? (
+                        <>
+                          <Database className="h-4 w-4 animate-spin" /> Migrating...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" /> Migrate All Data to Supabase
+                        </>
+                      )}
+                    </Button>
+                  </div>
                   
-                  <p className="text-xs text-green-600">
-                    This will copy all your articles and authors from localStorage to Supabase. 
-                    Your localStorage data will remain as a backup.
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-green-600">
+                      <strong>Refresh:</strong> Load articles from Supabase to this browser.
+                    </p>
+                    <p className="text-xs text-green-600">
+                      <strong>Migrate:</strong> Copy all your articles and authors from localStorage to Supabase. 
+                      Your localStorage data will remain as a backup.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
