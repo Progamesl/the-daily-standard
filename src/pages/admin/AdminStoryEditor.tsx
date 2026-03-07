@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { RichTextEditor } from '@/components/admin/RichTextEditor';
 import { TagInput } from '@/components/admin/TagInput';
+import { ImageUpload } from '@/components/admin/ImageUpload';
 import {
   ArrowLeft, Save, Eye, Send, Loader2, Clock, MessageSquare,
   History, Trash2, AlertTriangle, ChevronDown, ChevronUp, Search,
@@ -626,18 +627,13 @@ export default function AdminStoryEditor() {
             </div>
 
             {/* Featured Image */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-2">
-              <Label className="text-sm font-medium text-slate-700 block">Featured Image</Label>
-              <Input value={form.image} onChange={(e) => updateField('image', e.target.value)}
-                placeholder="Paste image URL…" />
-              {form.image && (
-                <div className="rounded-lg overflow-hidden bg-slate-100">
-                  <img src={form.image} alt="Preview" className="w-full h-36 object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                </div>
-              )}
-              <Input value={form.imageCaption} onChange={(e) => updateField('imageCaption', e.target.value)}
-                placeholder="Image caption (optional)" />
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <ImageUpload
+                value={form.image}
+                onChange={(url) => updateField('image', url)}
+                caption={form.imageCaption}
+                onCaptionChange={(cap) => updateField('imageCaption', cap)}
+              />
             </div>
 
             {/* Tags */}

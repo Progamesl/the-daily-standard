@@ -394,12 +394,46 @@ export function restoreRevision(
 }
 
 // ─── Author CRUD ──────────────────────────────────────────────────────────────
+
+/** One-time seed: pre-populate admin authors from the real staff list if none exist yet. */
+function seedAuthorsIfEmpty(): void {
+  const existing = getStorage<Record<string, AdminAuthor>>(AUTHORS_KEY, {});
+  if (Object.keys(existing).length > 0) return; // already seeded
+
+  // Dynamically import to avoid circular deps — works fine since this is a side-effect at init
+  import('@/data/staffData').then(({ ALL_MEMBERS, staffId }) => {
+    const map: Record<string, AdminAuthor> = {};
+    ALL_MEMBERS.forEach(m => {
+      const id = staffId(m.name);
+      map[id] = {
+        id,
+        name: m.name,
+        role: m.role,
+        bio: m.bio ?? '',
+        image: m.photo ?? '',
+        email: m.email ?? '',
+        twitter: '',
+      };
+    });
+    setStorage(AUTHORS_KEY, map);
+  });
+}
+
+// Trigger seed on module load
+seedAuthorsIfEmpty();
+
 export function getAdminAuthorsMap(): Record<string, AdminAuthor> {
   return getStorage<Record<string, AdminAuthor>>(AUTHORS_KEY, {});
 }
 
 export function getAdminAuthorsList(): AdminAuthor[] {
   return Object.values(getAdminAuthorsMap());
+}
+
+/** Force re-seed authors from staff data (wipes existing admin authors) */
+export function reseedAuthorsFromStaff(): void {
+  setStorage(AUTHORS_KEY, {});
+  seedAuthorsIfEmpty();
 }
 
 export function getAdminAuthor(id: string): AdminAuthor | undefined {
