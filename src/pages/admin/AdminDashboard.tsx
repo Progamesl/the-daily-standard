@@ -64,6 +64,9 @@ function timeAgo(iso: string): string {
 
 export default function AdminDashboard() {
   const { currentUser } = useAdminAuth();
+  // Subscribe to Supabase sync - re-renders when fresh data arrives
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { syncVersion } = useDataSync();
   const allArticles  = useMemo(mergeAllArticles, []);
   const allAuthors   = useMemo(mergeAllAuthors, []);
   const stats        = useMemo(() => getAdminStats(allArticles, allAuthors), [allArticles, allAuthors]);
