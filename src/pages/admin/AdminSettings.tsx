@@ -431,13 +431,24 @@ export default function AdminSettings() {
               <div className="border border-slate-200 rounded-xl p-4 space-y-3">
                 <p className="text-xs text-amber-600 flex items-center gap-1.5">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
-                  Importing will overwrite existing data. Export first as a backup.
+                  Importing will overwrite existing data. Export first as a backup. Data will be saved to Supabase automatically.
                 </p>
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Upload JSON File (Recommended)</Label>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleFileImport}
+                    disabled={saving}
+                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Or paste JSON below</p>
+                </div>
                 <Textarea value={importText} onChange={(e) => setImportText(e.target.value)}
                   placeholder="Paste exported JSON here…" rows={6} className="text-xs font-mono" />
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleImport} disabled={!importText.trim()}>
-                    Import Data
+                  <Button size="sm" onClick={handleImport} disabled={!importText.trim() || saving}>
+                    <Upload className="h-4 w-4 mr-1.5" />Import from Text
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => { setShowImport(false); setImportText(''); }}>
                     Cancel
