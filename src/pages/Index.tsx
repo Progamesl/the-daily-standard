@@ -105,9 +105,12 @@ const Index = () => {
                   loading="eager"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/85" />
+                {/* Multiple gradient overlays for maximum contrast on light images */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90" />
+                {/* Additional dark overlay at bottom for text area */}
+                <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/95 via-black/85 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 md:p-10 lg:p-12 xl:p-16">
                   <div className="flow-container">
                     <div className="max-w-4xl">
@@ -117,10 +120,10 @@ const Index = () => {
                       <h1 className="font-serif text-2xl sm:text-3xl md:text-5xl lg:text-[3.25rem] xl:text-[3.75rem] font-bold leading-[1.1] mb-3 sm:mb-4 text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] tracking-tight">
                         {leadArticle.headline}
                       </h1>
-                      <p className="font-serif text-sm sm:text-lg md:text-xl lg:text-2xl text-white/95 mb-3 sm:mb-5 line-clamp-2 leading-relaxed max-w-3xl font-normal hidden xs:block">
+                      <p className="font-serif text-sm sm:text-lg md:text-xl lg:text-2xl text-white mb-3 sm:mb-5 line-clamp-2 leading-relaxed max-w-3xl font-normal hidden xs:block drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
                         {leadArticle.dek}
                       </p>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm md:text-base text-white/85">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm md:text-base text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)]">
                         <span className="font-medium">{leadArticle.author.name}</span>
                         <span className="text-white/50">·</span>
                         <span>{formatTimestamp(leadArticle.publishedAt)}</span>
@@ -155,16 +158,19 @@ const Index = () => {
                           loading="eager"
                           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/45 to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white">
-                          <span className="text-[11px] font-bold uppercase tracking-widest text-white/90 mb-1.5 block">
+                        {/* Stronger gradient overlay for better contrast on light images */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 via-black/50 to-black/20" />
+                        {/* Additional dark overlay at bottom for text area */}
+                        <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black/95 via-black/80 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white z-10">
+                          <span className="text-[11px] font-bold uppercase tracking-widest text-white mb-1.5 block drop-shadow-lg">
                             {article.section}
                           </span>
-                          <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-bold leading-tight mb-2 line-clamp-3 drop-shadow-md">
+                          <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-bold leading-tight mb-2 line-clamp-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] text-white">
                             {article.headline}
                           </h2>
-                          <p className="text-sm text-white/90 mb-2 line-clamp-2">{article.dek}</p>
-                          <div className="flex items-center gap-2.5 text-xs text-white/80">
+                          <p className="text-sm text-white mb-2 line-clamp-2 drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">{article.dek}</p>
+                          <div className="flex items-center gap-2.5 text-xs text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
                             <span>{article.author.name}</span>
                             <span>·</span>
                             <span>{formatTimestamp(article.publishedAt)}</span>
