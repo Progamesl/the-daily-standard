@@ -46,10 +46,9 @@ const App = () => (
     <TooltipProvider>
       <AdminAuthProvider>
         <DataSyncProvider>
-          <DataSyncLoader />
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
           <ScrollToTop />
           <Routes>
             {/* Public routes */}
