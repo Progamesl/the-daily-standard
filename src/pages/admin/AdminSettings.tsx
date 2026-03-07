@@ -20,7 +20,7 @@ import {
   type SiteSettings,
 } from '@/lib/adminDataService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
-import { migrateLocalStorageToSupabase, isSupabaseConfigured as isSupabaseConfiguredFromService } from '@/lib/supabaseDataService';
+import { migrateLocalStorageToSupabase } from '@/lib/supabaseDataService';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<SiteSettings>(getSiteSettings);
