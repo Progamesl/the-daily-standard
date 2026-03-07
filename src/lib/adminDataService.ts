@@ -305,8 +305,54 @@ export function countWords(html: string): number {
 }
 
 // ─── Article CRUD ─────────────────────────────────────────────────────────────
+let supabaseArticlesCache: Record<string, AdminArticle> | null = null;
+let supabaseArticlesCacheTime = 0;
+const SUPABASE_CACHE_TTL = 30000; // 30 seconds
+
 export function getAdminArticlesMap(): Record<string, AdminArticle> {
-  return getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
+  const localArticles = getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
+  
+  // If Supabase is configured, merge with Supabase data (async, non-blocking)
+  if (typeof window !== 'undefined') {
+    const now = Date.now();
+    const useCache = supabaseArticlesCache && (now - supabaseArticlesCacheTime) < SUPABASE_CACHE_TTL;
+    
+    if (!useCache) {
+      // Fetch from Supabase in background
+      import('./supabaseDataService').then(({ getArticlesFromSupabase }) => {
+        import('./supabaseClient').then(({ isSupabaseConfigured }) => {
+          if (isSupabaseConfigured()) {
+            getArticlesFromSupabase().then(supabaseArticles => {
+              if (Object.keys(supabaseArticles).length > 0) {
+                supabaseArticlesCache = supabaseArticles;
+                supabaseArticlesCacheTime = now;
+                // Merge: Supabase data + localStorage (localStorage takes precedence for recent edits)
+                const merged = { ...supabaseArticles, ...localArticles };
+                // Update localStorage with merged data (but don't trigger backup)
+                try {
+                  localStorage.setItem(ARTICLES_KEY, JSON.stringify(merged));
+                  storageCache.delete(ARTICLES_KEY);
+                } catch {
+                  // Non-fatal
+                }
+              }
+            }).catch(() => {
+              // Silent fail
+            });
+          }
+        }).catch(() => {});
+      }).catch(() => {
+        // Supabase not available
+      });
+    }
+    
+    // Return merged data if cache is available
+    if (supabaseArticlesCache) {
+      return { ...supabaseArticlesCache, ...localArticles };
+    }
+  }
+  
+  return localArticles;
 }
 
 export function getAdminArticlesList(): AdminArticle[] {
