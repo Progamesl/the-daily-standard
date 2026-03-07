@@ -29,25 +29,94 @@ interface ImageUploadProps {
 const MAX_B64_MB = 2; // warn if base64 exceeds this size
 
 /**
- * Convert file to base64 with maximum quality preservation.
- * For images, we use FileReader directly to preserve 100% quality (no compression).
- * Canvas is only used as a fallback if needed.
+ * Compress image to reduce file size while maintaining good quality.
+ * Returns a compressed base64 string.
  */
-function fileToBase64(file: File): Promise<string> {
+function compressImage(file: File, maxWidth: number = 1920, quality: number = 0.85): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Use FileReader directly for maximum quality - it converts file to base64
-    // without any compression or quality loss
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      // Clean up object URL if we created one
-      resolve(result);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Resize if too large
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Failed to compress image'));
+              return;
+            }
+            // Convert compressed blob to base64
+            const reader2 = new FileReader();
+            reader2.onload = () => resolve(reader2.result as string);
+            reader2.onerror = () => reject(new Error('Failed to read compressed image'));
+            reader2.readAsDataURL(blob);
+          },
+          file.type || 'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = e.target?.result as string;
     };
-    reader.onerror = () => {
-      reject(new Error('Failed to read file'));
-    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * Convert file to base64, with automatic compression for large images.
+ * Small images (< 1MB) are preserved at full quality.
+ * Large images are compressed to fit within storage limits.
+ */
+function fileToBase64(file: File): Promise<string> {
+  const sizeMB = file.size / (1024 * 1024);
+  
+  // For small images, use direct conversion (no compression)
+  if (sizeMB < 1) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  }
+  
+  // For larger images, compress them
+  // Adjust quality based on size: larger = more compression
+  let quality = 0.85;
+  let maxWidth = 1920;
+  
+  if (sizeMB > 5) {
+    quality = 0.7;
+    maxWidth = 1280;
+  } else if (sizeMB > 3) {
+    quality = 0.75;
+    maxWidth = 1600;
+  } else if (sizeMB > 2) {
+    quality = 0.8;
+    maxWidth = 1920;
+  }
+  
+  return compressImage(file, maxWidth, quality);
 }
 
 export function ImageUpload({
@@ -78,15 +147,20 @@ export function ImageUpload({
     setWarn('');
     setPasting(true);
     try {
-      // FileReader preserves 100% quality - no compression
+      // Automatically compress large images
       const b64 = await fileToBase64(file);
-      // Base64 is ~33% larger than original file size
-      const estimatedB64SizeMB = sizeMB * 1.33;
+      const finalSizeMB = new Blob([b64]).size / (1024 * 1024);
       
-      if (estimatedB64SizeMB > 3) {
-        setWarn(`⚠️ Very large image (~${estimatedB64SizeMB.toFixed(1)} MB as base64). This may cause storage errors. For best results, upload to Imgur/Google Photos and paste the URL instead.`);
-      } else if (sizeMB > MAX_B64_MB) {
-        setWarn(`Large image (${sizeMB.toFixed(1)} MB). For best performance, upload to Imgur or Google Photos and paste the URL.`);
+      if (sizeMB > 1) {
+        // Show compression info if image was compressed
+        const compressionRatio = ((1 - finalSizeMB / sizeMB) * 100).toFixed(0);
+        if (compressionRatio !== '0') {
+          setWarn(`✓ Image compressed from ${sizeMB.toFixed(1)} MB to ${finalSizeMB.toFixed(1)} MB (${compressionRatio}% smaller) to fit storage limits.`);
+        }
+      }
+      
+      if (finalSizeMB > 2.5) {
+        setWarn(`⚠️ Large image (${finalSizeMB.toFixed(1)} MB). If you encounter storage errors, consider using an image URL instead.`);
       }
       
       onChange(b64);
