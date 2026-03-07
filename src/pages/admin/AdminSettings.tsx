@@ -45,7 +45,7 @@ export default function AdminSettings() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = `the-daily-standard-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `the-octagon-export-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Data exported');
