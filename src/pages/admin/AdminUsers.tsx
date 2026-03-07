@@ -54,6 +54,10 @@ const emptyForm: UserForm = {
 function timeAgo(iso?: string): string {
   if (!iso) return 'Never';
   const diff  = Date.now() - new Date(iso).getTime();
+  // If date is in the future (negative diff), show formatted date
+  if (diff < 0) {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
   const days  = Math.floor(diff / 86400000);
   const hours = Math.floor(diff / 3600000);
   if (hours < 1)  return 'Just now';

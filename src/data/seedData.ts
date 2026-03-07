@@ -204,22 +204,10 @@ export const formatDate = (date: Date): string => {
 };
 
 export const formatTimestamp = (date: Date): string => {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const days = Math.floor(hours / 24);
-
-  if (hours < 1) {
-    const minutes = Math.floor(diff / (1000 * 60));
-    return `${minutes}m ago`;
-  } else if (hours < 24) {
-    return `${hours}h ago`;
-  } else if (days < 7) {
-    return `${days}d ago`;
-  } else {
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-  }
+  // Always show month and day format consistently (e.g., "Jan 15", "Dec 3")
+  // This avoids negative time issues and matches the format of older stories
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 };

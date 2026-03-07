@@ -48,6 +48,10 @@ function mergeAllAuthors(): AdminAuthor[] {
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
+  // If date is in the future (negative diff), show formatted date
+  if (diff < 0) {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days  = Math.floor(diff / 86400000);
