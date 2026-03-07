@@ -19,6 +19,8 @@ import {
   getAutoBackups, restoreFromBackup, deleteBackup,
   type SiteSettings,
 } from '@/lib/adminDataService';
+import { isSupabaseConfigured } from '@/lib/supabaseClient';
+import { migrateLocalStorageToSupabase } from '@/lib/supabaseDataService';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<SiteSettings>(getSiteSettings);
@@ -79,6 +81,30 @@ export default function AdminSettings() {
       toast.error('Failed to merge duplicates');
     } finally {
       setMerging(false);
+    }
+  };
+
+  const handleMigrateToSupabase = async () => {
+    if (!supabaseEnabled) {
+      toast.error('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
+      return;
+    }
+    
+    setMigrating(true);
+    try {
+      const result = await migrateLocalStorageToSupabase();
+      if (result.success) {
+        toast.success(
+          `Migration complete! ${result.articles} articles and ${result.authors} authors migrated to Supabase.`
+        );
+      } else {
+        toast.error(`Migration failed: ${result.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Migration failed. Check console for details.');
+    } finally {
+      setMigrating(false);
     }
   };
 

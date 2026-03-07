@@ -304,8 +304,37 @@ export function countWords(html: string): number {
     .split(/\s+/).filter(Boolean).length;
 }
 
-// ─── Article CRUD ─────────────────────────────────────────────────────────────
-export function getAdminArticlesMap(): Record<string, AdminArticle> {
+// ─── Article CRUD (with Supabase support) ────────────────────────────────────
+let articlesCache: Record<string, AdminArticle> | null = null;
+let articlesCacheTime = 0;
+const ARTICLES_CACHE_TTL = 5000; // 5 seconds
+
+export async function getAdminArticlesMap(): Promise<Record<string, AdminArticle>>;
+export function getAdminArticlesMap(sync: false): Record<string, AdminArticle>;
+export function getAdminArticlesMap(sync: boolean = false): Record<string, AdminArticle> | Promise<Record<string, AdminArticle>> {
+  // If Supabase is configured, use it (async)
+  if (sync === false && typeof window !== 'undefined') {
+    const checkSupabase = async () => {
+      try {
+        const { isSupabaseConfigured } = await import('./supabaseClient');
+        if (isSupabaseConfigured()) {
+          const { getArticlesFromSupabase } = await import('./supabaseDataService');
+          const supabaseArticles = await getArticlesFromSupabase();
+          if (Object.keys(supabaseArticles).length > 0) {
+            // Merge with localStorage (localStorage takes precedence for offline edits)
+            const localArticles = getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
+            return { ...supabaseArticles, ...localArticles };
+          }
+        }
+      } catch {
+        // Supabase not available, fall back to localStorage
+      }
+      return getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
+    };
+    return checkSupabase();
+  }
+  
+  // Synchronous fallback (localStorage only)
   return getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
 }
 
