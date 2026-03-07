@@ -92,23 +92,34 @@ export default function AdminSettings() {
 
   const handleSyncFromSupabase = async () => {
     if (!supabaseEnabled) {
-      toast.error('Supabase is not configured.');
+      toast.error('Supabase is not configured. Check your environment variables.');
       return;
     }
     
     setSyncing(true);
     try {
+      console.log('🔄 Manual sync triggered from Admin Settings...');
       const success = await syncArticlesFromSupabase();
+      
+      // Check localStorage to see if articles were actually loaded
+      const articlesJson = localStorage.getItem('octagon_admin_articles');
+      const articles = articlesJson ? JSON.parse(articlesJson) : {};
+      const articleCount = Object.keys(articles).length;
+      
       if (success) {
-        toast.success('✅ Synced articles from Supabase! Refresh the page to see updates.');
+        toast.success(`✅ Synced ${articleCount} articles from Supabase! Refreshing page...`);
         // Force a page reload to show the synced data
-        setTimeout(() => window.location.reload(), 1000);
+        setTimeout(() => window.location.reload(), 1500);
       } else {
-        toast.error('Failed to sync from Supabase. Check console for details.');
+        if (articleCount > 0) {
+          toast.warning(`⚠️ Sync completed but returned false. Found ${articleCount} articles in localStorage. Check console.`);
+        } else {
+          toast.error('❌ No articles found. Check console for errors. Did you run the migration?');
+        }
       }
     } catch (err) {
-      console.error(err);
-      toast.error('Error syncing from Supabase. Check console for details.');
+      console.error('Sync error:', err);
+      toast.error('❌ Error syncing from Supabase. Check console for details.');
     } finally {
       setSyncing(false);
     }

@@ -17,7 +17,10 @@ let supabase: any = null;
 
 async function initSupabase() {
   if (supabase) return supabase;
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    console.warn('⚠️ Supabase not configured: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
+    return null;
+  }
   
   try {
     const { createClient } = await import('@supabase/supabase-js');
@@ -25,10 +28,13 @@ async function initSupabase() {
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     if (url && anonKey) {
       supabase = createClient(url, anonKey);
+      console.log('✅ Supabase client initialized:', url);
       return supabase;
+    } else {
+      console.warn('⚠️ Supabase env vars missing:', { hasUrl: !!url, hasKey: !!anonKey });
     }
   } catch (error) {
-    console.warn('Supabase not available:', error);
+    console.error('❌ Failed to initialize Supabase:', error);
   }
   return null;
 }
@@ -47,10 +53,24 @@ export async function getArticlesFromSupabase(): Promise<Record<string, AdminArt
     
     if (error) {
       console.error('❌ Supabase query error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
       throw error;
     }
     
-    console.log(`📥 Received ${data?.length || 0} articles from Supabase`);
+    const count = data?.length || 0;
+    console.log(`📥 Received ${count} articles from Supabase`);
+    
+    if (count === 0) {
+      console.warn('⚠️ Supabase returned 0 articles. Possible causes:');
+      console.warn('  1. No articles have been migrated yet');
+      console.warn('  2. RLS policies are blocking access (run fix_rls_policies.sql)');
+      console.warn('  3. Articles table is empty');
+    }
     
     const articles: Record<string, AdminArticle> = {};
     data?.forEach((row: any) => {

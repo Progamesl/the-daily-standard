@@ -29,14 +29,23 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
 
   const runSync = useCallback(() => {
     setIsSyncing(true);
+    console.log('🔄 DataSync: Starting sync from Supabase...');
     syncArticlesFromSupabase()
       .then(synced => {
+        // Always increment syncVersion to trigger re-render, even if sync returned false
+        // (sync might return false if Supabase has 0 articles, but we still want to trigger re-render)
+        setSyncVersion(v => v + 1);
         if (synced) {
-          setSyncVersion(v => v + 1);
-          console.log('🔄 DataSync: Supabase articles loaded, triggering public page refresh');
+          console.log('✅ DataSync: Supabase articles loaded, triggering public page refresh');
+        } else {
+          console.log('ℹ️ DataSync: Sync completed (may have 0 articles or Supabase not configured)');
         }
       })
-      .catch(err => console.warn('DataSync: sync failed', err))
+      .catch(err => {
+        console.error('❌ DataSync: Sync failed with error:', err);
+        // Still increment to trigger re-render even on error
+        setSyncVersion(v => v + 1);
+      })
       .finally(() => setIsSyncing(false));
   }, []);
 
