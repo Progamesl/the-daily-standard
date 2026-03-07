@@ -15,7 +15,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Upload, Link2, X, Clipboard } from 'lucide-react';
+import { Upload, Link2, X, Clipboard, CloudUpload, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ImageUploadProps {
@@ -117,6 +117,35 @@ function fileToBase64(file: File): Promise<string> {
   return compressImage(file, maxWidth, quality);
 }
 
+/**
+ * Upload image to Imgur (free, anonymous upload - no API key needed).
+ * Returns the direct image URL.
+ */
+async function uploadToImgur(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch('https://api.imgur.com/3/image', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Client-ID 546c25a59c58ad7', // Public anonymous client ID
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ data: { error: 'Upload failed' } }));
+    throw new Error(error.data?.error || 'Failed to upload to Imgur');
+  }
+
+  const data = await response.json();
+  if (!data.success || !data.data?.link) {
+    throw new Error('Imgur did not return a valid image URL');
+  }
+
+  return data.data.link;
+}
+
 export function ImageUpload({
   value,
   onChange,
@@ -131,8 +160,25 @@ export function ImageUpload({
   const [urlInput, setUrlInput] = useState(value.startsWith('data:') ? '' : value);
   const [warn, setWarn]         = useState('');
   const [pasting, setPasting]   = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const applyFile = useCallback(async (file: File) => {
+  const uploadToImgurAndSet = useCallback(async (file: File) => {
+    setUploading(true);
+    setWarn('');
+    try {
+      const url = await uploadToImgur(file);
+      onChange(url);
+      setWarn(`✓ Image uploaded to Imgur! URL saved.`);
+      setTimeout(() => setWarn(''), 3000);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to upload to Imgur';
+      setWarn(`Upload failed: ${errorMsg}. You can still save as base64 or try again.`);
+    } finally {
+      setUploading(false);
+    }
+  }, [onChange]);
+
+  const applyFile = useCallback(async (file: File, uploadToImgurInstead = false) => {
     if (!file.type.startsWith('image/')) {
       setWarn('Please select an image file.');
       return;
@@ -142,6 +188,13 @@ export function ImageUpload({
       setWarn('File is too large (max 10 MB). Paste a URL instead.');
       return;
     }
+
+    // If user wants to upload to Imgur, do that instead
+    if (uploadToImgurInstead) {
+      await uploadToImgurAndSet(file);
+      return;
+    }
+
     setWarn('');
     setPasting(true);
     try {
@@ -162,7 +215,7 @@ export function ImageUpload({
       
       // Only warn if final size is very large (approaching storage limit)
       if (finalSizeMB > 4) {
-        setWarn(`⚠️ Very large image (${finalSizeMB.toFixed(1)} MB). If you encounter storage errors, consider using an image URL instead.`);
+        setWarn(`⚠️ Very large image (${finalSizeMB.toFixed(1)} MB). Click "Upload to Imgur" to get a URL instead.`);
       }
       
       onChange(b64);
@@ -172,18 +225,18 @@ export function ImageUpload({
       setPasting(false);
       const errorMsg = err instanceof Error ? err.message : 'Failed to process image';
       if (errorMsg.includes('quota') || errorMsg.includes('storage')) {
-        setWarn('Storage full! Image too large. Please upload to Imgur/Google Photos and paste the URL instead.');
+        setWarn('Storage full! Click "Upload to Imgur" to get a URL instead.');
       } else {
         setWarn('Failed to process image. Please try again.');
       }
     }
-  }, [onChange]);
+  }, [onChange, uploadToImgurAndSet]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) applyFile(file);
+    if (file) applyFile(file, e.shiftKey); // Hold Shift to upload to Imgur
   }, [applyFile]);
 
   const onFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,7 +275,8 @@ export function ImageUpload({
                 e.preventDefault();
                 const file = item.getAsFile();
                 if (file) {
-                  await applyFile(file);
+                  // Hold Shift to upload to Imgur, otherwise save as base64
+                  await applyFile(file, e.shiftKey);
                   setMode('upload'); // Switch to upload mode to show preview
                 }
                 return;
@@ -244,7 +298,8 @@ export function ImageUpload({
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            await applyFile(file);
+            // Hold Shift to upload to Imgur, otherwise save as base64
+            await applyFile(file, e.shiftKey);
             setMode('upload'); // Switch to upload mode to show preview
           }
           break;
@@ -316,40 +371,74 @@ export function ImageUpload({
 
       {/* Upload / drag-drop mode */}
       {mode === 'upload' && (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          onClick={() => inputRef.current?.click()}
-          onFocus={() => {}} // Make div focusable for paste
-          tabIndex={0}
-          className={cn(
-            'flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2',
-            pasting
-              ? 'border-green-400 bg-green-50'
-              : dragging
-              ? 'border-blue-400 bg-blue-50'
-              : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
-          )}
-        >
-          <Upload className={cn('h-6 w-6 transition-colors', pasting ? 'text-green-600' : 'text-slate-400')} />
-          <p className="text-sm text-slate-500 text-center">
-            {pasting ? (
-              <span className="text-green-600 font-medium">✓ Image pasted!</span>
+        <div className="space-y-3">
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            onClick={() => inputRef.current?.click()}
+            onFocus={() => {}} // Make div focusable for paste
+            tabIndex={0}
+            className={cn(
+              'flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2',
+              pasting
+                ? 'border-green-400 bg-green-50'
+                : uploading
+                ? 'border-blue-400 bg-blue-50'
+                : dragging
+                ? 'border-blue-400 bg-blue-50'
+                : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+            )}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
+                <p className="text-sm text-blue-600 font-medium">Uploading to Imgur...</p>
+              </>
             ) : (
               <>
-                Drag &amp; drop an image here, or <span className="text-blue-600 font-medium">click to browse</span>
+                <Upload className={cn('h-6 w-6 transition-colors', pasting ? 'text-green-600' : 'text-slate-400')} />
+                <p className="text-sm text-slate-500 text-center">
+                  {pasting ? (
+                    <span className="text-green-600 font-medium">✓ Image pasted!</span>
+                  ) : (
+                    <>
+                      Drag &amp; drop an image here, or <span className="text-blue-600 font-medium">click to browse</span>
+                    </>
+                  )}
+                </p>
+                <p className="text-xs text-slate-400">JPG, PNG, WEBP · Max 10 MB · Or paste from clipboard</p>
+                <p className="text-xs text-slate-400 mt-1">💡 Tip: Hold <kbd className="px-1.5 py-0.5 bg-slate-200 border border-slate-300 rounded text-[10px] font-mono">Shift</kbd> while dropping to upload to Imgur</p>
               </>
             )}
-          </p>
-          <p className="text-xs text-slate-400">JPG, PNG, WEBP · Max 10 MB · Or paste from clipboard</p>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onFileInput}
-          />
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onFileInput}
+            />
+          </div>
+          
+          {/* Upload to Imgur button - shown when there's a base64 image */}
+          {value && value.startsWith('data:') && !uploading && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                // Convert base64 back to file for upload
+                const response = await fetch(value);
+                const blob = await response.blob();
+                const file = new File([blob], 'image.jpg', { type: blob.type });
+                await uploadToImgurAndSet(file);
+              }}
+              className="w-full gap-2"
+            >
+              <CloudUpload className="h-4 w-4" />
+              Upload to Imgur (Get URL)
+            </Button>
+          )}
         </div>
       )}
 
