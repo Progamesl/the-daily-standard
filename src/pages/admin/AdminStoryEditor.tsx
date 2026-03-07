@@ -288,8 +288,15 @@ export default function AdminStoryEditor() {
         logActivity('article_saved', `"${built.headline}" updated (${WORKFLOW_LABELS[status]})`, userId, id);
       }
     } catch (err) {
-      if (!silent) toast.error('Failed to save. Please try again.');
       console.error(err);
+      if (!silent) {
+        const message = err instanceof Error && err.message.includes('quota')
+          ? 'Storage full: Image too large. Please use an image URL instead of uploading directly, or use a smaller image.'
+          : err instanceof Error
+          ? err.message
+          : 'Failed to save. Please try again.';
+        toast.error(message);
+      }
     } finally {
       setSaving(false);
     }

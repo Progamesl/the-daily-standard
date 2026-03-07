@@ -80,15 +80,26 @@ export function ImageUpload({
     try {
       // FileReader preserves 100% quality - no compression
       const b64 = await fileToBase64(file);
-      if (sizeMB > MAX_B64_MB) {
-        setWarn(`Large image (${sizeMB.toFixed(1)} MB) stored as base64. For best performance, upload to Imgur or Google Photos and paste the URL.`);
+      // Base64 is ~33% larger than original file size
+      const estimatedB64SizeMB = sizeMB * 1.33;
+      
+      if (estimatedB64SizeMB > 3) {
+        setWarn(`⚠️ Very large image (~${estimatedB64SizeMB.toFixed(1)} MB as base64). This may cause storage errors. For best results, upload to Imgur/Google Photos and paste the URL instead.`);
+      } else if (sizeMB > MAX_B64_MB) {
+        setWarn(`Large image (${sizeMB.toFixed(1)} MB). For best performance, upload to Imgur or Google Photos and paste the URL.`);
       }
+      
       onChange(b64);
       // Brief success feedback
       setTimeout(() => setPasting(false), 300);
     } catch (err) {
       setPasting(false);
-      setWarn('Failed to process image. Please try again.');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to process image';
+      if (errorMsg.includes('quota') || errorMsg.includes('storage')) {
+        setWarn('Storage full! Image too large. Please upload to Imgur/Google Photos and paste the URL instead.');
+      } else {
+        setWarn('Failed to process image. Please try again.');
+      }
     }
   }, [onChange]);
 

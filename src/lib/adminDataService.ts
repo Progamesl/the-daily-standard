@@ -153,7 +153,20 @@ function getStorage<T>(key: string, fallback: T): T {
 }
 
 function setStorage<T>(key: string, value: T): void {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    const json = JSON.stringify(value);
+    const sizeMB = new Blob([json]).size / (1024 * 1024);
+    if (sizeMB > 4.5) { // Warn if approaching 5MB localStorage limit
+      console.warn(`Storage key "${key}" is ${sizeMB.toFixed(2)} MB. Consider reducing image sizes.`);
+    }
+    localStorage.setItem(key, json);
+  } catch (err) {
+    if (err instanceof DOMException && err.code === 22) {
+      // QuotaExceededError
+      throw new Error(`Storage quota exceeded. The data is too large (likely due to large base64 images). Please use image URLs instead of uploading files directly.`);
+    }
+    throw err;
+  }
 }
 
 // ─── ID & Slug Helpers ────────────────────────────────────────────────────────
