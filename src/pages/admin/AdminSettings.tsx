@@ -30,6 +30,7 @@ export default function AdminSettings() {
   const [showImport, setShowImport] = useState(false);
   const [merging, setMerging] = useState(false);
   const [migrating, setMigrating] = useState(false);
+  const [showBackups, setShowBackups] = useState(false);
   const backups = getAutoBackups();
   const supabaseEnabled = isSupabaseConfigured();
 
