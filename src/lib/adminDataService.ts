@@ -269,10 +269,16 @@ export async function syncArticlesFromSupabase(): Promise<boolean> {
     const count = Object.keys(supabaseArticles).length;
     console.log(`📦 Loaded ${count} articles from Supabase`);
     
-    // Always update localStorage, even if Supabase has 0 articles (clears stale data)
-    // Merge with localStorage (Supabase is source of truth, localStorage for recent edits)
+    // CRITICAL: Supabase is source of truth - it OVERWRITES localStorage
+    // Only merge in localStorage articles that don't exist in Supabase (for offline edits)
     const localArticles = getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
-    const merged = { ...supabaseArticles, ...localArticles };
+    // Supabase first (source of truth), then add any local-only articles
+    const merged = { ...supabaseArticles };
+    Object.keys(localArticles).forEach(id => {
+      if (!merged[id]) {
+        merged[id] = localArticles[id]; // Only add if not in Supabase
+      }
+    });
     
     // Update localStorage
     try {
@@ -379,8 +385,13 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
               if (Object.keys(supabaseArticles).length > 0) {
                 supabaseArticlesCache = supabaseArticles;
                 supabaseArticlesCacheTime = now;
-                // Merge: Supabase data + localStorage (localStorage takes precedence for recent edits)
-                const merged = { ...supabaseArticles, ...localArticles };
+                // CRITICAL: Supabase is source of truth - it OVERWRITES localStorage
+                const merged = { ...supabaseArticles };
+                Object.keys(localArticles).forEach(id => {
+                  if (!merged[id]) {
+                    merged[id] = localArticles[id]; // Only add if not in Supabase
+                  }
+                });
                 // Update localStorage with merged data (but don't trigger backup)
                 try {
                   localStorage.setItem(ARTICLES_KEY, JSON.stringify(merged));

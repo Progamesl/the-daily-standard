@@ -49,13 +49,10 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Run sync in background on app start (non-blocking)
+  // Run sync immediately on app start (non-blocking, but fast)
   useEffect(() => {
-    // Small delay to let page render first (instant load)
-    const timer = setTimeout(() => {
-      runSync();
-    }, 100);
-    return () => clearTimeout(timer);
+    // Start sync immediately (no delay) - pages render from cache instantly anyway
+    runSync();
   }, [runSync]);
 
   return (
