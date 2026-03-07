@@ -77,6 +77,32 @@ export default function AdminSettings() {
     }
   };
 
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.json')) {
+      toast.error('Please select a JSON file');
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      const text = await file.text();
+      const result = await importAdminDataFromJson(text);
+      toast.success(`✅ Imported ${result.articles} articles and ${result.authors} authors from ${file.name}! Saved to Supabase.`);
+      // Refresh page to show imported data
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      console.error('File import error:', err);
+      toast.error('Failed to import file. Check console for details.');
+    } finally {
+      setSaving(false);
+      // Reset file input
+      e.target.value = '';
+    }
+  };
+
   const handleMergeDuplicates = () => {
     setMerging(true);
     try {
