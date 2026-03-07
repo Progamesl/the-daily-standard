@@ -147,12 +147,29 @@ const AUTHORS_KEY         = 'octagon_admin_authors';
 const DELETED_AUTHORS_KEY = 'octagon_admin_deleted_authors';
 const SETTINGS_KEY        = 'octagon_admin_settings';
 
-// ─── Storage Helpers ──────────────────────────────────────────────────────────
+// ─── Storage Helpers with Caching ──────────────────────────────────────────────
+const storageCache = new Map<string, { data: unknown; timestamp: number }>();
+const CACHE_TTL = 2000; // 2 seconds cache
+
 function getStorage<T>(key: string, fallback: T): T {
+  const now = Date.now();
+  const cached = storageCache.get(key);
+  
+  // Return cached if still valid
+  if (cached && (now - cached.timestamp) < CACHE_TTL) {
+    return cached.data as T;
+  }
+  
+  // Read from localStorage
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch { return fallback; }
+    const data = raw ? JSON.parse(raw) : fallback;
+    storageCache.set(key, { data, timestamp: now });
+    return data;
+  } catch {
+    storageCache.set(key, { data: fallback, timestamp: now });
+    return fallback;
+  }
 }
 
 function setStorage<T>(key: string, value: T): void {
@@ -163,6 +180,8 @@ function setStorage<T>(key: string, value: T): void {
       console.warn(`Storage key "${key}" is ${sizeMB.toFixed(2)} MB. Consider reducing image sizes.`);
     }
     localStorage.setItem(key, json);
+    // Invalidate cache on write
+    storageCache.delete(key);
   } catch (err) {
     if (err instanceof DOMException && err.code === 22) {
       // QuotaExceededError

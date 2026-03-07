@@ -101,6 +101,9 @@ export function trackArticleView(
     
     // Keep last 10,000 views
     localStorage.setItem(VIEWS_KEY, JSON.stringify(views.slice(-10000)));
+    // Clear cache to force refresh
+    viewsCache = null;
+    engagementMapCache = null;
   } catch {
     // Non-fatal
   }
@@ -130,22 +133,61 @@ export function trackArticleEngagement(
     });
     
     localStorage.setItem(ENGAGEMENT_KEY, JSON.stringify(engagement.slice(-5000)));
+    // Clear cache to force refresh
+    engagementCache = null;
+    engagementMapCache = null;
   } catch {
     // Non-fatal
   }
 }
 
-// ─── Analytics Calculations ───────────────────────────────────────────────────
+// ─── Caching for Performance ───────────────────────────────────────────────────
+let viewsCache: ArticleView[] | null = null;
+let viewsCacheTime = 0;
+const CACHE_TTL = 5000; // 5 seconds
+
+let engagementCache: Array<{ articleId: string; type: string; timestamp: string }> | null = null;
+let engagementCacheTime = 0;
+
+let engagementMapCache: Record<string, ArticleEngagement> | null = null;
+let engagementMapCacheTime = 0;
+
 function getViews(): ArticleView[] {
+  const now = Date.now();
+  if (viewsCache && (now - viewsCacheTime) < CACHE_TTL) {
+    return viewsCache;
+  }
   try {
-    return JSON.parse(localStorage.getItem(VIEWS_KEY) || '[]');
-  } catch { return []; }
+    viewsCache = JSON.parse(localStorage.getItem(VIEWS_KEY) || '[]');
+    viewsCacheTime = now;
+    return viewsCache;
+  } catch {
+    viewsCache = [];
+    viewsCacheTime = now;
+    return [];
+  }
 }
 
 function getEngagement(): Array<{ articleId: string; type: string; timestamp: string }> {
+  const now = Date.now();
+  if (engagementCache && (now - engagementCacheTime) < CACHE_TTL) {
+    return engagementCache;
+  }
   try {
-    return JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '[]');
-  } catch { return []; }
+    engagementCache = JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '[]');
+    engagementCacheTime = now;
+    return engagementCache;
+  } catch {
+    engagementCache = [];
+    engagementCacheTime = now;
+    return [];
+  }
+}
+
+export function clearAnalyticsCache(): void {
+  viewsCache = null;
+  engagementCache = null;
+  engagementMapCache = null;
 }
 
 export function getArticleEngagement(articleId: string): ArticleEngagement {
@@ -171,6 +213,11 @@ export function getArticleEngagement(articleId: string): ArticleEngagement {
 }
 
 export function getAllArticlesEngagement(): Record<string, ArticleEngagement> {
+  const now = Date.now();
+  if (engagementMapCache && (now - engagementMapCacheTime) < CACHE_TTL) {
+    return engagementMapCache;
+  }
+  
   const views = getViews();
   const engagement = getEngagement();
   const articleIds = new Set([...views.map(v => v.articleId), ...engagement.map(e => e.articleId)]);
@@ -180,6 +227,8 @@ export function getAllArticlesEngagement(): Record<string, ArticleEngagement> {
     result[id] = getArticleEngagement(id);
   });
   
+  engagementMapCache = result;
+  engagementMapCacheTime = now;
   return result;
 }
 

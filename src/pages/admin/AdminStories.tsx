@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -58,6 +58,7 @@ export default function AdminStories() {
   const [searchParams]      = useSearchParams();
   const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery]           = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sectionFilter, setSectionFilter] = useState('all');
   const [statusFilter, setStatusFilter]   = useState(searchParams.get('status') ?? 'all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -65,15 +66,26 @@ export default function AdminStories() {
   const [deleteTarget, setDeleteTarget]   = useState<AdminArticle | null>(null);
   const [selected, setSelected]           = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
   const navigate = useNavigate();
+
+  // Debounce search query for performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const allArticles = useMemo(mergeAll, [refreshKey]);
 
   const filtered = useMemo(() => {
     let list = [...allArticles];
-    if (query.trim()) {
-      const q = query.toLowerCase();
+    if (debouncedQuery.trim()) {
+      const q = debouncedQuery.toLowerCase();
       list = list.filter(a =>
         a.headline.toLowerCase().includes(q) ||
         a.dek?.toLowerCase().includes(q) ||
@@ -94,11 +106,18 @@ export default function AdminStories() {
       return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
     });
     return list;
-  }, [allArticles, query, sectionFilter, statusFilter, priorityFilter, sortBy]);
+  }, [allArticles, debouncedQuery, sectionFilter, statusFilter, priorityFilter, sortBy]);
+
+  // Pagination
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedArticles = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
 
   // ── Selection ──────────────────────────────────────────────────────────────
-  const allSelected  = filtered.length > 0 && filtered.every(a => selected.has(a.id));
-  const someSelected = filtered.some(a => selected.has(a.id));
+  const allSelected  = paginatedArticles.length > 0 && paginatedArticles.every(a => selected.has(a.id));
+  const someSelected = paginatedArticles.some(a => selected.has(a.id));
   const selectedList = filtered.filter(a => selected.has(a.id));
 
   const toggleSelect = (id: string) => {
@@ -113,13 +132,13 @@ export default function AdminStories() {
     if (allSelected) {
       setSelected(prev => {
         const next = new Set(prev);
-        filtered.forEach(a => next.delete(a.id));
+        paginatedArticles.forEach(a => next.delete(a.id));
         return next;
       });
     } else {
       setSelected(prev => {
         const next = new Set(prev);
-        filtered.forEach(a => next.add(a.id));
+        paginatedArticles.forEach(a => next.add(a.id));
         return next;
       });
     }
@@ -266,7 +285,7 @@ export default function AdminStories() {
 
         {/* Rows */}
         <div className="divide-y divide-slate-100">
-          {filtered.map((article) => (
+          {paginatedArticles.map((article) => (
             <div key={article.id}
               className={cn(
                 'grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-6 py-3.5 hover:bg-slate-50 transition-colors items-center',
@@ -369,6 +388,58 @@ export default function AdminStories() {
           )}
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6">
+          <p className="text-sm text-slate-600">
+            Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} stories
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className="w-8 h-8 p-0"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Delete Single */}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
