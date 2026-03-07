@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS articles (
   author_id TEXT NOT NULL,
   author_name TEXT NOT NULL,
   published_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ,
   reading_time INTEGER,
   tags JSONB DEFAULT '[]'::jsonb,
   status TEXT NOT NULL DEFAULT 'draft',
