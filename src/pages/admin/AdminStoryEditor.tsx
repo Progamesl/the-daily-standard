@@ -685,9 +685,12 @@ export default function AdminStoryEditor() {
                     <p className="text-xs text-slate-400 mt-1">{form.metaDescription.length}/160 characters</p>
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-600 mb-1.5 block">Social Share Image URL <span className="text-slate-400">(OG image)</span></Label>
-                    <Input value={form.ogImage} onChange={(e) => updateField('ogImage', e.target.value)}
-                      placeholder={form.image || 'https://…'} />
+                    <ImageUpload
+                      value={form.ogImage}
+                      onChange={(url) => updateField('ogImage', url)}
+                      label="Social Share Image (OG Image)"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Used when sharing on social media. Defaults to story image if empty.</p>
                   </div>
                   <div>
                     <Label className="text-xs text-slate-600 mb-1.5 block">Canonical URL <span className="text-slate-400">(optional)</span></Label>

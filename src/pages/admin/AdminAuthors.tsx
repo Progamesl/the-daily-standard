@@ -22,6 +22,7 @@ import {
   type AdminAuthor,
 } from '@/lib/adminDataService';
 import { authors as jsonAuthors } from '@/data/seedData';
+import { ImageUpload } from '@/components/admin/ImageUpload';
 
 function mergeAuthors(): AdminAuthor[] {
   const map = new Map<string, AdminAuthor>();
@@ -265,24 +266,12 @@ export default function AdminAuthors() {
               />
             </div>
             <div>
-              <Label htmlFor="author-image">Photo URL</Label>
-              <Input
-                id="author-image"
+              <ImageUpload
                 value={formData.image}
-                onChange={(e) => setFormData((p) => ({ ...p, image: e.target.value }))}
-                placeholder="https://… (leave blank for auto-generated)"
-                className="mt-1"
+                onChange={(url) => setFormData((p) => ({ ...p, image: url }))}
+                label="Author Photo"
               />
-              {formData.image && (
-                <img
-                  src={formData.image}
-                  alt="Preview"
-                  className="mt-2 w-16 h-16 rounded-full object-cover bg-slate-100"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              )}
+              <p className="text-xs text-slate-400 mt-1">Leave blank for auto-generated avatar</p>
             </div>
           </div>
           <DialogFooter>
