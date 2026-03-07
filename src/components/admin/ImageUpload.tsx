@@ -1,20 +1,21 @@
 /**
  * ImageUpload
- * Supports three ways to add a story image:
+ * Supports four ways to add a story image:
  *   1. Paste a URL directly
- *   2. Drag-and-drop an image file → converts to base64 and stores inline
- *   3. Click "Browse" to pick a file from disk
+ *   2. Paste an image from clipboard (⌘V / Ctrl+V)
+ *   3. Drag-and-drop an image file → converts to base64 and stores inline
+ *   4. Click "Browse" to pick a file from disk
  *
  * Base64 works well for thumbnails/preview images kept in localStorage.
  * For large images, editors should upload to an external host (Google Photos,
  * Imgur, the school CDN) and paste the URL instead.
  */
 
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Upload, Link2, X } from 'lucide-react';
+import { Upload, Link2, X, Clipboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ImageUploadProps {
@@ -43,11 +44,13 @@ export function ImageUpload({
   onCaptionChange,
   label = 'Story Image',
 }: ImageUploadProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef      = useRef<HTMLInputElement>(null);
   const [mode, setMode]         = useState<'url' | 'upload'>('url');
   const [dragging, setDragging] = useState(false);
   const [urlInput, setUrlInput] = useState(value.startsWith('data:') ? '' : value);
   const [warn, setWarn]         = useState('');
+  const [pasting, setPasting]   = useState(false);
 
   const applyFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -60,11 +63,19 @@ export function ImageUpload({
       return;
     }
     setWarn('');
-    const b64 = await fileToBase64(file);
-    if (sizeMB > MAX_B64_MB) {
-      setWarn(`Large image (${sizeMB.toFixed(1)} MB) stored as base64. For best performance, upload to Imgur or Google Photos and paste the URL.`);
+    setPasting(true);
+    try {
+      const b64 = await fileToBase64(file);
+      if (sizeMB > MAX_B64_MB) {
+        setWarn(`Large image (${sizeMB.toFixed(1)} MB) stored as base64. For best performance, upload to Imgur or Google Photos and paste the URL.`);
+      }
+      onChange(b64);
+      // Brief success feedback
+      setTimeout(() => setPasting(false), 300);
+    } catch (err) {
+      setPasting(false);
+      setWarn('Failed to process image. Please try again.');
     }
-    onChange(b64);
   }, [onChange]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -91,10 +102,64 @@ export function ImageUpload({
     setWarn('');
   };
 
+  // Clipboard paste handler - works globally when component is mounted
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      // Don't intercept if user is typing in a text input/textarea (let normal paste work)
+      const activeEl = document.activeElement;
+      if (activeEl && (
+        activeEl.tagName === 'INPUT' && (activeEl as HTMLInputElement).type === 'text' ||
+        activeEl.tagName === 'TEXTAREA'
+      )) {
+        // Check if it's our URL input - if so, check for image data first
+        if (activeEl === inputRef.current) {
+          const items = e.clipboardData?.items;
+          if (items) {
+            for (let i = 0; i < items.length; i++) {
+              const item = items[i];
+              if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (file) {
+                  await applyFile(file);
+                  setMode('upload'); // Switch to upload mode to show preview
+                }
+                return;
+              }
+            }
+          }
+        }
+        // Otherwise, let normal text paste work
+        return;
+      }
+
+      // For all other cases (clicking in upload area, or anywhere in component), handle image paste
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            await applyFile(file);
+            setMode('upload'); // Switch to upload mode to show preview
+          }
+          break;
+        }
+      }
+    };
+
+    // Add paste listener to document
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [applyFile]);
+
   const previewSrc = value || null;
 
   return (
-    <div className="space-y-3">
+    <div ref={containerRef} className="space-y-3">
       <Label className="text-sm font-medium text-slate-700 block">{label}</Label>
 
       {/* Mode tabs */}
@@ -125,14 +190,21 @@ export function ImageUpload({
         </button>
       </div>
 
+      {/* Paste hint */}
+      <p className="text-xs text-slate-500 flex items-center gap-1.5">
+        <Clipboard className="h-3 w-3" />
+        <span>Tip: Press <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-[10px] font-mono">⌘V</kbd> or <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-[10px] font-mono">Ctrl+V</kbd> to paste an image from clipboard</span>
+      </p>
+
       {/* URL mode */}
       {mode === 'url' && (
         <div className="flex gap-2">
           <Input
+            ref={inputRef}
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyUrl(); } }}
-            placeholder="https://example.com/photo.jpg"
+            placeholder="https://example.com/photo.jpg or paste image (⌘V)"
             className="flex-1 text-sm"
           />
           <Button type="button" variant="outline" size="sm" onClick={applyUrl}>
@@ -148,18 +220,28 @@ export function ImageUpload({
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
           onClick={() => inputRef.current?.click()}
+          onFocus={() => {}} // Make div focusable for paste
+          tabIndex={0}
           className={cn(
-            'flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors',
-            dragging
+            'flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2',
+            pasting
+              ? 'border-green-400 bg-green-50'
+              : dragging
               ? 'border-blue-400 bg-blue-50'
               : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
           )}
         >
-          <Upload className="h-6 w-6 text-slate-400" />
+          <Upload className={cn('h-6 w-6 transition-colors', pasting ? 'text-green-600' : 'text-slate-400')} />
           <p className="text-sm text-slate-500 text-center">
-            Drag &amp; drop an image here, or <span className="text-blue-600 font-medium">click to browse</span>
+            {pasting ? (
+              <span className="text-green-600 font-medium">✓ Image pasted!</span>
+            ) : (
+              <>
+                Drag &amp; drop an image here, or <span className="text-blue-600 font-medium">click to browse</span>
+              </>
+            )}
           </p>
-          <p className="text-xs text-slate-400">JPG, PNG, WEBP · Max 10 MB</p>
+          <p className="text-xs text-slate-400">JPG, PNG, WEBP · Max 10 MB · Or paste from clipboard</p>
           <input
             ref={inputRef}
             type="file"
