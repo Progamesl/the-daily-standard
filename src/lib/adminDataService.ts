@@ -259,10 +259,19 @@ export async function syncArticlesFromSupabase(): Promise<boolean> {
     const { getArticlesFromSupabase } = await import('./supabaseDataService');
     const { isSupabaseConfigured } = await import('./supabaseClient');
     
-    if (!isSupabaseConfigured()) return false;
+    if (!isSupabaseConfigured()) {
+      console.log('ℹ️ Supabase not configured, skipping sync');
+      return false;
+    }
     
+    console.log('🔄 Syncing articles from Supabase...');
     const supabaseArticles = await getArticlesFromSupabase();
-    if (Object.keys(supabaseArticles).length === 0) return false;
+    console.log(`📦 Loaded ${Object.keys(supabaseArticles).length} articles from Supabase`);
+    
+    if (Object.keys(supabaseArticles).length === 0) {
+      console.log('ℹ️ No articles in Supabase yet');
+      return false;
+    }
     
     // Merge with localStorage (Supabase is source of truth, localStorage for recent edits)
     const localArticles = getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
@@ -273,9 +282,10 @@ export async function syncArticlesFromSupabase(): Promise<boolean> {
     supabaseArticlesCache = supabaseArticles;
     supabaseArticlesCacheTime = Date.now();
     
+    console.log('✅ Synced articles from Supabase');
     return true;
   } catch (error) {
-    console.error('Error syncing from Supabase:', error);
+    console.error('❌ Error syncing from Supabase:', error);
     return false;
   }
 }
@@ -438,8 +448,14 @@ export function saveAdminArticle(
     import('./supabaseDataService').then(({ saveArticleToSupabase }) => {
       import('./supabaseClient').then(({ isSupabaseConfigured }) => {
         if (isSupabaseConfigured()) {
-          saveArticleToSupabase(saved).catch(() => {
-            // Silent fail - localStorage is primary, Supabase is backup
+          saveArticleToSupabase(saved).then(success => {
+            if (success) {
+              console.log('✅ Article saved to Supabase:', saved.id);
+            } else {
+              console.warn('⚠️ Failed to save article to Supabase:', saved.id);
+            }
+          }).catch(err => {
+            console.error('❌ Error saving to Supabase:', err);
           });
         }
       }).catch(() => {});

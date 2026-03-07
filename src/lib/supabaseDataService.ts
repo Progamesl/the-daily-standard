@@ -94,9 +94,13 @@ export async function getArticlesFromSupabase(): Promise<Record<string, AdminArt
 
 export async function saveArticleToSupabase(article: AdminArticle): Promise<boolean> {
   const client = await initSupabase();
-  if (!client) return false;
+  if (!client) {
+    console.warn('⚠️ Supabase client not initialized');
+    return false;
+  }
   
   try {
+    console.log('💾 Saving article to Supabase:', article.id, article.headline);
     const { error } = await client
       .from('articles')
       .upsert({
@@ -136,10 +140,14 @@ export async function saveArticleToSupabase(article: AdminArticle): Promise<bool
         onConflict: 'id',
       });
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase error:', error);
+      throw error;
+    }
+    console.log('✅ Article saved to Supabase successfully');
     return true;
   } catch (error) {
-    console.error('Error saving article to Supabase:', error);
+    console.error('❌ Error saving article to Supabase:', error);
     return false;
   }
 }
