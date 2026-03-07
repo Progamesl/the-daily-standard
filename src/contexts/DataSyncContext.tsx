@@ -40,6 +40,8 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
         if (synced) {
           console.log('✅ Background sync complete - pages will update automatically');
           setSyncVersion(v => v + 1); // Trigger re-render with fresh data
+        } else {
+          console.warn('⚠️ Sync returned false - check console for errors');
         }
       }
     } catch (err) {
@@ -53,6 +55,14 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Start sync immediately (no delay) - pages render from cache instantly anyway
     runSync();
+
+    // Also listen for article saves to trigger immediate sync
+    const handleArticleSaved = () => {
+      console.log('📢 Article saved event - triggering sync...');
+      runSync();
+    };
+    window.addEventListener('supabase-article-saved', handleArticleSaved);
+    return () => window.removeEventListener('supabase-article-saved', handleArticleSaved);
   }, [runSync]);
 
   return (

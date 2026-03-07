@@ -25,6 +25,7 @@ import {
   WORKFLOW_LABELS, WORKFLOW_COLORS, PRIORITY_COLORS,
 } from '@/lib/adminDataService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
+import { useDataSync } from '@/contexts/DataSyncContext';
 import { articles as jsonArticles } from '@/data/seedData';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +56,8 @@ function mergeAll(): AdminArticle[] {
 
 export default function AdminStories() {
   const { currentUser } = useAdminAuth();
+  // Subscribe to Supabase sync - re-renders when fresh data arrives
+  const { syncVersion } = useDataSync();
   const [searchParams]      = useSearchParams();
   const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery]           = useState('');
@@ -70,16 +73,10 @@ export default function AdminStories() {
   const itemsPerPage = 25;
   const navigate = useNavigate();
 
-  // Sync from Supabase on mount
+  // Re-render when Supabase sync completes (syncVersion changes)
   useEffect(() => {
-    import('@/lib/adminDataService').then(({ syncArticlesFromSupabase }) => {
-      syncArticlesFromSupabase().then(synced => {
-        if (synced) {
-          setRefreshKey(prev => prev + 1); // Trigger re-render
-        }
-      });
-    });
-  }, []);
+    setRefreshKey(prev => prev + 1);
+  }, [syncVersion]);
 
   // Debounce search query for performance
   useEffect(() => {

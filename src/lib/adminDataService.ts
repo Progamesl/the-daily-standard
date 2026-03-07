@@ -474,6 +474,8 @@ export function saveAdminArticle(
               // Invalidate cache so next read gets fresh data
               supabaseArticlesCache = null;
               supabaseArticlesCacheTime = 0;
+              // Trigger global refresh event so all pages know to re-render
+              window.dispatchEvent(new CustomEvent('supabase-article-saved', { detail: { articleId: saved.id } }));
             } else {
               console.error('❌ CRITICAL: Failed to save to Supabase. Article saved to localStorage only.');
             }

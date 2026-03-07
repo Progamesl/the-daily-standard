@@ -14,6 +14,7 @@ import {
 import { getActivityLog } from '@/lib/adminUserService';
 import { articles as jsonArticles, authors as jsonAuthors } from '@/data/seedData';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
+import { useDataSync } from '@/contexts/DataSyncContext';
 import { cn } from '@/lib/utils';
 
 const SECTION_NAMES: Record<string, string> = {
