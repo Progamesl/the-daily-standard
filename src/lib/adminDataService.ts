@@ -304,37 +304,8 @@ export function countWords(html: string): number {
     .split(/\s+/).filter(Boolean).length;
 }
 
-// ─── Article CRUD (with Supabase support) ────────────────────────────────────
-let articlesCache: Record<string, AdminArticle> | null = null;
-let articlesCacheTime = 0;
-const ARTICLES_CACHE_TTL = 5000; // 5 seconds
-
-export async function getAdminArticlesMap(): Promise<Record<string, AdminArticle>>;
-export function getAdminArticlesMap(sync: false): Record<string, AdminArticle>;
-export function getAdminArticlesMap(sync: boolean = false): Record<string, AdminArticle> | Promise<Record<string, AdminArticle>> {
-  // If Supabase is configured, use it (async)
-  if (sync === false && typeof window !== 'undefined') {
-    const checkSupabase = async () => {
-      try {
-        const { isSupabaseConfigured } = await import('./supabaseClient');
-        if (isSupabaseConfigured()) {
-          const { getArticlesFromSupabase } = await import('./supabaseDataService');
-          const supabaseArticles = await getArticlesFromSupabase();
-          if (Object.keys(supabaseArticles).length > 0) {
-            // Merge with localStorage (localStorage takes precedence for offline edits)
-            const localArticles = getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
-            return { ...supabaseArticles, ...localArticles };
-          }
-        }
-      } catch {
-        // Supabase not available, fall back to localStorage
-      }
-      return getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
-    };
-    return checkSupabase();
-  }
-  
-  // Synchronous fallback (localStorage only)
+// ─── Article CRUD ─────────────────────────────────────────────────────────────
+export function getAdminArticlesMap(): Record<string, AdminArticle> {
   return getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
 }
 
@@ -382,6 +353,21 @@ export function saveAdminArticle(
   };
   articles[saved.id] = saved;
   setStorage(ARTICLES_KEY, articles);
+
+  // Also save to Supabase if configured (async, non-blocking)
+  if (typeof window !== 'undefined') {
+    import('./supabaseDataService').then(({ saveArticleToSupabase }) => {
+      import('./supabaseClient').then(({ isSupabaseConfigured }) => {
+        if (isSupabaseConfigured()) {
+          saveArticleToSupabase(saved).catch(() => {
+            // Silent fail - localStorage is primary, Supabase is backup
+          });
+        }
+      }).catch(() => {});
+    }).catch(() => {
+      // Supabase not available
+    });
+  }
 
   // Un-delete if it was previously deleted
   const deleted = getDeletedArticleIds();
@@ -434,7 +420,7 @@ export function deleteAdminArticle(
     delete articles[id];
     setStorage(ARTICLES_KEY, articles);
   }
-  
+
   const deleted = getDeletedArticleIds();
   if (!deleted.includes(String(id))) {
     deleted.push(String(id));
