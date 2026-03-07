@@ -29,6 +29,9 @@ export default function AdminSettings() {
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [merging, setMerging] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const backups = getAutoBackups();
+  const supabaseEnabled = isSupabaseConfigured();
 
   const update = <K extends keyof SiteSettings>(key: K, value: SiteSettings[K]) =>
     setSettings(prev => ({ ...prev, [key]: value }));
