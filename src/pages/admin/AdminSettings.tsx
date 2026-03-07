@@ -409,12 +409,81 @@ export default function AdminSettings() {
           </div>
         </section>
 
+        {/* ── Supabase Migration ────────────────────────────────────────────── */}
+        <section className="bg-green-50 border-2 border-green-200 rounded-xl p-6">
+          <div className="flex items-start gap-3 mb-4">
+            <Database className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-green-900 mb-1">🚀 Long-Term Solution: Supabase Database</h3>
+              <p className="text-xs text-green-700 leading-relaxed mb-3">
+                Migrate from localStorage to Supabase (PostgreSQL) for true data persistence across all devices and browsers.
+              </p>
+              
+              {supabaseEnabled ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-green-100 rounded-lg border border-green-200">
+                    <p className="text-xs font-semibold text-green-900 mb-1">✅ Supabase is configured!</p>
+                    <p className="text-xs text-green-700">
+                      Your Supabase credentials are set. Ready to migrate your data.
+                    </p>
+                  </div>
+                  
+                  <Button
+                    onClick={handleMigrateToSupabase}
+                    disabled={migrating}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
+                  >
+                    {migrating ? (
+                      <>
+                        <Database className="h-4 w-4 animate-spin" /> Migrating...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" /> Migrate All Data to Supabase
+                      </>
+                    )}
+                  </Button>
+                  
+                  <p className="text-xs text-green-600">
+                    This will copy all your articles and authors from localStorage to Supabase. 
+                    Your localStorage data will remain as a backup.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <p className="text-xs font-semibold text-amber-900 mb-2">Setup Instructions:</p>
+                    <ol className="text-xs text-amber-800 space-y-1.5 list-decimal list-inside">
+                      <li>Create free account at <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="underline">supabase.com</a></li>
+                      <li>Create a new project</li>
+                      <li>Go to Settings → API, copy your Project URL and anon key</li>
+                      <li>Create <code className="bg-amber-100 px-1 rounded">.env</code> file in project root:</li>
+                    </ol>
+                    <pre className="text-xs bg-amber-100 p-2 rounded mt-2 overflow-x-auto">
+{`VITE_SUPABASE_URL=your-project-url
+VITE_SUPABASE_ANON_KEY=your-anon-key`}
+                    </pre>
+                    <p className="text-xs text-amber-800 mt-2">
+                      <strong>5.</strong> Run SQL migration: Copy <code className="bg-amber-100 px-1 rounded">supabase/migrations.sql</code> and run it in Supabase SQL Editor
+                    </p>
+                    <p className="text-xs text-amber-800 mt-2">
+                      <strong>6.</strong> Install package: <code className="bg-amber-100 px-1 rounded">npm install @supabase/supabase-js</code>
+                    </p>
+                    <p className="text-xs text-amber-800 mt-2">
+                      <strong>7.</strong> Restart dev server and come back here to migrate
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* ── Future Roadmap Note ───────────────────────────────────────────── */}
         <section className="bg-blue-50 border border-blue-100 rounded-xl p-5">
-          <p className="text-sm font-semibold text-blue-800 mb-2">🚀 Production Upgrade Path</p>
+          <p className="text-sm font-semibold text-blue-800 mb-2">🚀 Additional Upgrades (After Supabase)</p>
           <ul className="text-xs text-blue-700 space-y-1.5 leading-relaxed">
-            <li>• <strong>Database:</strong> Migrate localStorage → Supabase (PostgreSQL) for multi-device, real-time sync</li>
-            <li>• <strong>Image Upload:</strong> Integrate Cloudinary or Supabase Storage for drag-and-drop media uploads</li>
+            <li>• <strong>Image Upload:</strong> Integrate Supabase Storage for drag-and-drop media uploads</li>
             <li>• <strong>Email:</strong> Add Resend/SendGrid for automated assignment notifications and submission alerts</li>
             <li>• <strong>Auth:</strong> Move to Supabase Auth for secure bcrypt passwords, OAuth (Google Workspace), and SSO</li>
             <li>• <strong>Scheduling:</strong> Cron job via Supabase Edge Functions to auto-publish approved articles</li>
