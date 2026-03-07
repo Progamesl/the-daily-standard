@@ -70,6 +70,17 @@ export default function AdminStories() {
   const itemsPerPage = 25;
   const navigate = useNavigate();
 
+  // Sync from Supabase on mount
+  useEffect(() => {
+    import('@/lib/adminDataService').then(({ syncArticlesFromSupabase }) => {
+      syncArticlesFromSupabase().then(synced => {
+        if (synced) {
+          setRefreshKey(prev => prev + 1); // Trigger re-render
+        }
+      });
+    });
+  }, []);
+
   // Debounce search query for performance
   useEffect(() => {
     const timer = setTimeout(() => {

@@ -247,6 +247,39 @@ export function getAutoBackups(): Backup[] {
   }
 }
 
+// ─── Supabase Sync ─────────────────────────────────────────────────────────────
+/**
+ * Actively sync articles from Supabase to localStorage.
+ * Call this when you need to refresh data from Supabase (e.g., on page load).
+ */
+export async function syncArticlesFromSupabase(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  
+  try {
+    const { getArticlesFromSupabase } = await import('./supabaseDataService');
+    const { isSupabaseConfigured } = await import('./supabaseClient');
+    
+    if (!isSupabaseConfigured()) return false;
+    
+    const supabaseArticles = await getArticlesFromSupabase();
+    if (Object.keys(supabaseArticles).length === 0) return false;
+    
+    // Merge with localStorage (Supabase is source of truth, localStorage for recent edits)
+    const localArticles = getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
+    const merged = { ...supabaseArticles, ...localArticles };
+    
+    // Update localStorage
+    setStorage(ARTICLES_KEY, merged);
+    supabaseArticlesCache = supabaseArticles;
+    supabaseArticlesCacheTime = Date.now();
+    
+    return true;
+  } catch (error) {
+    console.error('Error syncing from Supabase:', error);
+    return false;
+  }
+}
+
 export function restoreFromBackup(backupId: string): boolean {
   try {
     const backups: Backup[] = JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]');
