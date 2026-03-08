@@ -297,11 +297,11 @@ const Index = () => {
                   </div>
                 )}
 
-                {/* Arts & Entertainment */}
+                {/* Arts and Entertainment */}
                 {artsArticles.length > 0 && (
                   <div className="section-divider">
                     <div className="flex items-center justify-between mb-5">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Arts &amp; Entertainment</h2>
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Arts and Entertainment</h2>
                       <Link to="/section/arts" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                     </div>
                     <div className="space-y-5">
@@ -311,7 +311,7 @@ const Index = () => {
                             <img src={imgSrc(article)} alt={article.headline} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                           </figure>
                           <div className="flex-1 min-w-0">
-                            <span className="label text-[10px] text-accent uppercase tracking-widest font-bold">Arts &amp; Entertainment</span>
+                            <span className="label text-[10px] text-accent uppercase tracking-widest font-bold">Arts and Entertainment</span>
                             <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                             <span className="timestamp text-xs mt-2 block">{formatTimestamp(article.publishedAt)}</span>
                           </div>

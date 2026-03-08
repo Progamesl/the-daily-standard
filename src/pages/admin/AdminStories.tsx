@@ -30,7 +30,7 @@ import { articles as jsonArticles } from '@/data/seedData';
 import { cn } from '@/lib/utils';
 
 const SECTION_NAMES: Record<string, string> = {
-  us: 'News', arts: 'Arts & Ent.', opinion: 'Opinion',
+  us: 'News', arts: 'Arts and Entertainment', opinion: 'Opinion',
   editorial: 'Editorial', sports: 'Sports',
 };
 
@@ -46,13 +46,13 @@ function mergeAll(): AdminArticle[] {
   // Add seed articles (excluding deleted ones)
   jsonArticles.forEach((a) => {
     if (!deletedIds.has(String(a.id))) {
-      map.set(String(a.id), {
+    map.set(String(a.id), {
         id: String(a.id), slug: a.slug, headline: a.headline, dek: a.dek,
         body: a.body, image: a.image, images: a.images ?? [],
         imageCaption: a.imageCaption, section: a.section, author: { ...a.author },
         publishedAt: a.publishedAt.toISOString(), updatedAt: a.updatedAt?.toISOString(),
         readingTime: a.readingTime, tags: a.tags, status: 'published', priority: 'normal',
-      });
+    });
     }
   });
   

@@ -206,8 +206,8 @@ export const formatDate = (date: Date): string => {
 export const formatTimestamp = (date: Date): string => {
   // Always show month and day format consistently (e.g., "Jan 15", "Dec 3")
   // This avoids negative time issues and matches the format of older stories
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
 };
