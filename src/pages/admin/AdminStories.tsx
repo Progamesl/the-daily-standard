@@ -21,7 +21,7 @@ import {
 import { toast } from 'sonner';
 import {
   getAdminArticlesList, deleteAdminArticle, duplicateAdminArticle,
-  importJsonArticle, type AdminArticle,
+  importJsonArticle, getDeletedArticleIds, type AdminArticle,
   WORKFLOW_LABELS, WORKFLOW_COLORS, PRIORITY_COLORS,
 } from '@/lib/adminDataService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
