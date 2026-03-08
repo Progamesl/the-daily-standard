@@ -42,11 +42,19 @@ export function Masthead() {
 
     let rafId: number | null = null;
     let lastScrolled = false;
+    let ticking = false;
 
     const handleScroll = () => {
-      if (rafId !== null) return; // already queued, skip
+      if (ticking) return;
+      ticking = true;
+      
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      
       rafId = requestAnimationFrame(() => {
         rafId = null;
+        ticking = false;
         const y = window.scrollY;
         const next = lastScrolled
           ? y > SCROLL_UP_THRESHOLD    // already condensed → stay condensed until below 60
