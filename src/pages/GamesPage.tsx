@@ -29,7 +29,13 @@ export default function GamesPage() {
             <p className="text-slate-600 mb-6">
               This section is currently under development and is only accessible to developers.
             </p>
-            <Button onClick={() => navigate("/admin/login?returnTo=/games")}>
+            <Button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.location.href = "/admin/login?returnTo=/games";
+              }}
+            >
               Sign In as Developer
             </Button>
           </div>
