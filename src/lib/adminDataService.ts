@@ -368,54 +368,67 @@ let supabaseArticlesCache: Record<string, AdminArticle> | null = null;
 let supabaseArticlesCacheTime = 0;
 const SUPABASE_CACHE_TTL = 30000; // 30 seconds
 
+/**
+ * HEADLESS CMS: Get articles from Supabase (single source of truth)
+ * Returns Supabase cache if available, otherwise localStorage (for offline/fallback)
+ */
 export function getAdminArticlesMap(): Record<string, AdminArticle> {
   const localArticles = getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
   
-  // If Supabase is configured, merge with Supabase data (async, non-blocking)
+  // HEADLESS CMS: Supabase is source of truth - prioritize cache
   if (typeof window !== 'undefined') {
     const now = Date.now();
     const useCache = supabaseArticlesCache && (now - supabaseArticlesCacheTime) < SUPABASE_CACHE_TTL;
     
     if (!useCache) {
-      // Fetch from Supabase in background
+      // Fetch from Supabase in background (non-blocking for instant render)
       import('./supabaseDataService').then(({ getArticlesFromSupabase }) => {
         import('./supabaseClient').then(({ isSupabaseConfigured }) => {
           if (isSupabaseConfigured()) {
             getArticlesFromSupabase().then(supabaseArticles => {
-              if (Object.keys(supabaseArticles).length > 0) {
-                supabaseArticlesCache = supabaseArticles;
-                supabaseArticlesCacheTime = now;
-                // CRITICAL: Supabase is source of truth - it OVERWRITES localStorage
-                const merged = { ...supabaseArticles };
-                Object.keys(localArticles).forEach(id => {
-                  if (!merged[id]) {
-                    merged[id] = localArticles[id]; // Only add if not in Supabase
-                  }
-                });
-                // Update localStorage with merged data (but don't trigger backup)
-                try {
-                  localStorage.setItem(ARTICLES_KEY, JSON.stringify(merged));
-                  storageCache.delete(ARTICLES_KEY);
-                } catch {
-                  // Non-fatal
+              // Always update cache, even if empty (clears stale data)
+              supabaseArticlesCache = supabaseArticles;
+              supabaseArticlesCacheTime = now;
+              
+              // CRITICAL: Supabase is source of truth - it OVERWRITES localStorage
+              const merged = { ...supabaseArticles };
+              Object.keys(localArticles).forEach(id => {
+                if (!merged[id]) {
+                  merged[id] = localArticles[id]; // Only add if not in Supabase
                 }
+              });
+              
+              // Update localStorage with merged data (cache for offline)
+              try {
+                localStorage.setItem(ARTICLES_KEY, JSON.stringify(merged));
+                storageCache.delete(ARTICLES_KEY);
+                // Trigger global event so pages re-render with fresh data
+                window.dispatchEvent(new CustomEvent('supabase-data-loaded'));
+              } catch {
+                // Non-fatal
               }
             }).catch(() => {
-              // Silent fail
+              // Silent fail - use localStorage
             });
           }
         }).catch(() => {});
-      }).catch(() => {
-        // Supabase not available
-      });
+      }).catch(() => {});
     }
     
-    // Return merged data if cache is available
+    // HEADLESS CMS: Return Supabase cache if available (source of truth)
     if (supabaseArticlesCache) {
-      return { ...supabaseArticlesCache, ...localArticles };
+      // Merge with local-only articles (for offline edits)
+      const merged = { ...supabaseArticlesCache };
+      Object.keys(localArticles).forEach(id => {
+        if (!merged[id]) {
+          merged[id] = localArticles[id];
+        }
+      });
+      return merged;
     }
   }
   
+  // Fallback to localStorage (offline mode or Supabase not configured)
   return localArticles;
 }
 
@@ -431,12 +444,16 @@ export function getAdminArticleBySlug(slug: string): AdminArticle | undefined {
   return Object.values(getAdminArticlesMap()).find(a => a.slug === slug);
 }
 
-export function saveAdminArticle(
+/**
+ * HEADLESS CMS: Save article to Supabase (single source of truth)
+ * This function is now async and waits for Supabase confirmation.
+ */
+export async function saveAdminArticle(
   article: AdminArticle,
   savedById?: string,
   savedByName?: string,
   revisionNote?: string
-): AdminArticle {
+): Promise<AdminArticle> {
   const articles = getAdminArticlesMap();
   const existing = articles[article.id];
 
@@ -462,29 +479,26 @@ export function saveAdminArticle(
     revisions: revisions.slice(0, 20),
   };
 
-  // PRODUCTION PATTERN: Save to Supabase FIRST (source of truth), then localStorage (cache)
-  // This is async but we don't block - Supabase is the source of truth
+  // HEADLESS CMS PATTERN: Supabase is SINGLE SOURCE OF TRUTH
+  // Save to Supabase FIRST and wait for confirmation
   if (typeof window !== 'undefined') {
-    import('./supabaseClient').then(({ isSupabaseConfigured }) => {
-      if (isSupabaseConfigured()) {
-        import('./supabaseDataService').then(({ saveArticleToSupabase }) => {
-          saveArticleToSupabase(saved).then(success => {
-            if (success) {
-              console.log('✅ Article saved to Supabase (PRIMARY):', saved.id);
-              // Invalidate cache so next read gets fresh data
-              supabaseArticlesCache = null;
-              supabaseArticlesCacheTime = 0;
-              // Trigger global refresh event so all pages know to re-render
-              window.dispatchEvent(new CustomEvent('supabase-article-saved', { detail: { articleId: saved.id } }));
-            } else {
-              console.error('❌ CRITICAL: Failed to save to Supabase. Article saved to localStorage only.');
-            }
-          }).catch(err => {
-            console.error('❌ Error saving to Supabase:', err);
-          });
-        }).catch(() => {});
+    const { isSupabaseConfigured } = await import('./supabaseClient');
+    if (isSupabaseConfigured()) {
+      const { saveArticleToSupabase } = await import('./supabaseDataService');
+      const success = await saveArticleToSupabase(saved);
+      
+      if (success) {
+        console.log('✅ Article saved to Supabase (HEADLESS CMS):', saved.id);
+        // Invalidate cache so next read gets fresh data
+        supabaseArticlesCache = null;
+        supabaseArticlesCacheTime = 0;
+        // Trigger global refresh event so all pages know to re-render
+        window.dispatchEvent(new CustomEvent('supabase-article-saved', { detail: { articleId: saved.id } }));
+      } else {
+        console.error('❌ CRITICAL: Failed to save to Supabase. Article saved to localStorage only.');
+        throw new Error('Failed to save article to Supabase. Please check your connection and try again.');
       }
-    }).catch(() => {});
+    }
   }
 
   // Update localStorage cache (for offline/performance)

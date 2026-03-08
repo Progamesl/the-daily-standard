@@ -1,10 +1,13 @@
 /**
- * DataSyncContext - NYTimes Pattern
+ * DataSyncContext - HEADLESS CMS Pattern
  * 
- * Optimistic rendering: Show cached content INSTANTLY, update from Supabase in background.
- * Supabase is PRIMARY source of truth for writes, localStorage is cache for reads.
+ * Supabase is the SINGLE SOURCE OF TRUTH.
+ * This context ensures all pages automatically sync from Supabase:
+ * - On app load (immediate sync)
+ * - When articles are saved (instant sync)
+ * - When Supabase data loads (automatic re-render)
  * 
- * This gives instant page loads (like NYTimes) while ensuring data consistency.
+ * Pages render instantly from cache, then update when Supabase data arrives.
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
@@ -32,37 +35,48 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
   const runSync = useCallback(async () => {
     setIsSyncing(true);
     
-    // Sync in background (non-blocking) - pages render instantly from cache
+    // HEADLESS CMS: Sync from Supabase (single source of truth)
     try {
       if (isSupabaseConfigured()) {
-        console.log('🔄 Background sync from Supabase...');
+        console.log('🔄 HEADLESS CMS: Syncing from Supabase...');
         const synced = await syncArticlesFromSupabase();
         if (synced) {
-          console.log('✅ Background sync complete - pages will update automatically');
+          console.log('✅ HEADLESS CMS: Sync complete - all pages updated');
           setSyncVersion(v => v + 1); // Trigger re-render with fresh data
         } else {
-          console.warn('⚠️ Sync returned false - check console for errors');
+          console.warn('⚠️ HEADLESS CMS: Sync returned false - check console for errors');
         }
       }
     } catch (err) {
-      console.warn('⚠️ Background sync failed (using cache):', err);
+      console.warn('⚠️ HEADLESS CMS: Sync failed (using cache):', err);
     } finally {
       setIsSyncing(false);
     }
   }, []);
 
-  // Run sync immediately on app start (non-blocking, but fast)
+  // HEADLESS CMS: Sync immediately on app start + listen for events
   useEffect(() => {
-    // Start sync immediately (no delay) - pages render from cache instantly anyway
+    // Sync immediately (pages render from cache instantly, then update)
     runSync();
 
-    // Also listen for article saves to trigger immediate sync
+    // Listen for article saves - trigger immediate sync
     const handleArticleSaved = () => {
-      console.log('📢 Article saved event - triggering sync...');
+      console.log('📢 HEADLESS CMS: Article saved - syncing...');
       runSync();
     };
     window.addEventListener('supabase-article-saved', handleArticleSaved);
-    return () => window.removeEventListener('supabase-article-saved', handleArticleSaved);
+    
+    // Listen for Supabase data loaded - trigger re-render
+    const handleDataLoaded = () => {
+      console.log('📢 HEADLESS CMS: Supabase data loaded - updating pages...');
+      setSyncVersion(v => v + 1);
+    };
+    window.addEventListener('supabase-data-loaded', handleDataLoaded);
+    
+    return () => {
+      window.removeEventListener('supabase-article-saved', handleArticleSaved);
+      window.removeEventListener('supabase-data-loaded', handleDataLoaded);
+    };
   }, [runSync]);
 
   return (

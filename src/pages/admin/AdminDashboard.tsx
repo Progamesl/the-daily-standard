@@ -73,9 +73,9 @@ export default function AdminDashboard() {
   const activityLog  = useMemo(() => getActivityLog().slice(0, 12), []);
 
   const recentArticles = useMemo(() =>
-    [...allArticles]
-      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-      .slice(0, 8),
+      [...allArticles]
+        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+        .slice(0, 8),
     [allArticles]
   );
 
@@ -165,14 +165,14 @@ export default function AdminDashboard() {
           { label: 'Authors',        value: stats.totalAuthors,    icon: Users,         color: 'text-blue-500' },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-500">{label}</CardTitle>
               <Icon className={cn('h-4 w-4', color)} />
-            </CardHeader>
-            <CardContent>
+          </CardHeader>
+          <CardContent>
               <p className="text-3xl font-bold text-slate-900">{value}</p>
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
         ))}
       </div>
 
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
                         <span className="text-xs text-slate-400">{SECTION_NAMES[article.section] ?? article.section}</span>
                         {article.deadline && new Date(article.deadline) < new Date() && !['published','archived'].includes(article.status) && (
                           <>
-                            <span className="text-slate-300">·</span>
+                        <span className="text-slate-300">·</span>
                             <span className="text-xs text-red-500 font-medium">Overdue</span>
                           </>
                         )}
@@ -282,7 +282,7 @@ export default function AdminDashboard() {
 
         {/* Right Column */}
         <div className="space-y-6">
-          {/* Section Breakdown */}
+        {/* Section Breakdown */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">By Section</CardTitle>

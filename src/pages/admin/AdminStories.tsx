@@ -95,8 +95,8 @@ export default function AdminStories() {
     if (debouncedQuery.trim()) {
       const q = debouncedQuery.toLowerCase();
       list = list.filter(a =>
-        a.headline.toLowerCase().includes(q) ||
-        a.dek?.toLowerCase().includes(q) ||
+          a.headline.toLowerCase().includes(q) ||
+          a.dek?.toLowerCase().includes(q) ||
         a.author.name.toLowerCase().includes(q) ||
         a.assignedToName?.toLowerCase().includes(q)
       );

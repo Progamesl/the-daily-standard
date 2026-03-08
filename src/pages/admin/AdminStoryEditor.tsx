@@ -259,7 +259,7 @@ export default function AdminStoryEditor() {
     };
   };
 
-  const doSave = (status: WorkflowStatus, silent = false) => {
+  const doSave = async (status: WorkflowStatus, silent = false) => {
     setSaving(true);
     try {
       const built = buildArticle(status);
@@ -279,16 +279,17 @@ export default function AdminStoryEditor() {
         navigate(`/admin/stories/edit/${created.id}`, { replace: true });
         logActivity('article_created', `"${built.headline}" created`, userId, created.id);
       } else {
-        const saved = saveAdminArticle({ ...built, id }, userId, userName);
+        // HEADLESS CMS: Wait for Supabase save (single source of truth)
+        const saved = await saveAdminArticle({ ...built, id }, userId, userName);
         setDirty(false);
         setLastSaved(new Date());
         setArticle(saved);
         if (!silent) {
           toast.success(
-            status === 'published' ? 'Story published!' :
+            status === 'published' ? 'Story published! Available on all devices.' :
             status === 'archived'  ? 'Story archived.'  :
             status === 'submitted' ? 'Submitted for review!' :
-            'Saved!'
+            'Saved! Available on all devices.'
           );
         }
         logActivity('article_saved', `"${built.headline}" updated (${WORKFLOW_LABELS[status]})`, userId, id);
