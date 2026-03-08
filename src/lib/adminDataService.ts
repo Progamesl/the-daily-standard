@@ -436,8 +436,55 @@ export function getAdminArticlesList(): AdminArticle[] {
   return Object.values(getAdminArticlesMap());
 }
 
+/**
+ * Get article by ID - checks both Supabase/localStorage AND seed data
+ * This allows editing seed articles that haven't been migrated to Supabase yet
+ */
 export function getAdminArticle(id: string): AdminArticle | undefined {
-  return getAdminArticlesMap()[id];
+  // First check Supabase/localStorage (admin-created articles)
+  const adminArticle = getAdminArticlesMap()[id];
+  if (adminArticle) return adminArticle;
+  
+  // Fallback to seed data (for articles that haven't been migrated yet)
+  if (typeof window !== 'undefined') {
+    try {
+      const { articles: seedArticles } = require('@/data/seedData');
+      const seedArticle = seedArticles.find(a => String(a.id) === String(id));
+      if (seedArticle) {
+        // Convert seed Article to AdminArticle format
+        return {
+          id: String(seedArticle.id),
+          slug: seedArticle.slug,
+          headline: seedArticle.headline,
+          dek: seedArticle.dek,
+          body: seedArticle.body,
+          image: seedArticle.image,
+          images: seedArticle.images ?? [],
+          imageCaption: seedArticle.imageCaption,
+          section: seedArticle.section,
+          author: {
+            id: seedArticle.author.id,
+            name: seedArticle.author.name,
+            role: seedArticle.author.role,
+            bio: seedArticle.author.bio,
+            image: seedArticle.author.image,
+            email: seedArticle.author.email,
+            twitter: seedArticle.author.twitter,
+          },
+          publishedAt: seedArticle.publishedAt.toISOString(),
+          updatedAt: seedArticle.updatedAt?.toISOString(),
+          readingTime: seedArticle.readingTime,
+          tags: seedArticle.tags,
+          status: 'published', // Seed articles are always published
+          priority: 'normal',
+        };
+      }
+    } catch (e) {
+      // Seed data not available, return undefined
+    }
+  }
+  
+  return undefined;
 }
 
 export function getAdminArticleBySlug(slug: string): AdminArticle | undefined {

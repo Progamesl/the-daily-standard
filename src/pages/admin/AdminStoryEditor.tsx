@@ -182,13 +182,13 @@ export default function AdminStoryEditor() {
       setUndoStack(stack => [...stack, prev].slice(-50)); // Keep last 50 states
       setRedoStack([]); // Clear redo stack on new edit
       
-      const next = { ...prev, [key]: value };
-      if (key === 'headline' && isNew && prev.slug === generateSlug(prev.headline)) {
-        next.slug = generateSlug(value as string);
-      }
-      return next;
-    });
-    setDirty(true);
+        const next = { ...prev, [key]: value };
+        if (key === 'headline' && isNew && prev.slug === generateSlug(prev.headline)) {
+          next.slug = generateSlug(value as string);
+        }
+        return next;
+      });
+      setDirty(true);
   }, [isNew]);
 
   const handleUndo = useCallback(() => {
@@ -396,7 +396,7 @@ export default function AdminStoryEditor() {
                 className="h-8 w-8 p-0"
                 title="Redo (⌘⇧Z)">
                 <Redo2 className={cn('h-4 w-4', redoStack.length === 0 && 'text-slate-300')} />
-              </Button>
+                </Button>
             </div>
             <Button
               variant="ghost"
@@ -437,18 +437,18 @@ export default function AdminStoryEditor() {
           {/* Main Column */}
           <div className="lg:col-span-2 space-y-6">
             {/* Headline */}
-            <input
+              <input
               type="text" value={form.headline}
-              onChange={(e) => updateField('headline', e.target.value)}
-              placeholder="Write your headline…"
-              className="w-full text-3xl font-serif font-bold text-slate-900 bg-transparent border-0 outline-none placeholder:text-slate-300 leading-tight"
-            />
+                onChange={(e) => updateField('headline', e.target.value)}
+                placeholder="Write your headline…"
+                className="w-full text-3xl font-serif font-bold text-slate-900 bg-transparent border-0 outline-none placeholder:text-slate-300 leading-tight"
+              />
 
             {/* Dek */}
             <Textarea value={form.dek} onChange={(e) => updateField('dek', e.target.value)}
-              placeholder="Write a brief summary (dek / subheadline)…"
-              className="text-lg text-slate-600 bg-transparent border-0 resize-none min-h-[60px] focus-visible:ring-0 p-0 placeholder:text-slate-300"
-              rows={2}
+                placeholder="Write a brief summary (dek / subheadline)…"
+                className="text-lg text-slate-600 bg-transparent border-0 resize-none min-h-[60px] focus-visible:ring-0 p-0 placeholder:text-slate-300"
+                rows={2}
             />
 
             {/* Pitch Summary */}
@@ -461,8 +461,8 @@ export default function AdminStoryEditor() {
                   onChange={(e) => updateField('pitchSummary', e.target.value)}
                   placeholder="Briefly describe the story idea, angle, and why it matters…"
                   className="bg-white min-h-[80px] text-sm" rows={3}
-                />
-              </div>
+              />
+            </div>
             )}
 
             <div className="h-px bg-slate-200" />
@@ -700,7 +700,7 @@ export default function AdminStoryEditor() {
                     onCheckedChange={(checked) => updateField('featured', checked)}
                   />
                 </div>
-              </div>
+            </div>
             )}
 
             {/* Featured Image */}
@@ -723,7 +723,7 @@ export default function AdminStoryEditor() {
             {/* Slug & Publish Date */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
               <div>
-                <Label className="text-sm font-medium text-slate-700 mb-2 block">URL Slug</Label>
+              <Label className="text-sm font-medium text-slate-700 mb-2 block">URL Slug</Label>
                 <Input value={form.slug} onChange={(e) => updateField('slug', e.target.value)}
                   placeholder="auto-generated-from-headline" />
                 <p className="text-xs text-slate-400 mt-1.5">/article/{form.slug || 'your-slug-here'}</p>
