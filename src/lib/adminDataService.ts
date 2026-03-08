@@ -487,8 +487,54 @@ export function getAdminArticle(id: string): AdminArticle | undefined {
   return undefined;
 }
 
+/**
+ * Get article by slug - checks both Supabase/localStorage AND seed data
+ */
 export function getAdminArticleBySlug(slug: string): AdminArticle | undefined {
-  return Object.values(getAdminArticlesMap()).find(a => a.slug === slug);
+  // First check Supabase/localStorage
+  const adminArticle = Object.values(getAdminArticlesMap()).find(a => a.slug === slug);
+  if (adminArticle) return adminArticle;
+  
+  // Fallback to seed data
+  if (typeof window !== 'undefined') {
+    try {
+      const { articles: seedArticles } = require('@/data/seedData');
+      const seedArticle = seedArticles.find(a => a.slug === slug);
+      if (seedArticle) {
+        // Convert seed Article to AdminArticle format
+        return {
+          id: String(seedArticle.id),
+          slug: seedArticle.slug,
+          headline: seedArticle.headline,
+          dek: seedArticle.dek,
+          body: seedArticle.body,
+          image: seedArticle.image,
+          images: seedArticle.images ?? [],
+          imageCaption: seedArticle.imageCaption,
+          section: seedArticle.section,
+          author: {
+            id: seedArticle.author.id,
+            name: seedArticle.author.name,
+            role: seedArticle.author.role,
+            bio: seedArticle.author.bio,
+            image: seedArticle.author.image,
+            email: seedArticle.author.email,
+            twitter: seedArticle.author.twitter,
+          },
+          publishedAt: seedArticle.publishedAt.toISOString(),
+          updatedAt: seedArticle.updatedAt?.toISOString(),
+          readingTime: seedArticle.readingTime,
+          tags: seedArticle.tags,
+          status: 'published',
+          priority: 'normal',
+        };
+      }
+    } catch (e) {
+      // Seed data not available
+    }
+  }
+  
+  return undefined;
 }
 
 /**
