@@ -180,7 +180,7 @@ export default function ArticlePage() {
           <div className="max-w-3xl mx-auto">
             <Breadcrumbs items={breadcrumbItems} className="mb-4" />
             <Link to={`/section/${article.section}`} className="label text-accent hover:opacity-80 transition-opacity inline-block mb-4">
-              {article.section}
+              {section?.name ?? article.section}
             </Link>
             <h1 className="headline-xl mb-3 sm:mb-4 text-balance text-slate-900">{article.headline}</h1>
             <p className="font-sans text-base sm:text-lg text-slate-600 mb-4 sm:mb-6 text-balance leading-relaxed">{article.dek}</p>

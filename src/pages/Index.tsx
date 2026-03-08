@@ -6,6 +6,7 @@ import { MostPopular } from "@/components/stories/MostPopular";
 import {
   formatTimestamp,
   Article,
+  getSectionBySlug,
 } from "@/data/seedData";
 import {
   getFeaturedPublicArticle,
@@ -120,7 +121,7 @@ const Index = () => {
                   <div className="flow-container">
                     <div className="max-w-4xl">
                       <span className="inline-flex items-center text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-white/90 mb-2 sm:mb-4 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
-                        {leadArticle.section}
+                        {getSectionBySlug(leadArticle.section)?.name ?? leadArticle.section}
                       </span>
                       <h1 className="font-serif text-2xl sm:text-3xl md:text-5xl lg:text-[3.25rem] xl:text-[3.75rem] font-bold leading-[1.1] mb-3 sm:mb-4 text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] tracking-tight">
                         {leadArticle.headline}
@@ -297,11 +298,11 @@ const Index = () => {
                   </div>
                 )}
 
-                {/* Arts and Entertainment */}
+                {/* Arts */}
                 {artsArticles.length > 0 && (
                   <div className="section-divider">
                     <div className="flex items-center justify-between mb-5">
-                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Arts and Entertainment</h2>
+                      <h2 className="font-sans text-sm font-bold uppercase tracking-widest text-foreground">Arts</h2>
                       <Link to="/section/arts" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">See All →</Link>
                     </div>
                     <div className="space-y-5">
@@ -311,7 +312,7 @@ const Index = () => {
                             <img src={imgSrc(article)} alt={article.headline} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                           </figure>
                           <div className="flex-1 min-w-0">
-                            <span className="label text-[10px] text-accent uppercase tracking-widest font-bold">Arts and Entertainment</span>
+                            <span className="label text-[10px] text-accent uppercase tracking-widest font-bold">Arts</span>
                             <h3 className="headline-sm font-serif font-bold mt-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                             <span className="timestamp text-xs mt-2 block">{formatTimestamp(article.publishedAt)}</span>
                           </div>

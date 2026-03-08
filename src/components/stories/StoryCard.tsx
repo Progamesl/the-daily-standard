@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Article, formatTimestamp } from "@/data/seedData";
+import { Article, formatTimestamp, getSectionBySlug } from "@/data/seedData";
 import { cn } from "@/lib/utils";
 import { enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
 
@@ -39,7 +39,7 @@ export function StoryCard({
             </figure>
           )}
           <div className="space-y-3">
-            <span className="label text-accent">{section}</span>
+            <span className="label text-accent">{getSectionBySlug(section)?.name ?? section}</span>
             <h2 className="headline-xl text-balance group-hover:opacity-80 transition-opacity">
               {headline}
             </h2>
@@ -75,7 +75,7 @@ export function StoryCard({
             </figure>
           )}
           <div className="p-4 md:p-5 space-y-2">
-            <span className="label text-accent">{section}</span>
+            <span className="label text-accent">{getSectionBySlug(section)?.name ?? section}</span>
             <h3 className="headline-md text-balance group-hover:text-accent transition-colors">
               {headline}
             </h3>

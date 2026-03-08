@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Article, formatTimestamp } from "@/data/seedData";
+import { Article, formatTimestamp, getSectionBySlug } from "@/data/seedData";
 import { cn } from "@/lib/utils";
 
 interface MostPopularProps {
@@ -24,7 +24,7 @@ export function MostPopular({ articles, className }: MostPopularProps) {
                 {index + 1}
               </span>
               <div className="flex-1 min-w-0">
-                <span className="label text-[10px] text-accent">{article.section}</span>
+                <span className="label text-[10px] text-accent">{getSectionBySlug(article.section)?.name ?? article.section}</span>
                 <h3 className="font-serif text-sm font-semibold leading-snug text-balance group-hover:text-accent transition-colors line-clamp-3 mt-0.5">
                   {article.headline}
                 </h3>

@@ -18,7 +18,7 @@ import { useDataSync } from '@/contexts/DataSyncContext';
 import { cn } from '@/lib/utils';
 
 const SECTION_NAMES: Record<string, string> = {
-  us: 'News', arts: 'Arts and Entertainment', opinion: 'Opinion',
+  us: 'News', arts: 'Arts', opinion: 'Opinion',
   editorial: 'Editorial', sports: 'Sports',
 };
 

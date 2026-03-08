@@ -10,7 +10,7 @@ import { UserMenu } from "@/components/user/UserMenu";
 
 const sections = [
   { name: "News", slug: "us" },
-  { name: "Arts and Entertainment", slug: "arts" },
+  { name: "Arts", slug: "arts" },
   { name: "Opinion", slug: "opinion" },
   { name: "Editorial", slug: "editorial" },
   { name: "Sports", slug: "sports" },

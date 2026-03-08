@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
 
 const SECTION_OPTIONS = [
   { slug: 'us',       name: 'News' },
-  { slug: 'arts',     name: 'Arts and Entertainment' },
+  { slug: 'arts',     name: 'Arts' },
   { slug: 'opinion',  name: 'Opinion' },
   { slug: 'editorial',name: 'Editorial' },
   { slug: 'sports',   name: 'Sports' },

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Article, formatTimestamp } from "@/data/seedData";
+import { Article, formatTimestamp, getSectionBySlug } from "@/data/seedData";
 import { cn } from "@/lib/utils";
 import { enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
 
@@ -28,7 +28,7 @@ export function TopStories({ articles, className }: TopStoriesProps) {
                               />
                             </figure>
               <div className="flex-1 min-w-0">
-                <span className="label text-[10px] text-accent">{article.section}</span>
+                <span className="label text-[10px] text-accent">{getSectionBySlug(article.section)?.name ?? article.section}</span>
                 <h3 className="font-serif text-sm md:text-base font-semibold leading-snug text-balance group-hover:text-accent transition-colors mt-0.5 mb-1 line-clamp-2">
                   {article.headline}
                 </h3>
