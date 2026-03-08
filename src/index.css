@@ -632,8 +632,10 @@
     top: 0;
     z-index: 100;
     background: hsl(var(--background));
-    transition: padding 0.4s ease, box-shadow 0.4s ease;
+    transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: padding, box-shadow;
+    /* Prevent layout shift during transition */
+    min-height: 0;
   }
   
   .masthead-condensed {

@@ -90,9 +90,13 @@ export function Masthead() {
         {/* Top utility bar */}
         <div
           className={cn(
-            "container-newspaper overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out",
-            isScrolled ? "max-h-0 opacity-0" : "max-h-12 opacity-100"
+            "container-newspaper overflow-hidden transition-all duration-300 ease-in-out",
+            isScrolled ? "max-h-0 opacity-0 mt-0 mb-0" : "max-h-12 opacity-100"
           )}
+          style={{
+            transitionProperty: 'max-height, opacity, margin',
+            transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
         >
           <div className="flex items-center justify-between py-2 text-xs">
             <div className="flex items-center gap-4 text-muted-foreground">
@@ -113,7 +117,16 @@ export function Masthead() {
 
         {/* Main masthead */}
         <div className="container-newspaper">
-          <div className="flex items-center justify-between py-4">
+          <div 
+            className={cn(
+              "flex items-center justify-between transition-all duration-300 ease-in-out",
+              isScrolled ? "py-2" : "py-4"
+            )}
+            style={{
+              transitionProperty: 'padding',
+              transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
             {/* Left: Mobile menu + Search */}
             <div className="flex items-center gap-1 sm:gap-2 w-20 sm:w-32">
               <button
@@ -133,30 +146,48 @@ export function Masthead() {
             </div>
 
             {/* Center: Logo/Wordmark */}
-            <Link to="/" className="flex-1 text-center flex flex-col items-center will-change-transform min-w-0">
+            <Link 
+              to="/" 
+              className="flex-1 text-center flex flex-col items-center min-w-0"
+              style={{
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            >
               <img
                 src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"
                 alt="The Octagon Logo"
                 width={80}
                 height={80}
                 className={cn(
-                  "object-contain transition-[height] duration-400 ease-in-out",
+                  "object-contain transition-all duration-300 ease-in-out",
                   isScrolled ? "h-6 sm:h-7" : "h-10 sm:h-14 md:h-[4.5rem]"
                 )}
+                style={{
+                  transitionProperty: 'height',
+                  transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
               />
               <h1
                 className={cn(
-                  "font-serif font-bold tracking-tight transition-[font-size,margin] duration-400 ease-in-out",
+                  "font-serif font-bold tracking-tight transition-all duration-300 ease-in-out",
                   isScrolled ? "text-lg sm:text-xl md:text-2xl mt-0.5" : "text-2xl sm:text-3xl md:text-5xl mt-1"
                 )}
+                style={{
+                  transitionProperty: 'font-size, margin-top',
+                  transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
               >
                 The Octagon
               </h1>
               <p
                 className={cn(
-                  "text-xs text-muted-foreground hidden md:block transition-[max-height,opacity,margin] duration-300 ease-in-out overflow-hidden",
+                  "text-xs text-muted-foreground hidden md:block transition-all duration-300 ease-in-out overflow-hidden",
                   isScrolled ? "max-h-0 opacity-0 mt-0" : "max-h-6 opacity-100 mt-1"
                 )}
+                style={{
+                  transitionProperty: 'max-height, opacity, margin-top',
+                  transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
               >
                 A Sacramento Country Day School Newspaper
               </p>
