@@ -109,7 +109,7 @@ export function StoryCard({
             </figure>
           )}
           <div className="flex-1 min-w-0 space-y-1">
-            <span className="label text-accent text-[10px]">{section}</span>
+            <span className="label text-accent text-[10px]">{getSectionBySlug(section)?.name ?? section}</span>
             <h4 className="headline-sm text-balance group-hover:text-accent transition-colors line-clamp-3">
               {headline}
             </h4>
