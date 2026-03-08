@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { CheckCircle2, RotateCcw, Eye, Sparkles, Trophy } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────
    Types
@@ -102,6 +103,49 @@ function formatTime(seconds: number) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Confetti Effect
+   ───────────────────────────────────────────────────────────── */
+
+function Confetti() {
+  const colors = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"];
+  const pieces = useMemo(() =>
+    Array.from({ length: 80 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: 8 + Math.random() * 10,
+      duration: 2 + Math.random() * 1.5,
+      rotation: Math.random() * 360,
+      drift: -40 + Math.random() * 80,
+    })), []
+  );
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      {pieces.map(p => (
+        <div
+          key={p.id}
+          className="absolute animate-confetti"
+          style={{
+            left: `${p.x}%`,
+            top: "-10px",
+            width: p.size,
+            height: p.size * 0.7,
+            backgroundColor: p.color,
+            borderRadius: "2px",
+            transform: `rotate(${p.rotation}deg)`,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+            "--drift": `${p.drift}px`,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
    Main Component
    ───────────────────────────────────────────────────────────── */
 
@@ -114,6 +158,8 @@ export function OctoBlock() {
   const [revealed, setRevealed] = useState(false);
   const [startTime] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [recentlyFilled, setRecentlyFilled] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Timer
@@ -123,9 +169,9 @@ export function OctoBlock() {
     return () => clearInterval(id);
   }, [startTime, completed]);
 
-  // Completion check - only if not revealed (user actually solved it)
+  // Completion check
   useEffect(() => {
-    if (revealed) return; // Don't mark as completed if they revealed answers
+    if (revealed) return;
     let allCorrect = true;
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
@@ -139,6 +185,8 @@ export function OctoBlock() {
     }
     if (allCorrect && Object.keys(userInput).length > 0) {
       setCompleted(true);
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 4000);
     }
   }, [userInput, revealed]);
 
@@ -231,6 +279,8 @@ export function OctoBlock() {
       const letter = e.key.toUpperCase();
       const key = `${row}-${col}`;
       setUserInput(prev => ({ ...prev, [key]: letter }));
+      setRecentlyFilled(key);
+      setTimeout(() => setRecentlyFilled(null), 150);
 
       const cells = getWordCells(row, col, direction);
       const idx = cells.findIndex(([r, c]) => r === row && c === col);
@@ -276,6 +326,7 @@ export function OctoBlock() {
     setCompleted(false);
     setChecked(false);
     setRevealed(false);
+    setShowConfetti(false);
   };
 
   const acrossClues = useMemo(() => CLUES.filter(c => c.direction === "across").sort((a, b) => a.number - b.number), []);
@@ -290,183 +341,267 @@ export function OctoBlock() {
   }, []);
 
   const filledCells = Object.keys(userInput).length;
+  const progressPct = Math.round((filledCells / totalCells) * 100);
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="mb-8 pb-6 border-b border-slate-300">
-        <div className="flex items-baseline justify-between mb-4">
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
-            Octo-Block
-          </h1>
-          <div className="text-right">
-            <div className="text-sm text-slate-500 mb-0.5">Time</div>
-            <div className="text-xl font-mono font-semibold text-slate-900 tabular-nums">
-              {formatTime(elapsed)}
+    <>
+      {showConfetti && <Confetti />}
+
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <span className="text-2xl font-black text-white tracking-tighter" style={{ fontFamily: "'Playfair Display', serif" }}>8</span>
+              </div>
+              <div>
+                <h1 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight mb-0.5">
+                  Octo-Block
+                </h1>
+                <p className="text-sm text-slate-500">The Octagon Crossword</p>
+              </div>
             </div>
-          </div>
-        </div>
-        {currentClue && (
-          <div className="text-sm text-slate-700">
-            <span className="font-semibold">{currentClue.number} {currentClue.direction === "across" ? "Across" : "Down"}:</span> {currentClue.clue}
-          </div>
-        )}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8 lg:gap-12">
-        {/* Grid */}
-        <div>
-          <div
-            ref={gridRef}
-            className="relative bg-slate-900 p-[2px]"
-            style={{ aspectRatio: "1", maxWidth: "100%" }}
-          >
-            <div
-              className="grid h-full w-full bg-white"
-              style={{
-                gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-                gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
-                gap: "1px",
-              }}
-            >
-              {STATIC_GRID.map((row, ri) =>
-                row.map((cell, ci) => {
-                  const key = `${ri}-${ci}`;
-                  const val = userInput[key]?.toUpperCase() || "";
-                  const isSelected = selectedCell?.[0] === ri && selectedCell?.[1] === ci;
-                  const isHighlighted = highlightedCells.has(key);
-                  const isCorrect = checked && val && val === cell.letter;
-                  const isWrong = checked && val && val !== cell.letter;
-
-                  if (cell.isBlack) {
-                    return <div key={key} className="bg-slate-900" />;
-                  }
-
-                  return (
-                    <div
-                      key={key}
-                      onClick={() => handleCellClick(ri, ci)}
-                      className={cn(
-                        "relative flex items-center justify-center cursor-pointer bg-white border border-slate-300",
-                        isSelected && "bg-blue-50 border-blue-500 border-2",
-                        isHighlighted && !isSelected && "bg-blue-50/50",
-                        isCorrect && "bg-[#6AAA64] border-[#6AAA64]",
-                        isWrong && "bg-red-100 border-red-400"
-                      )}
-                    >
-                      {cell.number && (
-                        <span className="absolute top-0.5 left-1 text-[9px] sm:text-[10px] font-semibold text-slate-700 leading-none">
-                          {cell.number}
-                        </span>
-                      )}
-                      <span
-                        className={cn(
-                          "text-[clamp(14px,2.5vw,20px)] sm:text-[clamp(16px,2vw,22px)] font-bold leading-none text-slate-900",
-                          isCorrect && "text-white",
-                          isWrong && "text-red-700"
-                        )}
-                      >
-                        {val}
-                      </span>
-                      {isSelected && (
-                        <div
-                          className={cn(
-                            "absolute pointer-events-none",
-                            direction === "across"
-                              ? "bottom-0 left-0 right-0 h-0.5 bg-blue-500"
-                              : "top-0 bottom-0 right-0 w-0.5 bg-blue-500"
-                          )}
-                        />
-                      )}
-                    </div>
-                  );
-                })
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <div className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-medium">Time</div>
+                <div className="text-2xl font-mono font-bold text-slate-900 tabular-nums">
+                  {formatTime(elapsed)}
+                </div>
+              </div>
+              {completed && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl text-white shadow-lg">
+                  <Trophy className="h-5 w-5" />
+                  <span className="font-semibold">Complete!</span>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-3 mt-6">
-            <button
-              onClick={handleReset}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
-            >
-              Clear
-            </button>
-            <button
-              onClick={handleCheck}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
-            >
-              Check
-            </button>
-            <button
-              onClick={handleReveal}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
-            >
-              Reveal
-            </button>
-          </div>
-        </div>
-
-        {/* Clues Panel */}
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Across</h2>
-            <div className="space-y-1">
-              {acrossClues.map(clue => {
-                const isActive = currentClue?.number === clue.number && direction === "across";
-                return (
-                  <button
-                    key={clue.number}
-                    onClick={() => handleClueClick(clue)}
-                    className={cn(
-                      "w-full text-left px-2 py-1.5 text-sm leading-snug transition-colors",
-                      isActive
-                        ? "bg-blue-50 text-slate-900 font-medium"
-                        : "text-slate-600 hover:bg-slate-50"
-                    )}
-                  >
-                    <span className="font-semibold mr-1.5">{clue.number}.</span>
-                    {clue.clue}
-                  </button>
-                );
-              })}
+          {/* Progress bar */}
+          <div className="mb-6">
+            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500 ease-out shadow-sm"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
+              <span>{filledCells} of {totalCells} cells</span>
+              <span className="font-medium">{progressPct}%</span>
             </div>
           </div>
 
+          {/* Current clue */}
+          {currentClue && (
+            <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 rounded-xl p-4 border border-indigo-100">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white text-sm font-bold shadow-sm">
+                  {currentClue.number}
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+                  {currentClue.direction === "across" ? "Across" : "Down"}
+                </span>
+              </div>
+              <p className="text-slate-800 font-medium leading-relaxed">{currentClue.clue}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 lg:gap-12">
+          {/* Grid */}
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Down</h2>
-            <div className="space-y-1">
-              {downClues.map(clue => {
-                const isActive = currentClue?.number === clue.number && direction === "down";
-                return (
-                  <button
-                    key={clue.number}
-                    onClick={() => handleClueClick(clue)}
-                    className={cn(
-                      "w-full text-left px-2 py-1.5 text-sm leading-snug transition-colors",
-                      isActive
-                        ? "bg-blue-50 text-slate-900 font-medium"
-                        : "text-slate-600 hover:bg-slate-50"
-                    )}
-                  >
-                    <span className="font-semibold mr-1.5">{clue.number}.</span>
-                    {clue.clue}
-                  </button>
-                );
-              })}
+            <div
+              ref={gridRef}
+              className="relative bg-slate-900 rounded-2xl p-1.5 shadow-2xl"
+              style={{ aspectRatio: "1", maxWidth: "100%" }}
+            >
+              <div
+                className="grid h-full w-full bg-white rounded-xl"
+                style={{
+                  gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+                  gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
+                  gap: "2px",
+                }}
+              >
+                {STATIC_GRID.map((row, ri) =>
+                  row.map((cell, ci) => {
+                    const key = `${ri}-${ci}`;
+                    const val = userInput[key]?.toUpperCase() || "";
+                    const isSelected = selectedCell?.[0] === ri && selectedCell?.[1] === ci;
+                    const isHighlighted = highlightedCells.has(key);
+                    const isCorrect = checked && val && val === cell.letter;
+                    const isWrong = checked && val && val !== cell.letter;
+                    const justFilled = recentlyFilled === key;
+
+                    if (cell.isBlack) {
+                      return <div key={key} className="bg-slate-900 rounded-sm" />;
+                    }
+
+                    return (
+                      <div
+                        key={key}
+                        onClick={() => handleCellClick(ri, ci)}
+                        className={cn(
+                          "relative flex items-center justify-center cursor-pointer bg-white rounded-sm transition-all duration-200",
+                          "border-2",
+                          isSelected
+                            ? "border-indigo-500 bg-indigo-50 shadow-md scale-105 z-10"
+                            : isHighlighted
+                            ? "border-purple-300 bg-purple-50"
+                            : "border-slate-200",
+                          isCorrect && "bg-emerald-100 border-emerald-400",
+                          isWrong && "bg-red-100 border-red-400",
+                          justFilled && "animate-cell-pop"
+                        )}
+                      >
+                        {cell.number && (
+                          <span className="absolute top-0.5 left-1 text-[10px] sm:text-[11px] font-bold text-slate-600 leading-none">
+                            {cell.number}
+                          </span>
+                        )}
+                        <span
+                          className={cn(
+                            "text-[clamp(16px,2.5vw,22px)] sm:text-[clamp(18px,2vw,24px)] font-bold leading-none transition-colors",
+                            isCorrect ? "text-emerald-700" : isWrong ? "text-red-700" : "text-slate-900"
+                          )}
+                        >
+                          {val}
+                        </span>
+                        {isSelected && (
+                          <div
+                            className={cn(
+                              "absolute pointer-events-none rounded-sm",
+                              direction === "across"
+                                ? "bottom-0 left-0 right-0 h-1 bg-indigo-500"
+                                : "top-0 bottom-0 right-0 w-1 bg-indigo-500"
+                            )}
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center gap-3 mt-6">
+              <button
+                onClick={handleReset}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reset
+              </button>
+              <button
+                onClick={handleCheck}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Check
+              </button>
+              <button
+                onClick={handleReveal}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition-all shadow-sm"
+              >
+                <Eye className="h-4 w-4" />
+                Reveal
+              </button>
+            </div>
+          </div>
+
+          {/* Clues Panel */}
+          <div className="space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto styled-scrollbar pr-2">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+                <span className="w-1 h-4 rounded-full bg-indigo-500" />
+                Across
+              </h2>
+              <div className="space-y-1.5">
+                {acrossClues.map(clue => {
+                  const isActive = currentClue?.number === clue.number && direction === "across";
+                  return (
+                    <button
+                      key={clue.number}
+                      onClick={() => handleClueClick(clue)}
+                      className={cn(
+                        "w-full text-left px-3 py-2.5 rounded-lg text-sm leading-snug transition-all duration-200",
+                        isActive
+                          ? "bg-indigo-50 border-2 border-indigo-300 text-slate-900 font-medium shadow-sm"
+                          : "text-slate-600 hover:bg-slate-50 border-2 border-transparent"
+                      )}
+                    >
+                      <span className="font-bold text-indigo-600 mr-2">{clue.number}.</span>
+                      {clue.clue}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+                <span className="w-1 h-4 rounded-full bg-purple-500" />
+                Down
+              </h2>
+              <div className="space-y-1.5">
+                {downClues.map(clue => {
+                  const isActive = currentClue?.number === clue.number && direction === "down";
+                  return (
+                    <button
+                      key={clue.number}
+                      onClick={() => handleClueClick(clue)}
+                      className={cn(
+                        "w-full text-left px-3 py-2.5 rounded-lg text-sm leading-snug transition-all duration-200",
+                        isActive
+                          ? "bg-purple-50 border-2 border-purple-300 text-slate-900 font-medium shadow-sm"
+                          : "text-slate-600 hover:bg-slate-50 border-2 border-transparent"
+                      )}
+                    >
+                      <span className="font-bold text-purple-600 mr-2">{clue.number}.</span>
+                      {clue.clue}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Completion message - only show if actually completed (not revealed) */}
-      {completed && !revealed && (
-        <div className="mt-8 p-6 bg-slate-50 border border-slate-300 text-center">
-          <p className="text-lg font-semibold text-slate-900 mb-2">Puzzle complete!</p>
-          <p className="text-sm text-slate-600">Time: {formatTime(elapsed)}</p>
-        </div>
-      )}
-    </div>
+      {/* Custom CSS */}
+      <style>{`
+        @keyframes cell-pop {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); }
+        }
+        .animate-cell-pop {
+          animation: cell-pop 0.15s ease-out;
+        }
+        @keyframes confetti {
+          0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) translateX(var(--drift, 0px)) rotate(720deg); opacity: 0; }
+        }
+        .animate-confetti {
+          animation: confetti 3s ease-out forwards;
+        }
+        .styled-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .styled-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .styled-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 6px;
+        }
+        .styled-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `}</style>
+    </>
   );
 }
