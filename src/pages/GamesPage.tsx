@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { OctoBlock } from "@/components/games/OctoBlock";
 import { Lock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 
 export default function GamesPage() {
   const { user, isAuthenticated } = useAdminAuth();
+  const navigate = useNavigate();
 
   // Developer-only access - check if user is authenticated as admin
   if (!isAuthenticated || !user) {
@@ -29,8 +29,8 @@ export default function GamesPage() {
             <p className="text-slate-600 mb-6">
               This section is currently under development and is only accessible to developers.
             </p>
-            <Button asChild>
-              <Link to="/admin/login?returnTo=/games">Sign In as Developer</Link>
+            <Button onClick={() => navigate("/admin/login?returnTo=/games")}>
+              Sign In as Developer
             </Button>
           </div>
         </div>
