@@ -170,7 +170,7 @@ const Index = () => {
                         <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/85 via-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white z-10">
                           <span className="text-[11px] font-bold uppercase tracking-widest text-white mb-1.5 block drop-shadow-lg">
-                            {article.section}
+                            {getSectionBySlug(article.section)?.name ?? article.section}
                           </span>
                           <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-bold leading-tight mb-2 line-clamp-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] text-white">
                             {article.headline}
