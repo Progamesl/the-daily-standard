@@ -41,16 +41,28 @@ const ALL_STATUSES = [
 
 function mergeAll(): AdminArticle[] {
   const map = new Map<string, AdminArticle>();
+  const deletedIds = new Set(getDeletedArticleIds().map(String));
+  
+  // Add seed articles (excluding deleted ones)
   jsonArticles.forEach((a) => {
-    map.set(String(a.id), {
-      id: String(a.id), slug: a.slug, headline: a.headline, dek: a.dek,
-      body: a.body, image: a.image, images: a.images ?? [],
-      imageCaption: a.imageCaption, section: a.section, author: { ...a.author },
-      publishedAt: a.publishedAt.toISOString(), updatedAt: a.updatedAt?.toISOString(),
-      readingTime: a.readingTime, tags: a.tags, status: 'published', priority: 'normal',
-    });
+    if (!deletedIds.has(String(a.id))) {
+      map.set(String(a.id), {
+        id: String(a.id), slug: a.slug, headline: a.headline, dek: a.dek,
+        body: a.body, image: a.image, images: a.images ?? [],
+        imageCaption: a.imageCaption, section: a.section, author: { ...a.author },
+        publishedAt: a.publishedAt.toISOString(), updatedAt: a.updatedAt?.toISOString(),
+        readingTime: a.readingTime, tags: a.tags, status: 'published', priority: 'normal',
+      });
+    }
   });
-  getAdminArticlesList().forEach((a) => map.set(a.id, a));
+  
+  // Add admin articles (excluding deleted ones)
+  getAdminArticlesList().forEach((a) => {
+    if (!deletedIds.has(a.id)) {
+      map.set(a.id, a);
+    }
+  });
+  
   return Array.from(map.values());
 }
 

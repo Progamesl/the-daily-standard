@@ -630,7 +630,46 @@ export function deleteAdminArticle(
   reason?: string
 ): void {
   const articles = getAdminArticlesMap();
-  const article = articles[id];
+  let article = articles[id];
+  
+  // If not in admin articles, check seed data (for seed articles)
+  if (!article && typeof window !== 'undefined') {
+    try {
+      const { articles: seedArticles } = require('@/data/seedData');
+      const seedArticle = seedArticles.find(a => String(a.id) === String(id));
+      if (seedArticle) {
+        // Convert seed Article to AdminArticle format for trash
+        article = {
+          id: String(seedArticle.id),
+          slug: seedArticle.slug,
+          headline: seedArticle.headline,
+          dek: seedArticle.dek,
+          body: seedArticle.body,
+          image: seedArticle.image,
+          images: seedArticle.images ?? [],
+          imageCaption: seedArticle.imageCaption,
+          section: seedArticle.section,
+          author: {
+            id: seedArticle.author.id,
+            name: seedArticle.author.name,
+            role: seedArticle.author.role,
+            bio: seedArticle.author.bio,
+            image: seedArticle.author.image,
+            email: seedArticle.author.email,
+            twitter: seedArticle.author.twitter,
+          },
+          publishedAt: seedArticle.publishedAt.toISOString(),
+          updatedAt: seedArticle.updatedAt?.toISOString(),
+          readingTime: seedArticle.readingTime,
+          tags: seedArticle.tags,
+          status: 'published',
+          priority: 'normal',
+        };
+      }
+    } catch (e) {
+      // Seed data not available
+    }
+  }
   
   if (article) {
     // Move to trash with full snapshot
@@ -645,11 +684,14 @@ export function deleteAdminArticle(
     // Keep last 100 trashed articles
     setStorage(TRASH_KEY, trash.slice(0, 100));
     
-    // Remove from active articles
-    delete articles[id];
-    setStorage(ARTICLES_KEY, articles);
+    // Remove from active articles (if it was in admin articles)
+    if (articles[id]) {
+      delete articles[id];
+      setStorage(ARTICLES_KEY, articles);
+    }
   }
 
+  // Always add to deleted list (works for both admin and seed articles)
   const deleted = getDeletedArticleIds();
   if (!deleted.includes(String(id))) {
     deleted.push(String(id));

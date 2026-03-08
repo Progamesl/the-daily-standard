@@ -9,7 +9,7 @@
 
 import { articles as seedArticles, type Article, type Author } from '@/data/seedData';
 import {
-  getAdminArticlesList,
+  getAdminArticlesList, getDeletedArticleIds,
   type AdminArticle,
   type AdminAuthor,
 } from '@/lib/adminDataService';
@@ -45,15 +45,18 @@ function adminToPublic(admin: AdminArticle): Article {
 // ─── Merge Seed + Admin Articles ───────────────────────────────────────────────
 function mergeAllArticles(): Article[] {
   const map = new Map<string, Article>();
+  const deletedIds = new Set(getDeletedArticleIds().map(String));
 
-  // First, add all seed articles
+  // First, add all seed articles (excluding deleted ones)
   seedArticles.forEach(seed => {
-    map.set(String(seed.id), seed);
+    if (!deletedIds.has(String(seed.id))) {
+      map.set(String(seed.id), seed);
+    }
   });
 
-  // Then, override with admin articles (only published ones)
+  // Then, override with admin articles (only published ones, excluding deleted)
   getAdminArticlesList()
-    .filter(a => a.status === 'published')
+    .filter(a => a.status === 'published' && !deletedIds.has(a.id))
     .forEach(admin => {
       map.set(admin.id, adminToPublic(admin));
     });
