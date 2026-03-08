@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import {
   LayoutDashboard, FileText, Users, LogOut, ExternalLink,
   ChevronLeft, ChevronRight, Newspaper, Settings, Activity,
-  UserCog, Trash2, BookOpen, BarChart3, Shield,
+  UserCog, Trash2, BookOpen, BarChart3, Shield, Gamepad2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { label: 'Staff',      path: '/admin/users',     icon: UserCog,         exact: true,  permission: 'manage_users' as const },
   { label: 'Activity',   path: '/admin/activity',  icon: Activity,        exact: true,  permission: 'view_activity' as const },
   { label: 'Settings',   path: '/admin/settings',  icon: Settings,        exact: true,  permission: 'manage_settings' as const },
+  { label: 'Games',      path: '/games',           icon: Gamepad2,        exact: true,  permission: null },
 ];
 
 export default function AdminLayout() {

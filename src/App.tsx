@@ -13,6 +13,7 @@ import ContactPage from "./pages/ContactPage";
 import SubscribePage from "./pages/SubscribePage";
 import StaffPage from "./pages/StaffPage";
 import NotFound from "./pages/NotFound";
+import GamesPage from "./pages/GamesPage";
 
 // Admin
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/subscribe" element={<SubscribePage />} />
             <Route path="/staff" element={<StaffPage />} />
+            <Route path="/games" element={<GamesPage />} />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />
