@@ -30,7 +30,7 @@ export default function GamesPage() {
               This section is currently under development and is only accessible to developers.
             </p>
             <Button asChild>
-              <Link to="/admin/login">Sign In as Developer</Link>
+              <Link to="/admin/login?returnTo=/games">Sign In as Developer</Link>
             </Button>
           </div>
         </div>

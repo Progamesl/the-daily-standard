@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -19,9 +19,11 @@ export default function AdminLogin() {
   const [userId, setUserId] = useState<string | undefined>();
   const { isAuthenticated, refreshUser } = useAdminAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo') || '/admin';
 
   if (isAuthenticated) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to={returnTo} replace />;
   }
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
@@ -39,7 +41,7 @@ export default function AdminLogin() {
       if (result.success) {
         // Login successful - refresh and navigate
         refreshUser();
-        navigate('/admin', { replace: true });
+        navigate(returnTo, { replace: true });
         return;
       }
       
@@ -79,7 +81,7 @@ export default function AdminLogin() {
       if (result.success && result.user) {
         // Verification successful - login complete
         refreshUser();
-        navigate('/admin', { replace: true });
+        navigate(returnTo, { replace: true });
       } else {
         setError(result.error || 'Invalid code. Please check your email and try again.');
         setCode('');
