@@ -123,8 +123,9 @@ export function OctoBlock() {
     return () => clearInterval(id);
   }, [startTime, completed]);
 
-  // Completion check
+  // Completion check - only if not revealed (user actually solved it)
   useEffect(() => {
+    if (revealed) return; // Don't mark as completed if they revealed answers
     let allCorrect = true;
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
@@ -139,7 +140,7 @@ export function OctoBlock() {
     if (allCorrect && Object.keys(userInput).length > 0) {
       setCompleted(true);
     }
-  }, [userInput]);
+  }, [userInput, revealed]);
 
   // Highlighted word cells
   const highlightedCells = useMemo(() => {
@@ -459,8 +460,8 @@ export function OctoBlock() {
         </div>
       </div>
 
-      {/* Completion message */}
-      {completed && (
+      {/* Completion message - only show if actually completed (not revealed) */}
+      {completed && !revealed && (
         <div className="mt-8 p-6 bg-slate-50 border border-slate-300 text-center">
           <p className="text-lg font-semibold text-slate-900 mb-2">Puzzle complete!</p>
           <p className="text-sm text-slate-600">Time: {formatTime(elapsed)}</p>
