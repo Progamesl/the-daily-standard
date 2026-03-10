@@ -198,6 +198,7 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6425432_560.jpg?resize=200,200",
     role: "Reporter",
     primarySection: "Reporters",
+    
   },
   {
     name: "Ethan Minton",
@@ -242,7 +243,7 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7889021_930.jpg?resize=200,200",
     role: "Reporter",
     primarySection: "Reporters",
-    bio: "Sophomore Brenden Yu is usually eating. Contact him at byu28@scdsstudent.org.",
+    bio: "Sophomore Brenden Yu is usually eating. When not surrounded by numerous snacks and drinks, he enjoys talking about food, cooking and connecting people through the art of speech. As a rookie Octagon staffer, he is excited to venture into journalism and reporting in his second year at Sacramento Country Day. Outside of writing, Brenden is a proud member of the Country Day Mock Trial team and DECA chapter. Brenden also can't be without his love for music, singing with the Ragazzi Boys Chorus for 10 years and counting. Having lived across the globe, including in the Bay Area, North Carolina, Taiwan, Switzerland and Italy, he aims to bring his international perspective to The Octagon and Country Day community. You can reach him at byu28@scdsstudent.org — and yes, it's normal to be eagerly awaiting a reply.",
     email: "byu28@scdsstudent.org",
   },
 
