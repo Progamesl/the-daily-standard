@@ -259,7 +259,7 @@ export default function ArticlePage() {
                       {article.author.name}
                     </Link>
                     <p className="text-sm text-slate-600 mb-1 sm:mb-2">{article.author.role}</p>
-                    <p className="text-sm text-slate-600 line-clamp-2">{article.author.bio}</p>
+                    <p className="text-sm text-slate-600 ">{article.author.bio}</p>
                   </div>
                 </div>
               </div>
