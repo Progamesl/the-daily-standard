@@ -25,7 +25,7 @@ export const ALL_MEMBERS: StaffMember[] = [
     primarySection: "Editors-in-Chief",
     altSections: ["Photographers", "Multimedia Staff"],
     tags: ["Photo Editor", "Page Editor", "Photographer", "Multimedia"],
-    bio: "Senior Rehan Afzal keeps himself occupied by participating in mock trial, taking photos and most importantly, managing his sidekick, sophomore Sid Shukla. His busy schedule includes long hours spent at school, and even night shifts due to procrastinating the day's homework. After a hard day of 'work', Rehan likes to relax by going to the driving range with his dad, or hitting the gym and benching 405 lbs. Contact him at rafzal26@scdsstudent.org.",
+    bio: "Senior Rehan Afzal keeps himself occupied by participating in mock trial, taking photos and most importantly, managing his sidekick, sophomore Sid Shukla. His busy schedule includes long hours spent at school, and even night shifts due to procrastinating the day’s homework. After a hard day of “work”, Rehan likes to relax by going to the driving range with his dad, or hitting the gym and benching 405 lbs. Contact him at rafzal26@scdsstudent.org.",
     email: "rafzal26@scdsstudent.org",
   },
   {
@@ -93,7 +93,7 @@ export const ALL_MEMBERS: StaffMember[] = [
     primarySection: "Section Editors",
     altSections: ["Reporters"],
     tags: ["Reporter"],
-    bio: "Sophomore Parsiny Nijher is entering her second year as an Octagon staffer. Previously a reporter, she has risen in the ranks to become the Octagon's Sports Section Editor. She enjoys watching sports, movies and sleeping. Contact her at pnijher28@scdsstudent.org.",
+    bio: "Sophomore Parsiny Nijher is entering her second year as an Octagon staffer. Previously she was a reporter, but now has risen in the ranks to become the Octagon’s Sports Section Editor. She enjoys watching sports, movies and sleeping (who doesn’t). The sports she watches the most are basketball, football, and occasionally baseball (when there is absolutely nothing else to watch). Being an avid Sacramento Kings supporter since birth, she knows about struggle and how to write about painful topics. Through this knowledge, she became a member of the Octagon and plans to stay throughout her duration of high school, unless kicked out. If anyone needs to email Parsiny for any reason, email her at, pnijher28@scdsstudent.org.",
     email: "pnijher28@scdsstudent.org",
   },
   {
@@ -168,7 +168,7 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7139431_748.jpg?resize=200,200",
     role: "Reporter",
     primarySection: "Reporters",
-    bio: "Junior Noor Alameri is a second-year staffer on The Octagon. She most enjoys writing A&E and opinion stories, but hopes to expand her experience to include more news. Contact her at nalameri27@scdsstudent.org.",
+    bio: "Junior Noor Alameri is a second-year staffer on The Octagon. She most enjoys writing A&E and opinion stories, but hopes to expand her writing experience this year to include more news. When she isn’t bothering her friends by talking incessantly about whatever new book she just read or movie she watched, she’s trying to cook an edible meal, failing at it and then eating it anyway. Although her cooking skills may be subpar, her ability to procrastinate any assignment, no matter how long she was given to do it, is truly outstanding. Contact her at nalameri27@scdsstudent.org.",
     email: "nalameri27@scdsstudent.org",
   },
   {
@@ -184,7 +184,7 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_8312970_219.jpg?resize=200,200",
     role: "Reporter",
     primarySection: "Reporters",
-    bio: "Whenever freshman Trisha Gandhi isn't trying to catch up on school work, she is often spending time on the golf course or hanging out with friends. Contact her at tgandhi29@scdsstudent.org.",
+    bio: "Whenever freshman Trisha Gandhi isn't trying to catch up on school work, she is often spending time on the golf course or hanging out with friends. She enjoys the focus, independence and patience which has become one of her main interests in and out of school. As a member of The Octagon staff, she enjoys covering sports, feature stories, and student perspectives around campus. If you ever have any story ideas or need to contact her, you can reach her at tgandhi29@scdsstudent.org.",
     email: "tgandhi29@scdsstudent.org",
   },
   {
