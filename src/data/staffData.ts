@@ -112,6 +112,7 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6857756_142.jpg?resize=200,200",
     role: "Technology Staff",
     primarySection: "Technology Staff",
+    bio: "this guys the goat.",
     altSections: ["Business Staff", "Page Editors"],
     tags: ["Business Manager", "Page Editor", "Reporter"],
   },
@@ -192,13 +193,14 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7737056_70.jpg?resize=200,200",
     role: "Reporter",
     primarySection: "Reporters",
+    bio: "Lucas, the youngest of the Holz brothers, is a great fencer whose focus and precision shine both on the strip and in his writing. A dedicated and creative member of The Octagon staff, he brings energy, skill, and a unique perspective to every story.",
   },
   {
     name: "Ammar Hussain",
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6425432_560.jpg?resize=200,200",
     role: "Reporter",
     primarySection: "Reporters",
-    
+    bio: "Ammar is a sophomore at our school with a passion for skiing. When he’s not hitting the slopes, he’s perfecting his skills and bringing the same dedication to his writing for The Octagon. Known for his enthusiasm and precision, Ammar takes every project he works on with care and creativity.",
   },
   {
     name: "Ethan Minton",

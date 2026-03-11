@@ -33,21 +33,15 @@ function articlesByName(name: string): Article[] {
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
+const DEFAULT_AVATAR = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s";
+
 function Avatar({ name, photo, size }: { name: string; photo?: string | null; size: number }) {
   const [err, setErr] = useState(false);
-  if (!photo || err) {
-    return (
-      <div
-        style={{ width: size, height: size, fontSize: size * 0.33 }}
-        className="rounded-full bg-stone-100 text-stone-400 font-bold font-serif flex items-center justify-center select-none shrink-0"
-      >
-        {initials(name)}
-      </div>
-    );
-  }
+  const avatarSrc = photo && !err ? photo : DEFAULT_AVATAR;
+  
   return (
     <img
-      src={photo}
+      src={avatarSrc}
       alt={name}
       style={{ width: size, height: size }}
       className="rounded-full object-cover object-top shrink-0"
@@ -62,6 +56,7 @@ function Avatar({ name, photo, size }: { name: string; photo?: string | null; si
 function StaffCard({ member, onSelect }: { member: Member; onSelect: (m: Member) => void }) {
   const [err, setErr] = useState(false);
   const hasPhoto = !!member.photo && !err;
+  const photoSrc = hasPhoto ? member.photo! : DEFAULT_AVATAR;
 
   return (
     <button
@@ -70,21 +65,13 @@ function StaffCard({ member, onSelect }: { member: Member; onSelect: (m: Member)
     >
       {/* Photo */}
       <div className="relative aspect-square overflow-hidden bg-stone-100 shrink-0">
-        {hasPhoto ? (
           <img
-            src={member.photo!}
+          src={photoSrc}
             alt={member.name}
             className="w-full h-full object-cover object-center group-hover:scale-[1.04] transition-transform duration-500 ease-out"
             referrerPolicy="no-referrer"
             onError={() => setErr(true)}
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-5xl font-bold text-stone-300 select-none font-serif">
-              {initials(member.name)}
-            </span>
-          </div>
-        )}
         {/* Only show gradient over real photos */}
         {hasPhoto && (
           <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/50 to-transparent" />

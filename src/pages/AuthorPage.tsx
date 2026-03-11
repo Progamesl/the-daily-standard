@@ -44,7 +44,7 @@ export default function AuthorPage() {
         {/* Author Header */}
         <header className="max-w-3xl mx-auto text-center mb-12">
           <img
-            src={author.image}
+            src={author.image || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"}
             alt={author.name}
             className="w-32 h-32 rounded-full object-cover mx-auto mb-6"
           />
