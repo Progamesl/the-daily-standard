@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -24,9 +25,11 @@ try {
   } else {
     createRoot(rootEl).render(
       <ErrorBoundary>
-        <ThemeProvider>
-          <App />
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
+        </AuthProvider>
       </ErrorBoundary>
     );
   }
