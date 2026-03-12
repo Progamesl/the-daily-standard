@@ -24,6 +24,7 @@ import { ArrowLeft, EyeOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { addToHistory } from "@/components/user/UserMenu";
+import { CommentSection } from "@/components/article/CommentSection";
 import type { Article } from "@/data/seedData";
 
 /** Convert an AdminArticle into the shape ArticlePage expects */
@@ -272,6 +273,9 @@ export default function ArticlePage() {
                   </div>
                 </div>
               </div>
+
+              {/* Comments */}
+              <CommentSection articleId={article.id || article.slug} />
             </div>
 
             {/* Sidebar */}

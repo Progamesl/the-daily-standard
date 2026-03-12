@@ -88,12 +88,43 @@ CREATE TABLE IF NOT EXISTS admin_users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Login attempts table
+-- User sessions table (tracks all active sessions across devices/browsers)
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+  auth_user_id UUID, -- Supabase auth.users.id
+  ip_address TEXT,
+  user_agent TEXT,
+  device_fingerprint TEXT, -- HWID/fingerprint hash
+  location_country TEXT,
+  location_region TEXT,
+  location_city TEXT,
+  location_lat DECIMAL(10, 8),
+  location_lon DECIMAL(11, 8),
+  session_token TEXT UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  last_activity TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_auth_user_id ON user_sessions(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
+ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view their own sessions" ON user_sessions FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Admins can manage all sessions" ON user_sessions FOR ALL USING (auth.role() = 'authenticated');
+
+-- Login attempts table (enhanced with location and device tracking)
 CREATE TABLE IF NOT EXISTS login_attempts (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL,
   ip TEXT NOT NULL,
   user_agent TEXT,
+  device_fingerprint TEXT, -- HWID/fingerprint hash
+  location_country TEXT,
+  location_region TEXT,
+  location_city TEXT,
+  location_lat DECIMAL(10, 8),
+  location_lon DECIMAL(11, 8),
   success BOOLEAN NOT NULL,
   user_id TEXT,
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -208,3 +239,32 @@ CREATE POLICY "Public can insert engagement" ON article_engagement
 -- Policy: Only admins can read engagement
 CREATE POLICY "Admins can read engagement" ON article_engagement
   FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Comments table
+CREATE TABLE IF NOT EXISTS comments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  article_id TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  approved BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_comments_article_id ON comments(article_id);
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read approved comments" ON comments FOR SELECT USING (approved = true);
+CREATE POLICY "Anyone can submit comments" ON comments FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admins can manage all comments" ON comments FOR ALL USING (auth.role() = 'authenticated');
+
+-- Breaking news table
+CREATE TABLE IF NOT EXISTS breaking_news (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  text TEXT NOT NULL,
+  url TEXT,
+  active BOOLEAN DEFAULT TRUE,
+  priority INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ
+);
+ALTER TABLE breaking_news ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read active breaking news" ON breaking_news FOR SELECT USING (active = true AND (expires_at IS NULL OR expires_at > NOW()));
+CREATE POLICY "Admins can manage breaking news" ON breaking_news FOR ALL USING (auth.role() = 'authenticated');

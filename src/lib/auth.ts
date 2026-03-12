@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { recordLoginAttempt, createUserSession, deleteUserSession } from './securityTracking';
 
 // ─── Role types (mirrors adminUserService.ts) ────────────────────────────────
 
@@ -102,11 +103,14 @@ export async function signIn(
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    // Record failed login attempt
+    await recordLoginAttempt(email, false, null);
     return { user: null, profile: null, error: error.message };
   }
 
   const user = data.user;
   if (!user) {
+    await recordLoginAttempt(email, false, null);
     return { user: null, profile: null, error: 'Sign-in succeeded but no user was returned.' };
   }
 
@@ -114,20 +118,43 @@ export async function signIn(
   if (!profile) {
     // User authenticated but has no admin_users row → not an admin
     await supabase.auth.signOut();
+    await recordLoginAttempt(email, false, null);
     return { user: null, profile: null, error: 'No admin account found for this email.' };
   }
 
   if (!profile.active) {
     await supabase.auth.signOut();
+    await recordLoginAttempt(email, false, profile.id);
     return { user: null, profile: null, error: 'Your account has been deactivated.' };
   }
+
+  // Success! Record successful login and create session
+  await recordLoginAttempt(email, true, profile.id);
+
+  // Create session record with security tracking
+  const sessionToken = data.session?.access_token || `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const expiresAt = data.session?.expires_at
+    ? new Date(data.session.expires_at * 1000)
+    : new Date(Date.now() + 8 * 60 * 60 * 1000); // 8 hours default
+
+  await createUserSession(profile.id, user.id, sessionToken, expiresAt);
 
   return { user, profile, error: null };
 }
 
 export async function signOut(): Promise<void> {
   if (!supabase) return;
+
+  // Get current session before signing out
+  const { data: { session } } = await supabase.auth.getSession();
+  const sessionToken = session?.access_token;
+
   await supabase.auth.signOut();
+
+  // Delete session record from Supabase
+  if (sessionToken) {
+    await deleteUserSession(sessionToken);
+  }
 }
 
 export async function getCurrentUser(): Promise<{
