@@ -39,16 +39,61 @@ async function initSupabase() {
   return null;
 }
 
-// ─── Articles ────────────────────────────────────────────────────────────────
+// List-only columns: omit body, internal_notes, revisions to cut egress (fetched on demand)
+const ARTICLES_LIST_COLUMNS =
+  'id, slug, headline, dek, image, images, image_caption, section, author_id, author_name, published_at, updated_at, reading_time, tags, status, priority, featured, assigned_to_id, assigned_to_name, assigned_by_id, reviewed_by_id, deadline, pitch_summary, meta_title, meta_description, og_image, canonical_url, word_count';
+
+function rowToAdminArticle(row: any, includeBody = false): AdminArticle {
+  return {
+    id: row.id,
+    slug: row.slug,
+    headline: row.headline,
+    dek: row.dek,
+    body: includeBody ? (row.body ?? '') : '',
+    image: row.image,
+    images: row.images || [],
+    imageCaption: row.image_caption,
+    section: row.section,
+    author: {
+      id: row.author_id,
+      name: row.author_name,
+    },
+    publishedAt: row.published_at,
+    updatedAt: row.updated_at,
+    readingTime: row.reading_time,
+    tags: row.tags || [],
+    status: row.status,
+    priority: row.priority,
+    featured: row.featured,
+    assignedToId: row.assigned_to_id,
+    assignedToName: row.assigned_to_name,
+    assignedById: row.assigned_by_id,
+    reviewedById: row.reviewed_by_id,
+    deadline: row.deadline,
+    pitchSummary: row.pitch_summary,
+    metaTitle: row.meta_title,
+    metaDescription: row.meta_description,
+    ogImage: row.og_image,
+    canonicalUrl: row.canonical_url,
+    internalNotes: includeBody ? (row.internal_notes || []) : [],
+    revisions: includeBody ? (row.revisions || []) : [],
+    wordCount: row.word_count,
+  };
+}
+
+/**
+ * Fetch article list from Supabase WITHOUT body/internal_notes/revisions to reduce egress.
+ * Full article is loaded on demand via getArticleByIdFromSupabase or getArticleBySlugFromSupabase.
+ */
 export async function getArticlesFromSupabase(): Promise<Record<string, AdminArticle>> {
   const client = await initSupabase();
   if (!client) return {};
   
   try {
-    console.log('📡 Fetching articles from Supabase...');
+    console.log('📡 Fetching article list from Supabase (list-only, low egress)...');
     const { data, error } = await client
       .from('articles')
-      .select('*')
+      .select(ARTICLES_LIST_COLUMNS)
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -74,47 +119,50 @@ export async function getArticlesFromSupabase(): Promise<Record<string, AdminArt
     
     const articles: Record<string, AdminArticle> = {};
     data?.forEach((row: any) => {
-      articles[row.id] = {
-        id: row.id,
-        slug: row.slug,
-        headline: row.headline,
-        dek: row.dek,
-        body: row.body,
-        image: row.image,
-        images: row.images || [],
-        imageCaption: row.image_caption,
-        section: row.section,
-        author: {
-          id: row.author_id,
-          name: row.author_name,
-        },
-        publishedAt: row.published_at,
-        updatedAt: row.updated_at,
-        readingTime: row.reading_time,
-        tags: row.tags || [],
-        status: row.status,
-        priority: row.priority,
-        featured: row.featured,
-        assignedToId: row.assigned_to_id,
-        assignedToName: row.assigned_to_name,
-        assignedById: row.assigned_by_id,
-        reviewedById: row.reviewed_by_id,
-        deadline: row.deadline,
-        pitchSummary: row.pitch_summary,
-        metaTitle: row.meta_title,
-        metaDescription: row.meta_description,
-        ogImage: row.og_image,
-        canonicalUrl: row.canonical_url,
-        internalNotes: row.internal_notes || [],
-        revisions: row.revisions || [],
-        wordCount: row.word_count,
-      };
+      articles[row.id] = rowToAdminArticle(row, false);
     });
     
     return articles;
   } catch (error) {
     console.error('Error fetching articles from Supabase:', error);
     return {};
+  }
+}
+
+/** Fetch one full article by id (for editor). Use to avoid sending body for every article. */
+export async function getArticleByIdFromSupabase(id: string): Promise<AdminArticle | null> {
+  const client = await initSupabase();
+  if (!client) return null;
+  try {
+    const { data, error } = await client
+      .from('articles')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error || !data) return null;
+    return rowToAdminArticle(data, true);
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch one full article by slug (for public article page). Reduces egress vs loading all bodies. */
+export async function getArticleBySlugFromSupabase(
+  slug: string,
+  options?: { publishedOnly?: boolean }
+): Promise<AdminArticle | null> {
+  const client = await initSupabase();
+  if (!client) return null;
+  try {
+    let q = client.from('articles').select('*').eq('slug', slug);
+    if (options?.publishedOnly !== false) {
+      q = q.eq('status', 'published');
+    }
+    const { data, error } = await q.maybeSingle();
+    if (error || !data) return null;
+    return rowToAdminArticle(data, true);
+  } catch {
+    return null;
   }
 }
 

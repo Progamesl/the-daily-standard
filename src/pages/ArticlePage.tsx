@@ -11,11 +11,9 @@ import {
   formatDate,
 } from "@/data/seedData";
 import {
-  getPublicArticleBySlug,
   getMostPopularPublic,
   getPublicArticlesBySection,
 } from "@/lib/publicDataService";
-import { getAdminArticleBySlug } from "@/lib/adminDataService";
 import { getImageOrNull } from "@/lib/imageHelpers";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { useDataSync } from "@/contexts/DataSyncContext";
@@ -25,28 +23,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { addToHistory } from "@/components/user/UserMenu";
 import { CommentSection } from "@/components/article/CommentSection";
-import type { Article } from "@/data/seedData";
-
-/** Convert an AdminArticle into the shape ArticlePage expects */
-function adminToArticleShape(admin: ReturnType<typeof getAdminArticleBySlug>): Article | undefined {
-  if (!admin) return undefined;
-  return {
-    id: admin.id,
-    slug: admin.slug,
-    headline: admin.headline,
-    dek: admin.dek,
-    body: admin.body,
-    image: admin.image,
-    images: admin.images ?? [],
-    imageCaption: admin.imageCaption,
-    section: admin.section,
-    author: admin.author,
-    publishedAt: new Date(admin.publishedAt),
-    updatedAt: admin.updatedAt ? new Date(admin.updatedAt) : undefined,
-    readingTime: admin.readingTime,
-    tags: admin.tags ?? [],
-  };
-}
+import { useArticleBySlug } from "@/hooks/useArticleBySlug";
 
 export default function ArticlePage() {
   // Subscribe to Supabase sync — re-renders automatically when fresh data arrives
@@ -57,13 +34,7 @@ export default function ArticlePage() {
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get("preview") === "1";
 
-  // In preview mode, look up from admin data regardless of publish status.
-  // Otherwise, only show published articles.
-  const article = slug
-    ? isPreview
-      ? adminToArticleShape(getAdminArticleBySlug(slug)) ?? getPublicArticleBySlug(slug)
-      : getPublicArticleBySlug(slug)
-    : undefined;
+  const { article, loading, error } = useArticleBySlug(slug ?? undefined, isPreview);
 
   const mostPopular = getMostPopularPublic(5);
   const [fontSize, setFontSize] = useState<"normal" | "large" | "xlarge">("normal");
@@ -101,6 +72,35 @@ export default function ArticlePage() {
       };
     }
   }, [article, isPreview]);
+
+  // When loading with Supabase we may already have partial article (headline, dek, hero). Show that and a body skeleton.
+  const isPartial = article && loading && !article.body;
+  if (loading && !article) {
+    return (
+      <Layout>
+        <div className="flow-container py-16 text-center">
+          <p className="text-muted-foreground">Loading article…</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="flow-container py-16 text-center">
+          <h1 className="font-serif text-2xl font-bold mb-4">Something went wrong</h1>
+          <p className="text-muted-foreground mb-8">{error.message}</p>
+          <Link to="/">
+            <Button variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!article) {
     return (
@@ -241,7 +241,17 @@ export default function ArticlePage() {
         <div className="flow-container">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8">
-              <ArticleContent html={article.body} className={fontSizeClass} />
+              {isPartial ? (
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-5/6" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-4/5" />
+                </div>
+              ) : (
+                <ArticleContent html={article.body} className={fontSizeClass} />
+              )}
 
               {/* Tags */}
               <div className="mt-12 pt-8 border-t border-border">

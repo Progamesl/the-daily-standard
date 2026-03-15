@@ -366,7 +366,7 @@ export function countWords(html: string): number {
 // ─── Article CRUD ─────────────────────────────────────────────────────────────
 let supabaseArticlesCache: Record<string, AdminArticle> | null = null;
 let supabaseArticlesCacheTime = 0;
-const SUPABASE_CACHE_TTL = 30000; // 30 seconds
+const SUPABASE_CACHE_TTL = 15 * 60 * 1000; // 15 min — reduces egress; list refetches less often
 
 /**
  * HEADLESS CMS: Get articles from Supabase (single source of truth)

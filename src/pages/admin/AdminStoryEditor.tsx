@@ -27,6 +27,8 @@ import {
   type AdminArticle, type AdminAuthor, type InternalNote, type ArticleRevision,
   getAdminAuthorsList, WORKFLOW_LABELS,
 } from '@/lib/adminDataService';
+import { getArticleByIdFromSupabase } from '@/lib/supabaseDataService';
+import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { getUsersList, ROLE_LABELS, logActivity } from '@/lib/adminUserService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { authors as jsonAuthors, sections } from '@/data/seedData';
@@ -114,6 +116,7 @@ export default function AdminStoryEditor() {
   const [dirty, setDirty]       = useState(false);
   const [loaded, setLoaded]     = useState(false);
   const [article, setArticle]   = useState<AdminArticle | null>(null);
+  const [loadingFull, setLoadingFull] = useState(false);
   
   // Undo/Redo stack
   const [undoStack, setUndoStack] = useState<FormState[]>([]);
@@ -127,29 +130,55 @@ export default function AdminStoryEditor() {
   const [noteType, setNoteType]         = useState<InternalNote['type']>('note');
   const [restoreTarget, setRestoreTarget] = useState<ArticleRevision | null>(null);
 
-  // Load
+  function applyArticleToForm(a: AdminArticle) {
+    setArticle(a);
+    setForm({
+      headline: a.headline, dek: a.dek, body: a.body,
+      image: a.image, imageCaption: a.imageCaption,
+      section: a.section, authorId: a.author.id, tags: a.tags,
+      slug: a.slug, status: a.status,
+      publishedAt: a.publishedAt ? new Date(a.publishedAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      assignedToId: a.assignedToId ?? '',
+      deadline: a.deadline ? a.deadline.slice(0, 10) : '',
+      priority: a.priority ?? 'normal',
+      pitchSummary: a.pitchSummary ?? '',
+      metaTitle: a.metaTitle ?? '',
+      metaDescription: a.metaDescription ?? '',
+      ogImage: a.ogImage ?? '',
+      canonicalUrl: a.canonicalUrl ?? '',
+      featured: a.featured ?? false,
+    });
+    setLastSaved(a.updatedAt ? new Date(a.updatedAt) : null);
+  }
+
+  // Load article (list-only from cache first; full body fetched in next effect when Supabase)
   useEffect(() => {
     if (id) {
       const a = getAdminArticle(id);
       if (a) {
-        setArticle(a);
-        setForm({
-          headline: a.headline, dek: a.dek, body: a.body,
-          image: a.image, imageCaption: a.imageCaption,
-          section: a.section, authorId: a.author.id, tags: a.tags,
-          slug: a.slug, status: a.status,
-          publishedAt: a.publishedAt ? new Date(a.publishedAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-          assignedToId: a.assignedToId ?? '',
-          deadline: a.deadline ? a.deadline.slice(0, 10) : '',
-          priority: a.priority ?? 'normal',
-          pitchSummary: a.pitchSummary ?? '',
-          metaTitle: a.metaTitle ?? '',
-          metaDescription: a.metaDescription ?? '',
-          ogImage: a.ogImage ?? '',
-          canonicalUrl: a.canonicalUrl ?? '',
-          featured: a.featured ?? false,
-        });
-        setLastSaved(a.updatedAt ? new Date(a.updatedAt) : null);
+        if (isSupabaseConfigured() && a.body === '') {
+          setLoadingFull(true);
+          setArticle(a);
+          setForm({
+            headline: a.headline, dek: a.dek, body: '',
+            image: a.image, imageCaption: a.imageCaption,
+            section: a.section, authorId: a.author.id, tags: a.tags,
+            slug: a.slug, status: a.status,
+            publishedAt: a.publishedAt ? new Date(a.publishedAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+            assignedToId: a.assignedToId ?? '',
+            deadline: a.deadline ? a.deadline.slice(0, 10) : '',
+            priority: a.priority ?? 'normal',
+            pitchSummary: a.pitchSummary ?? '',
+            metaTitle: a.metaTitle ?? '',
+            metaDescription: a.metaDescription ?? '',
+            ogImage: a.ogImage ?? '',
+            canonicalUrl: a.canonicalUrl ?? '',
+            featured: a.featured ?? false,
+          });
+          setLastSaved(a.updatedAt ? new Date(a.updatedAt) : null);
+        } else {
+          applyArticleToForm(a);
+        }
       } else {
         toast.error('Article not found');
         navigate('/admin/stories');
@@ -175,6 +204,24 @@ export default function AdminStoryEditor() {
     }
     setLoaded(true);
   }, [id, navigate]);
+
+  // When Supabase and list-only article (empty body), fetch full article to reduce egress
+  useEffect(() => {
+    if (!id || !loadingFull || !isSupabaseConfigured()) return;
+    let cancelled = false;
+    getArticleByIdFromSupabase(id)
+      .then((full) => {
+        if (cancelled || !full) return;
+        applyArticleToForm(full);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error('Failed to load full article');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingFull(false);
+      });
+    return () => { cancelled = true; };
+  }, [id, loadingFull]);
 
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(prev => {
@@ -361,6 +408,14 @@ export default function AdminStoryEditor() {
   };
 
   if (!loaded) return null;
+
+  if (loadingFull) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-slate-500">Loading article…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
