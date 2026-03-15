@@ -363,10 +363,19 @@ export function countWords(html: string): number {
     .split(/\s+/).filter(Boolean).length;
 }
 
+/** Strip data: (base64) image src from HTML to avoid huge DB/egress. Call before save. */
+export function stripBase64ImagesFromHtml(html: string): string {
+  if (!html || typeof html !== 'string') return html;
+  return html.replace(
+    /src=["']data:image[^"']*["']/gi,
+    'src=""'
+  );
+}
+
 // ─── Article CRUD ─────────────────────────────────────────────────────────────
 let supabaseArticlesCache: Record<string, AdminArticle> | null = null;
 let supabaseArticlesCacheTime = 0;
-const SUPABASE_CACHE_TTL = 15 * 60 * 1000; // 15 min — reduces egress; list refetches less often
+const SUPABASE_CACHE_TTL = 60 * 60 * 1000; // 1 hr — keeps egress down
 
 /**
  * HEADLESS CMS: Get articles from Supabase (single source of truth)

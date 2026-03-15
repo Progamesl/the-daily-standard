@@ -20,7 +20,7 @@ interface UseArticlesResult {
   refetch: () => Promise<void>;
 }
 
-const CACHE_TTL = 15 * 60 * 1000; // 15 min — reduces egress
+const CACHE_TTL = 60 * 60 * 1000; // 1 hr — keeps egress down
 let globalCache: Record<string, AdminArticle> | null = null;
 let globalCacheTime = 0;
 let globalLoadingPromise: Promise<Record<string, AdminArticle>> | null = null;

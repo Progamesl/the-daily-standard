@@ -1,6 +1,6 @@
 # Egress over 5 GB — What YOU need to do
 
-The **8.7 GB already used won’t go down**. Supabase counts egress in the current billing period. The code changes (15 min cache, list-only fetch, single-article load) only **reduce egress from now on**.
+The **11 GB (or whatever you’re at) already used won’t go down** until the billing period resets. Supabase counts egress in the current period. Code changes only **reduce egress from now on**.
 
 Do these in order:
 
@@ -8,15 +8,15 @@ Do these in order:
 
 ## 1. Deploy the latest code (required)
 
-If your live site isn’t running the code we changed, egress will stay high.
+If your live site isn’t running the latest code, egress will stay high.
 
-- Commit and push all changes (supabaseDataService, useSupabaseArticles, useArticles, adminDataService, useArticleBySlug, ArticlePage, AdminStoryEditor).
-- Rebuild and redeploy wherever the site is hosted (Vercel, Netlify, etc.):
-  - **Vercel:** Push to your connected branch or trigger a redeploy in the dashboard.
-  - **Netlify:** Same — push or “Trigger deploy” in the dashboard.
-  - **Other:** Run `npm run build` and deploy the new `dist/` (or equivalent).
+- Commit and push **all** recent changes (list-only fetch, 1 hr cache, single-article load, no base64 in body, Cloudinary/R2 for images, no Supabase Storage image URLs).
+- **Rebuild and redeploy** on your host (Vercel, Netlify, etc.):
+  - **Vercel:** Push to connected branch or “Redeploy” in dashboard.
+  - **Netlify:** “Trigger deploy” in dashboard.
+  - **Other:** `npm run build` and deploy the new `dist/`.
 
-After this, the live app will use the 15 min cache and list-only/single-article fetches, so **new** egress should drop.
+The app now uses: **1 hr cache**, **list without body/images array**, **one full article only when viewing it**, **no base64 in body**, **images via URL only**. New egress should drop a lot after deploy.
 
 ---
 
@@ -24,7 +24,7 @@ After this, the live app will use the 15 min cache and list-only/single-article 
 
 - In **Supabase Dashboard** go to **Settings → Billing** (or **Usage / Reports**).
 - Check when the current period ends (e.g. “Resets on March 20” or “Billing period: 1st–30th”).
-- Until then, the **8.7 / 5 GB** number may not change; the project can stay paused (402) until the period resets.
+- Until then, the usage number may not change; the project can stay paused (402) until the period resets.
 - **After reset** the counter goes back to 0 and, with the new code, you should stay under 5 GB if traffic is normal.
 
 ---
@@ -64,4 +64,13 @@ This reduces load on your host and can reduce some traffic from bots. It does **
 | Add Cloudflare | Sign up, add site, change nameservers, set cache TTL |
 | Wait for reset | Nothing; counter resets at period end |
 
-The **8.705 / 5 GB** will only go “back to normal” when the period resets. Your job is to deploy the code and (optionally) add Cloudflare so that **after** the reset, egress stays under 5 GB.
+Usage will only go back to 0 when the period resets. Your job is to deploy the code and (optionally) add Cloudflare so that **after** the reset, egress stays under 5 GB.
+
+---
+
+## 5. Emergency: still over after deploy?
+
+- **No images from Supabase Storage** — App already ignores any `supabase.co/storage` image URL. In Supabase Dashboard → Storage, empty or delete buckets so nothing is served from there.
+- **No base64 in articles** — Edit any article that might have pasted-in images in the body; re-save so body is stripped of base64. Use Story Image (Cloudinary/R2 URL) and “Insert image” with URLs only.
+- **Cloudflare + Bot Fight Mode** — Reduces bot traffic so fewer requests hit Supabase.
+- **Realtime** — Comments and breaking news use Supabase Realtime. If you can live without live updates, we can switch those to polling or disable to cut Realtime egress.

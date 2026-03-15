@@ -3,12 +3,9 @@
  * Supports four ways to add a story image:
  *   1. Paste a URL directly
  *   2. Paste an image from clipboard (⌘V / Ctrl+V)
- *   3. Drag-and-drop an image file → converts to base64 and stores inline
- *   4. Click "Browse" to pick a file from disk
+ *   3. Drag-and-drop / paste / browse → uploads to Cloudinary (or Imgur if not configured), stores URL
  *
- * Base64 works well for thumbnails/preview images kept in localStorage.
- * For large images, editors should upload to an external host (Google Photos,
- * Imgur, the school CDN) and paste the URL instead.
+ * Prefer Cloudinary (set VITE_CLOUDINARY_* in .env) so images don't use Supabase. Hold Ctrl/Cmd to save as base64.
  */
 
 import { useRef, useState, useCallback, useEffect } from 'react';
@@ -117,9 +114,43 @@ function fileToBase64(file: File): Promise<string> {
   return compressImage(file, maxWidth, quality);
 }
 
+const CLOUDINARY_CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined;
+const CLOUDINARY_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string | undefined;
+
+function isCloudinaryConfigured(): boolean {
+  return Boolean(CLOUDINARY_CLOUD && CLOUDINARY_PRESET);
+}
+
 /**
- * Upload image to Imgur (free, anonymous upload - no API key needed).
- * Returns the direct image URL.
+ * Upload image to Cloudinary (unsigned preset). Returns the secure image URL.
+ * Use this when VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET are set.
+ */
+async function uploadToCloudinary(file: File): Promise<string> {
+  if (!CLOUDINARY_CLOUD || !CLOUDINARY_PRESET) {
+    throw new Error('Cloudinary not configured');
+  }
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
+    { method: 'POST', body: formData }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Upload failed (${response.status})`);
+  }
+
+  const data = await response.json();
+  const url = data.secure_url;
+  if (!url) throw new Error('Cloudinary did not return a URL');
+  return url;
+}
+
+/**
+ * Upload image to Imgur (free, anonymous - no API key). Fallback when Cloudinary is not configured.
  */
 async function uploadToImgur(file: File): Promise<string> {
   const formData = new FormData();
@@ -127,9 +158,7 @@ async function uploadToImgur(file: File): Promise<string> {
 
   const response = await fetch('https://api.imgur.com/3/image', {
     method: 'POST',
-    headers: {
-      'Authorization': 'Client-ID 546c25a59c58ad7', // Public anonymous client ID
-    },
+    headers: { 'Authorization': 'Client-ID 546c25a59c58ad7' },
     body: formData,
   });
 
@@ -139,10 +168,7 @@ async function uploadToImgur(file: File): Promise<string> {
   }
 
   const data = await response.json();
-  if (!data.success || !data.data?.link) {
-    throw new Error('Imgur did not return a valid image URL');
-  }
-
+  if (!data.success || !data.data?.link) throw new Error('Imgur did not return a valid URL');
   return data.data.link;
 }
 
@@ -162,23 +188,33 @@ export function ImageUpload({
   const [pasting, setPasting]   = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const uploadToImgurAndSet = useCallback(async (file: File) => {
+  const uploadAndSetUrl = useCallback(async (file: File) => {
     setUploading(true);
     setWarn('');
     try {
-      const url = await uploadToImgur(file);
+      let url: string;
+      if (isCloudinaryConfigured()) {
+        url = await uploadToCloudinary(file);
+        setWarn('✓ Image uploaded to Cloudinary. URL saved.');
+      } else {
+        url = await uploadToImgur(file);
+        setWarn('✓ Image uploaded to Imgur. URL saved.');
+      }
       onChange(url);
-      setWarn(`✓ Image uploaded to Imgur! URL saved.`);
       setTimeout(() => setWarn(''), 3000);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to upload to Imgur';
-      setWarn(`Upload failed: ${errorMsg}. You can still save as base64 or try again.`);
+      const msg = err instanceof Error ? err.message : 'Upload failed';
+      if (isCloudinaryConfigured()) {
+        setWarn(`Cloudinary failed: ${msg}. Try again or paste a URL.`);
+      } else {
+        setWarn(`Upload failed: ${msg}. You can save as base64 (Ctrl) or try again.`);
+      }
     } finally {
       setUploading(false);
     }
   }, [onChange]);
 
-  const applyFile = useCallback(async (file: File, uploadToImgurInstead = false) => {
+  const applyFile = useCallback(async (file: File, uploadToImgurInstead = true) => {
     if (!file.type.startsWith('image/')) {
       setWarn('Please select an image file.');
       return;
@@ -189,16 +225,15 @@ export function ImageUpload({
       return;
     }
 
-    // If user wants to upload to Imgur, do that instead
+    // Default: upload to Cloudinary (or Imgur) and save URL. Ctrl/Cmd = save as base64.
     if (uploadToImgurInstead) {
-      await uploadToImgurAndSet(file);
+      await uploadAndSetUrl(file);
       return;
     }
 
     setWarn('');
     setPasting(true);
     try {
-      // Only compress if absolutely necessary (3MB+), maintaining maximum quality
       const b64 = await fileToBase64(file);
       const finalSizeMB = new Blob([b64]).size / (1024 * 1024);
       
@@ -230,18 +265,18 @@ export function ImageUpload({
         setWarn('Failed to process image. Please try again.');
       }
     }
-  }, [onChange, uploadToImgurAndSet]);
+  }, [onChange, uploadAndSetUrl]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) applyFile(file, e.shiftKey); // Hold Shift to upload to Imgur
+    if (file) applyFile(file, !e.ctrlKey && !e.metaKey); // Default Imgur; Ctrl/Cmd = base64
   }, [applyFile]);
 
   const onFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) applyFile(file);
+    if (file) applyFile(file, true); // Always Imgur when browsing
     e.target.value = '';
   }, [applyFile]);
 
@@ -275,9 +310,9 @@ export function ImageUpload({
                 e.preventDefault();
                 const file = item.getAsFile();
                 if (file) {
-                  // Hold Shift to upload to Imgur, otherwise save as base64
-                  await applyFile(file, e.shiftKey);
-                  setMode('upload'); // Switch to upload mode to show preview
+                  // Default Imgur; hold Ctrl/Cmd to save as base64
+                  await applyFile(file, !e.ctrlKey && !e.metaKey);
+                  setMode('upload');
                 }
                 return;
               }
@@ -298,9 +333,8 @@ export function ImageUpload({
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            // Hold Shift to upload to Imgur, otherwise save as base64
-            await applyFile(file, e.shiftKey);
-            setMode('upload'); // Switch to upload mode to show preview
+            await applyFile(file, !e.ctrlKey && !e.metaKey);
+            setMode('upload');
           }
           break;
         }
@@ -408,7 +442,9 @@ export function ImageUpload({
                   )}
                 </p>
                 <p className="text-xs text-slate-400">JPG, PNG, WEBP · Max 10 MB · Or paste from clipboard</p>
-                <p className="text-xs text-slate-400 mt-1">💡 Tip: Hold <kbd className="px-1.5 py-0.5 bg-slate-200 border border-slate-300 rounded text-[10px] font-mono">Shift</kbd> while dropping to upload to Imgur</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Images upload to {isCloudinaryConfigured() ? 'Cloudinary' : 'Imgur'} (saves storage). Hold <kbd className="px-1.5 py-0.5 bg-slate-200 border border-slate-300 rounded text-[10px] font-mono">Ctrl</kbd> to save inline
+                </p>
               </>
             )}
             <input
@@ -427,16 +463,15 @@ export function ImageUpload({
               variant="outline"
               size="sm"
               onClick={async () => {
-                // Convert base64 back to file for upload
                 const response = await fetch(value);
                 const blob = await response.blob();
                 const file = new File([blob], 'image.jpg', { type: blob.type });
-                await uploadToImgurAndSet(file);
+                await uploadAndSetUrl(file);
               }}
               className="w-full gap-2"
             >
               <CloudUpload className="h-4 w-4" />
-              Upload to Imgur (Get URL)
+              {isCloudinaryConfigured() ? 'Upload to Cloudinary (Get URL)' : 'Upload to Imgur (Get URL)'}
             </Button>
           )}
         </div>

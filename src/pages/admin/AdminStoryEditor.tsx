@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import {
   getAdminArticle, saveAdminArticle, createAdminArticle,
   generateSlug, calculateReadingTime, countWords, getAllAdminTags,
+  stripBase64ImagesFromHtml,
   addInternalNote, deleteInternalNote, restoreRevision,
   type AdminArticle, type AdminAuthor, type InternalNote, type ArticleRevision,
   getAdminAuthorsList, WORKFLOW_LABELS,
@@ -283,7 +284,7 @@ export default function AdminStoryEditor() {
     return {
       id: id ?? '',
       slug: form.slug || generateSlug(form.headline),
-      headline: form.headline, dek: form.dek, body: form.body,
+      headline: form.headline, dek: form.dek, body: stripBase64ImagesFromHtml(form.body),
       image: form.image, images: form.image ? [form.image] : [],
       imageCaption: form.imageCaption,
       section: form.section, author, readingTime, tags: form.tags, status,

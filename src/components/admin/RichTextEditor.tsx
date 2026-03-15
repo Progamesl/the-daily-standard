@@ -99,8 +99,19 @@ export function RichTextEditor({
         const alt = el.getAttribute('alt');
         el.removeAttribute('src');
         el.removeAttribute('alt');
-        if (src) el.setAttribute('src', src);
+        // Never keep data: (base64) images — they bloat DB/egress by hundreds of MB
+        if (src && !src.trim().toLowerCase().startsWith('data:')) {
+          el.setAttribute('src', src);
+        }
         if (alt) el.setAttribute('alt', alt);
+        // If we stripped a data URL, replace img with a short note so the author knows to add URL
+        if (src && src.trim().toLowerCase().startsWith('data:')) {
+          const span = document.createElement('span');
+          span.setAttribute('contenteditable', 'false');
+          span.className = 'inline-block px-2 py-1 my-1 text-xs bg-amber-100 text-amber-800 rounded';
+          span.textContent = '[Image removed — use Story Image or Insert image with URL]';
+          el.parentNode?.replaceChild(span, el);
+        }
       }
     });
 

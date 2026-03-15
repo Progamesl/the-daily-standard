@@ -16,7 +16,8 @@ function isBadUrl(url: string): boolean {
     u.includes('thekeyworldwide.com') ||
     u.includes('world business') ||
     u.includes('a_black_image') ||
-    u.includes('black_image')
+    u.includes('black_image') ||
+    u.includes('supabase.co/storage') // Never serve images from Supabase Storage (use R2/Cloudinary)
   );
 }
 

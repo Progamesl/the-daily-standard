@@ -39,9 +39,9 @@ async function initSupabase() {
   return null;
 }
 
-// List-only columns: omit body, internal_notes, revisions to cut egress (fetched on demand)
+// List-only: no body, no internal_notes, no revisions, no images[] (saves egress)
 const ARTICLES_LIST_COLUMNS =
-  'id, slug, headline, dek, image, images, image_caption, section, author_id, author_name, published_at, updated_at, reading_time, tags, status, priority, featured, assigned_to_id, assigned_to_name, assigned_by_id, reviewed_by_id, deadline, pitch_summary, meta_title, meta_description, og_image, canonical_url, word_count';
+  'id, slug, headline, dek, image, image_caption, section, author_id, author_name, published_at, updated_at, reading_time, tags, status, priority, featured, assigned_to_id, assigned_to_name, assigned_by_id, reviewed_by_id, deadline, pitch_summary, meta_title, meta_description, og_image, canonical_url, word_count';
 
 function rowToAdminArticle(row: any, includeBody = false): AdminArticle {
   return {

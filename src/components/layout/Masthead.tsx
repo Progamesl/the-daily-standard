@@ -154,52 +154,35 @@ export function Masthead() {
               </button>
             </div>
 
-            {/* Center: Logo/Wordmark */}
-            <Link 
-              to="/" 
-              className="flex-1 text-center flex flex-col items-center min-w-0"
-              style={{
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
+            {/* Center: Logo/Wordmark — only transform animates (GPU); height snaps to avoid reflow stutter */}
+            <Link
+              to="/"
+              className={cn(
+                "flex-1 flex flex-col items-center justify-end min-w-0 overflow-hidden origin-center",
+                isScrolled ? "h-9 sm:h-10" : "h-24 sm:h-28 md:h-36"
+              )}
             >
-              <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"
-                alt="The Octagon Logo"
-                width={80}
-                height={80}
+              <span
                 className={cn(
-                  "object-contain transition-all duration-300 ease-in-out",
-                  isScrolled ? "h-6 sm:h-7" : "h-10 sm:h-14 md:h-[4.5rem]"
+                  "flex flex-col items-center justify-center origin-top transition-transform duration-300 ease-out",
+                  isScrolled && "scale-[0.38]"
                 )}
-                style={{
-                  transitionProperty: 'height',
-                  transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-                }}
-              />
-              <h1
-                className={cn(
-                  "font-serif font-bold tracking-tight transition-all duration-300 ease-in-out",
-                  isScrolled ? "text-lg sm:text-xl md:text-2xl mt-0.5" : "text-2xl sm:text-3xl md:text-5xl mt-1"
-                )}
-                style={{
-                  transitionProperty: 'font-size, margin-top',
-                  transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-                }}
+                style={{ willChange: "transform" }}
               >
-                The Octagon
-              </h1>
-              <p
-                className={cn(
-                  "text-xs text-muted-foreground hidden md:block transition-all duration-300 ease-in-out overflow-hidden",
-                  isScrolled ? "max-h-0 opacity-0 mt-0" : "max-h-6 opacity-100 mt-1"
-                )}
-                style={{
-                  transitionProperty: 'max-height, opacity, margin-top',
-                  transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-                }}
-              >
-                A Sacramento Country Day School Newspaper
-              </p>
+                <img
+                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"
+                  alt="The Octagon Logo"
+                  width={80}
+                  height={80}
+                  className="object-contain h-10 sm:h-14 md:h-[4.5rem] w-auto"
+                />
+                <h1 className="font-serif font-bold tracking-tight text-2xl sm:text-3xl md:text-5xl mt-1">
+                  The Octagon
+                </h1>
+                <p className="text-xs text-muted-foreground md:block mt-1">
+                  A Sacramento Country Day School Newspaper
+                </p>
+              </span>
             </Link>
 
             {/* Right: Account + Subscribe */}
