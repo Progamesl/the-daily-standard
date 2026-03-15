@@ -29,6 +29,12 @@
       "name": "Sports",
       "slug": "sports",
       "description": "Sports news and analysis"
+    },
+    {
+      "id": "features",
+      "name": "Features",
+      "slug": "features",
+      "description": "In-depth features and long-form stories"
     }
   ],
   "authors": [

@@ -14,6 +14,7 @@ const sections = [
   { name: "Opinion", slug: "opinion" },
   { name: "Editorial", slug: "editorial" },
   { name: "Sports", slug: "sports" },
+  { name: "Features", slug: "features" },
 ];
 
 function WeatherIcon({ code }: { code: number }) {
