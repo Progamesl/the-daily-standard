@@ -72,7 +72,14 @@ export function useArticleBySlug(
     getArticleBySlugFromSupabase(slug, { publishedOnly: !isPreview })
       .then((admin) => {
         if (cancelled) return;
-        setArticle(admin ? adminToArticle(admin) : undefined);
+        if (admin) {
+          setArticle(adminToArticle(admin));
+        } else {
+          // Not in Supabase (e.g. older/seed-only article) — use merged list (seed + admin)
+          const fromPublic = getPublicArticleBySlug(slug);
+          const fromAdmin = isPreview ? getAdminArticleBySlug(slug) : null;
+          setArticle(fromPublic ?? (fromAdmin ? adminToArticle(fromAdmin) : undefined));
+        }
         setError(null);
       })
       .catch((err) => {
