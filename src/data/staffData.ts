@@ -221,7 +221,7 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6352338_182.jpg?resize=200,200",
     role: "Reporter",
     primarySection: "Reporters",
-    bio: "Sophomore Parsa Salari is about to start his fifth year at Country Day. Contact him at psalari28@scdsstudent.org.",
+    bio: "Sophomore Parsa Salari is about to start his fifth year at Country Day. He spends most of his time playing basketball or helping out around campus with the student council. Salari is a massive fan of movies, especially dramas, comedies and superhero films. His current favorite is “The Shawshank Redemption.” When he is not watching his favorite movies and shows, you can find him playing basketball on the blacktop with his friends whenever he’s free. Contact him at psalari28@scdsstudent.org",
     email: "psalari28@scdsstudent.org",
   },
   {
