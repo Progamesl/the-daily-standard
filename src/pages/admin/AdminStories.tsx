@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Search, PenSquare, Trash2, Copy, Eye, Edit, MoreVertical,
-  CheckSquare, Square, Flame, AlertTriangle,
+  CheckSquare, Square, Flame, AlertTriangle, History,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -220,13 +220,33 @@ export default function AdminStories() {
       try {
         const imported = await importJsonArticle(article as unknown as Record<string, unknown>);
         navigate(`/admin/stories/edit/${imported.id}`);
-      } catch {
+      } catch (err) {
+        console.error('Import seed article failed:', err);
         toast.error('Failed to open story for editing. Please try again.');
       } finally {
         setEditLoading(false);
       }
     } else {
       navigate(`/admin/stories/edit/${article.id}`);
+    }
+  };
+
+  const handleReimport = async (article: AdminArticle) => {
+    // Only meaningful for legacy seed/JSON stories (non-UUID, non-admin_ IDs)
+    if (article.id.match(/^[0-9a-f-]{36}$/i) || article.id.startsWith('admin_')) {
+      toast.info('This story is already imported. Use Edit instead.');
+      return;
+    }
+    setEditLoading(true);
+    try {
+      const imported = await importJsonArticle(article as unknown as Record<string, unknown>);
+      toast.success('Story re-imported from archive');
+      navigate(`/admin/stories/edit/${imported.id}`);
+    } catch (err) {
+      console.error('Re-import from archive failed:', err);
+      toast.error('Failed to re-import story. Please try again.');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -409,6 +429,11 @@ export default function AdminStories() {
                         <Eye className="h-4 w-4 mr-2" />View on Site
                       </Link>
                     </DropdownMenuItem>
+                    {(!article.id.match(/^[0-9a-f-]{36}$/i) && !article.id.startsWith('admin_')) && (
+                      <DropdownMenuItem onClick={() => handleReimport(article)}>
+                        <History className="h-4 w-4 mr-2" />Re-import from Archive
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => handleDuplicate(article)}>
                       <Copy className="h-4 w-4 mr-2" />Duplicate
                     </DropdownMenuItem>

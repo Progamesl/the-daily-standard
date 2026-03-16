@@ -474,7 +474,8 @@ export async function saveAdminArticle(
   article: AdminArticle,
   savedById?: string,
   savedByName?: string,
-  revisionNote?: string
+  revisionNote?: string,
+  options?: { upsertBy?: 'id' | 'slug' }
 ): Promise<AdminArticle> {
   const articles = getAdminArticlesMap();
   const existing = articles[article.id];
@@ -507,7 +508,7 @@ export async function saveAdminArticle(
     const { isSupabaseConfigured } = await import('./supabaseClient');
     if (isSupabaseConfigured()) {
       const { saveArticleToSupabase } = await import('./supabaseDataService');
-      const success = await saveArticleToSupabase(saved);
+      const success = await saveArticleToSupabase(saved, options?.upsertBy ?? 'id');
       
       if (success) {
         console.log('✅ Article saved to Supabase (HEADLESS CMS):', saved.id);
@@ -984,16 +985,24 @@ export function mergeDuplicateAuthors(): { merged: number; articlesUpdated: numb
 }
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
+/** Normalize date to ISO string for Supabase TIMESTAMPTZ. */
+function toIsoDate(val: unknown): string {
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === 'string' && val) return new Date(val).toISOString();
+  return new Date().toISOString();
+}
+
 export async function importJsonArticle(jsonArticle: Record<string, unknown>): Promise<AdminArticle> {
   const authorRaw = (jsonArticle.author ?? {}) as Record<string, unknown>;
-  // Always generate a fresh admin ID so Supabase UUID column is never fed a numeric/seed ID
+  const authorId = String(authorRaw.id ?? '').trim() || `author_${generateId().slice(-8)}`;
+  // Always generate a fresh admin ID so Supabase never gets a numeric/seed ID
   const existingId = String(jsonArticle.id ?? '');
   const id = existingId.startsWith('admin_') || existingId.match(/^[0-9a-f-]{36}$/i)
     ? existingId
     : generateId();
   const article: AdminArticle = {
     id,
-    slug: String(jsonArticle.slug ?? ''),
+    slug: String(jsonArticle.slug ?? '').trim() || `article-${id.slice(-8)}`,
     headline: String(jsonArticle.headline ?? ''),
     dek: String(jsonArticle.dek ?? ''),
     body: String(jsonArticle.body ?? ''),
@@ -1002,15 +1011,15 @@ export async function importJsonArticle(jsonArticle: Record<string, unknown>): P
     imageCaption: String(jsonArticle.imageCaption ?? ''),
     section: String(jsonArticle.section ?? ''),
     author: {
-      id: String(authorRaw.id ?? ''),
-      name: String(authorRaw.name ?? ''),
+      id: authorId,
+      name: String(authorRaw.name ?? 'Unknown Author'),
       role: String(authorRaw.role ?? 'Student Journalist'),
       bio: String(authorRaw.bio ?? ''),
       image: String(authorRaw.image ?? ''),
       email: authorRaw.email ? String(authorRaw.email) : undefined,
       twitter: authorRaw.twitter ? String(authorRaw.twitter) : undefined,
     },
-    publishedAt: String(jsonArticle.publishedAt ?? new Date().toISOString()),
+    publishedAt: toIsoDate(jsonArticle.publishedAt),
     updatedAt: new Date().toISOString(),
     readingTime: Number(jsonArticle.readingTime ?? 1),
     tags: Array.isArray(jsonArticle.tags) ? jsonArticle.tags as string[] : [],
@@ -1019,7 +1028,32 @@ export async function importJsonArticle(jsonArticle: Record<string, unknown>): P
     internalNotes: [],
     revisions: [],
   };
-  return saveAdminArticle(article);
+
+  // Check if already imported (same slug exists in Supabase) — avoids re-importing
+  if (typeof window !== 'undefined') {
+    const { isSupabaseConfigured } = await import('./supabaseClient');
+    if (isSupabaseConfigured()) {
+      const { getArticleBySlugFromSupabase, saveAuthorToSupabase } = await import('./supabaseDataService');
+      const existing = await getArticleBySlugFromSupabase(article.slug, { publishedOnly: false });
+      if (existing) {
+        console.log('✅ Article already imported, navigating directly:', article.slug);
+        return existing;
+      }
+      // Ensure author exists in Supabase before saving article (seed authors may not be migrated)
+      await saveAuthorToSupabase(article.author);
+    }
+  }
+
+  // Fall back to localStorage-only save if Supabase save fails, so editor can still open the article
+  try {
+    return await saveAdminArticle(article, undefined, undefined, undefined, { upsertBy: 'slug' });
+  } catch {
+    console.warn('⚠️ Supabase save failed — saving to localStorage only so editor can open article:', article.slug);
+    const articles = getAdminArticlesMap();
+    articles[article.id] = { ...article, updatedAt: new Date().toISOString() };
+    setStorage(ARTICLES_KEY, articles);
+    return articles[article.id];
+  }
 }
 
 export function getAllAdminTags(): string[] {

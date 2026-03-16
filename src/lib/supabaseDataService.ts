@@ -187,7 +187,7 @@ export function clearArticleBodyCache(slug?: string): void {
   }
 }
 
-export async function saveArticleToSupabase(article: AdminArticle): Promise<boolean> {
+export async function saveArticleToSupabase(article: AdminArticle, upsertBy: 'id' | 'slug' = 'id'): Promise<boolean> {
   const client = await initSupabase();
   if (!client) {
     console.warn('⚠️ Supabase client not initialized');
@@ -231,7 +231,7 @@ export async function saveArticleToSupabase(article: AdminArticle): Promise<bool
         revisions: article.revisions || [],
         word_count: article.wordCount,
       }, {
-        onConflict: 'id',
+        onConflict: upsertBy,
       });
     
     if (error) {
