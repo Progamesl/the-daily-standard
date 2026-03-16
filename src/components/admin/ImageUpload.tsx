@@ -3,9 +3,9 @@
  * Supports four ways to add a story image:
  *   1. Paste a URL directly
  *   2. Paste an image from clipboard (⌘V / Ctrl+V)
- *   3. Drag-and-drop / paste / browse → uploads to Cloudinary (or Imgur if not configured), stores URL
+ *   3. Drag-and-drop / paste / browse → uploads to R2, Cloudinary, or Imgur (first configured), stores URL
  *
- * Prefer Cloudinary (set VITE_CLOUDINARY_* in .env) so images don't use Supabase. Hold Ctrl/Cmd to save as base64.
+ * Priority: R2 (VITE_R2_UPLOAD_URL) → Cloudinary (VITE_CLOUDINARY_*) → Imgur. Hold Ctrl/Cmd to save as base64.
  */
 
 import { useRef, useState, useCallback, useEffect } from 'react';
@@ -116,9 +116,35 @@ function fileToBase64(file: File): Promise<string> {
 
 const CLOUDINARY_CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined;
 const CLOUDINARY_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string | undefined;
+const R2_UPLOAD_URL = import.meta.env.VITE_R2_UPLOAD_URL as string | undefined;
+const R2_SECRET = import.meta.env.VITE_R2_SECRET as string | undefined;
+
+function isR2Configured(): boolean {
+  return Boolean(R2_UPLOAD_URL);
+}
 
 function isCloudinaryConfigured(): boolean {
   return Boolean(CLOUDINARY_CLOUD && CLOUDINARY_PRESET);
+}
+
+/**
+ * Upload image to Cloudflare R2 via the upload Worker. Returns the public image URL.
+ */
+async function uploadToR2(file: File): Promise<string> {
+  if (!R2_UPLOAD_URL) throw new Error('R2 not configured');
+  const formData = new FormData();
+  formData.append('file', file);
+  const headers: Record<string, string> = {};
+  if (R2_SECRET) headers['X-R2-Secret'] = R2_SECRET;
+  const response = await fetch(R2_UPLOAD_URL, { method: 'POST', body: formData, headers });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: `Upload failed (${response.status})` }));
+    throw new Error(err.error || 'R2 upload failed');
+  }
+  const data = await response.json();
+  const url = data?.url;
+  if (!url) throw new Error('R2 did not return a URL');
+  return url;
 }
 
 /**
@@ -193,7 +219,10 @@ export function ImageUpload({
     setWarn('');
     try {
       let url: string;
-      if (isCloudinaryConfigured()) {
+      if (isR2Configured()) {
+        url = await uploadToR2(file);
+        setWarn('✓ Image uploaded to R2. URL saved.');
+      } else if (isCloudinaryConfigured()) {
         url = await uploadToCloudinary(file);
         setWarn('✓ Image uploaded to Cloudinary. URL saved.');
       } else {
@@ -204,7 +233,9 @@ export function ImageUpload({
       setTimeout(() => setWarn(''), 3000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Upload failed';
-      if (isCloudinaryConfigured()) {
+      if (isR2Configured()) {
+        setWarn(`R2 failed: ${msg}. Try again or paste a URL.`);
+      } else if (isCloudinaryConfigured()) {
         setWarn(`Cloudinary failed: ${msg}. Try again or paste a URL.`);
       } else {
         setWarn(`Upload failed: ${msg}. You can save as base64 (Ctrl) or try again.`);
@@ -348,9 +379,12 @@ export function ImageUpload({
 
   const previewSrc = value || null;
 
+  const uploadTarget = isR2Configured() ? 'R2' : isCloudinaryConfigured() ? 'Cloudinary' : 'Imgur';
+
   return (
     <div ref={containerRef} className="space-y-3">
       <Label className="text-sm font-medium text-slate-700 block">{label}</Label>
+      <p className="text-xs text-slate-500">Upload target: {uploadTarget}</p>
 
       {/* Mode tabs */}
       <div className="flex rounded-lg border border-slate-200 overflow-hidden w-fit">
@@ -427,7 +461,7 @@ export function ImageUpload({
             {uploading ? (
               <>
                 <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
-                <p className="text-sm text-blue-600 font-medium">Uploading to Imgur...</p>
+                <p className="text-sm text-blue-600 font-medium">Uploading to {isR2Configured() ? 'R2' : isCloudinaryConfigured() ? 'Cloudinary' : 'Imgur'}...</p>
               </>
             ) : (
               <>
@@ -443,7 +477,7 @@ export function ImageUpload({
                 </p>
                 <p className="text-xs text-slate-400">JPG, PNG, WEBP · Max 10 MB · Or paste from clipboard</p>
                 <p className="text-xs text-slate-400 mt-1">
-                  Images upload to {isCloudinaryConfigured() ? 'Cloudinary' : 'Imgur'} (saves storage). Hold <kbd className="px-1.5 py-0.5 bg-slate-200 border border-slate-300 rounded text-[10px] font-mono">Ctrl</kbd> to save inline
+                  Images upload to {isR2Configured() ? 'R2' : isCloudinaryConfigured() ? 'Cloudinary' : 'Imgur'} (saves storage). Hold <kbd className="px-1.5 py-0.5 bg-slate-200 border border-slate-300 rounded text-[10px] font-mono">Ctrl</kbd> to save inline
                 </p>
               </>
             )}

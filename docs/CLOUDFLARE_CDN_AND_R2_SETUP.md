@@ -35,27 +35,41 @@ R2 = object storage (like S3), no egress fees. Use it for **uploaded images** (s
    - Or **Custom domain** (e.g. `images.yoursite.com`) so URLs are on your domain.  
    You need at least one of these so the app can use image URLs.
 
-### Step 2: How to get files into R2 (upload path)
+### Step 2: Deploy the upload Worker (included in this repo)
 
-The browser cannot upload directly to R2 with a normal API key (you don’t want to expose R2 credentials). You need a small “upload gateway”:
+The project includes a Worker in `cloudflare-worker-r2-upload/` that accepts image uploads and stores them in R2.
 
-**Option A — Cloudflare Worker (recommended)**  
-- Create a Worker that:
-  - Accepts POST with an image (multipart or base64).
-  - Writes to R2 using the Worker’s R2 binding.
-  - Returns the public URL of the file (e.g. `https://pub-xxx.r2.dev/octagon-images/abc123.jpg` or your custom domain).
-- Restrict who can call it (e.g. your admin only: cookie/session or a secret header).
-- In your app, **Story Image** upload: instead of Cloudinary, send the file to this Worker and use the returned URL.
+1. **Enable public access on the bucket** (if you haven’t):
+   - R2 → your bucket (`octagon-images`) → **Settings** → **Public access** → **Allow Access**.
+   - Note the **Bucket URL** (e.g. `https://pub-xxxxxxxx.r2.dev/octagon-images`). No trailing slash.
 
-**Option B — Backend on your host**  
-- A small API (e.g. Node on Vercel/Netlify) that:
-  - Accepts multipart upload.
-  - Uses R2’s S3-compatible API (with R2 Access Key + Secret from Cloudflare) to put the file in the bucket.
-  - Returns the public URL.
-- App uploads to this API; API uploads to R2.
+2. **Edit `cloudflare-worker-r2-upload/wrangler.toml`**:
+   - Set `bucket_name` under `r2_buckets` to your bucket name (e.g. `octagon-images`).
+   - Set `R2_PUBLIC_BASE_URL` in `[vars]` to the bucket URL from step 1 (e.g. `https://pub-xxxxxxxx.r2.dev/octagon-images`).
 
-**Option C — Keep using Cloudinary for now**  
-- You already have Cloudinary wired. It also keeps images off Supabase. You can switch to R2 later when the Worker (or backend) is ready.
+3. **Deploy the Worker** — Wrangler must run from a directory that does *not* contain the main app’s `node_modules`, or you’ll get “Asset too large”. Easiest: copy only the Worker files to a temp dir and deploy from there:
+   ```bash
+   cd /tmp && rm -rf r2-deploy && mkdir r2-deploy
+   cp /path/to/the-daily-standard/cloudflare-worker-r2-upload/worker.js /path/to/the-daily-standard/cloudflare-worker-r2-upload/wrangler.toml r2-deploy/
+   cd r2-deploy && npx wrangler deploy
+   ```
+   (Replace `/path/to/the-daily-standard` with your repo path, e.g. `~/OCTAGON/the-daily-standard`.)
+   - If Wrangler says you need to register a workers.dev subdomain, open the link it gives (e.g. **Workers & Pages** → **Overview** → set up subdomain), then run `npx wrangler deploy` again.
+   - After deploy, Wrangler prints the Worker URL (e.g. `https://octagon-r2-upload.<your-subdomain>.workers.dev`).
+
+4. **Optional — restrict uploads with a secret**:
+   ```bash
+   npx wrangler secret put R2_SECRET
+   ```
+   Enter a strong random string. The app will send this in the `X-R2-Secret` header; without it, anyone could upload to your bucket if they know the Worker URL.
+
+5. **Configure the app**:
+   - In your app’s `.env` (or Vercel env vars), set:
+     - `VITE_R2_UPLOAD_URL` = the Worker URL from step 3 (e.g. `https://octagon-r2-upload.<subdomain>.workers.dev`).
+     - `VITE_R2_SECRET` = the same value you set in `R2_SECRET` (only if you set the secret in step 4).
+   - Rebuild/redeploy the app. Story image uploads in the admin will then go to R2 first (before Cloudinary or Imgur).
+
+Result: When editors upload a story image in the admin, the file is sent to the Worker, stored in R2, and the public image URL is saved. No Supabase egress for images.
 
 ### Step 3: Use R2 URLs in the app
 
@@ -82,4 +96,37 @@ The browser cannot upload directly to R2 with a normal API key (you don’t want
 
 So: **Use Cloudflare as CDN** (Part 1). **Put images on R2** (Part 2) via a Worker or backend and use those URLs everywhere. That, plus the app changes we made, **does** solve the issue: Supabase egress stays low (only API JSON), and images/assets are served from Cloudflare/R2.
 
-If you want, next step can be a **minimal Cloudflare Worker** (code + Wrangler config) that accepts one image upload and writes it to R2, then returns the URL, so you can wire it into the Story Image upload in the app.
+---
+
+## Troubleshooting: ERR_QUIC_PROTOCOL_ERROR (“This site can’t be reached”)
+
+If you see this even after turning off **HTTP/3 (with QUIC)** in Cloudflare (**Network**), the browser may still be trying QUIC. Try these in order:
+
+### 1. Disable QUIC in Chrome (most likely fix)
+
+- In the address bar go to: `chrome://flags/#enable-quic`
+- Set **Experimental QUIC protocol** to **Disabled**
+- Click **Relaunch**
+- Try https://scdsoctagon.net/admin again
+
+### 2. Clear site data and retry
+
+- Chrome: **Settings → Privacy and security → Clear browsing data** → time range **Last hour** (or **All time**) → check **Cached images and files** and **Cookies and other site data** → **Clear data**
+- Or for just this site: open DevTools (F12) → **Application** tab → **Storage** → **Clear site data**
+- Try the URL again in a new tab
+
+### 3. Try another browser or incognito
+
+- Try **Firefox** or **Safari** (they don’t always use QUIC the same way), or Chrome **Incognito** (Ctrl/Cmd+Shift+N). If it works there, the issue is Chrome + QUIC on your machine.
+
+### 4. Bypass Cloudflare temporarily (confirm origin works)
+
+- In Cloudflare **DNS** for scdsoctagon.net, find the **A** or **CNAME** record for `@` (and `www` if you use it).
+- Click the **orange cloud** so it turns **grey** (DNS only — traffic goes straight to your host, not through Cloudflare).
+- Wait 1–2 minutes, then try https://scdsoctagon.net/admin (or http:// first).
+- If it **works** with grey cloud: the problem is between the browser and Cloudflare (QUIC/proxy). Keep QUIC off and use step 1 (disable QUIC in Chrome) so you can turn the orange cloud back on.
+- If it **still fails** with grey cloud: the problem may be your host (Vercel/Netlify) or DNS (wrong A/CNAME). Check the host dashboard and that the domain is correctly pointed to the deployed app.
+
+### 5. Check SSL in Cloudflare
+
+- **SSL/TLS** → **Overview**: encryption mode should be **Full** or **Full (strict)**, not **Off** or **Flexible** (unless your origin has no HTTPS).

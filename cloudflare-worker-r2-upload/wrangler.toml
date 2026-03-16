@@ -1,0 +1,20 @@
+# Deploy with: npx wrangler deploy
+# Set secrets: npx wrangler secret put R2_SECRET
+# R2_PUBLIC_BASE_URL is set below — update it after you create the bucket and enable public access.
+
+name = "octagon-r2-upload"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+workers_dev = true
+
+# R2 bucket (create in Cloudflare Dashboard → R2 → Create bucket, e.g. "octagon-images")
+r2_buckets = [
+  { binding = "BUCKET", bucket_name = "octagon-images" }
+]
+
+# Public URL for stored images (no trailing slash)
+# After creating the bucket: Settings → Public access → "Allow Access" and copy the bucket URL
+# Example: https://pub-xxxxxxxx.r2.dev/octagon-images
+# Or use a custom domain: https://images.scdsoctagon.net
+[vars]
+R2_PUBLIC_BASE_URL = "https://pub-cc09e9eb3d7d4e83b7fb733e08d877bb.r2.dev/octagon-images"
