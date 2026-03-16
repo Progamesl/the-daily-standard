@@ -388,6 +388,12 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
   
   // HEADLESS CMS: Supabase is source of truth - prioritize cache
   if (typeof window !== 'undefined') {
+    // Critical egress optimization: public site should NOT call Supabase.
+    // Only the admin app (under /admin) performs live syncs from Supabase.
+    if (!window.location.pathname.startsWith('/admin')) {
+      return localArticles;
+    }
+
     const now = Date.now();
     // Check both in-memory AND persisted timestamp so refreshes/new tabs skip the fetch
     const persistedFetchTime = Number(localStorage.getItem(LIST_FETCH_TIME_KEY) || '0');

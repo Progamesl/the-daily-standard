@@ -1,6 +1,7 @@
 /**
- * Fetches a single article by slug. When Supabase is configured, fetches only this
- * article from the API (reduces egress vs loading all articles with bodies).
+ * Fetches a single article by slug.
+ * Public: R2 JSON first (zero Supabase egress), then seed fallback.
+ * Preview: Supabase/admin only.
  */
 
 import { useState, useEffect } from 'react';
@@ -8,6 +9,7 @@ import { getArticleBySlugFromSupabase } from '@/lib/supabaseDataService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { getPublicArticleBySlug } from '@/lib/publicDataService';
 import { getAdminArticleBySlug } from '@/lib/adminDataService';
+import { getArticleBySlugFromR2, isR2ArticlesConfigured } from '@/lib/r2Articles';
 import type { Article } from '@/data/seedData';
 import type { AdminArticle } from '@/lib/adminDataService';
 
@@ -34,14 +36,15 @@ export function useArticleBySlug(
   slug: string | undefined,
   isPreview: boolean
 ): { article: Article | undefined; loading: boolean; error: Error | null } {
-  // When Supabase is on, we may have list-only data (body ''). Show that immediately, then load body.
   const [article, setArticle] = useState<Article | undefined>(() => {
     if (!slug) return undefined;
     const fromAdmin = isPreview ? getAdminArticleBySlug(slug) : null;
     const a = fromAdmin ? adminToArticle(fromAdmin) : getPublicArticleBySlug(slug);
     return a ?? undefined;
   });
-  const [loading, setLoading] = useState(!!slug && isSupabaseConfigured());
+  const [loading, setLoading] = useState(
+    !!slug && (isR2ArticlesConfigured() || (isPreview && isSupabaseConfigured()))
+  );
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -52,40 +55,57 @@ export function useArticleBySlug(
       return;
     }
 
-    if (!isSupabaseConfigured()) {
-      const fromAdmin = isPreview ? getAdminArticleBySlug(slug) : null;
-      const a = fromAdmin ? adminToArticle(fromAdmin) : getPublicArticleBySlug(slug);
-      setArticle(a ?? undefined);
-      setLoading(false);
+    if (isPreview) {
+      const fromAdmin = getAdminArticleBySlug(slug);
+      if (fromAdmin) setArticle(adminToArticle(fromAdmin));
+      if (!isSupabaseConfigured()) {
+        setArticle(fromAdmin ? adminToArticle(fromAdmin) : getPublicArticleBySlug(slug) ?? undefined);
+        setLoading(false);
+        return;
+      }
+      let cancelled = false;
+      setLoading(true);
       setError(null);
-      return;
+      getArticleBySlugFromSupabase(slug, { publishedOnly: false })
+        .then((admin) => {
+          if (cancelled) return;
+          setArticle(
+            admin ? adminToArticle(admin) : getPublicArticleBySlug(slug) ?? (fromAdmin ? adminToArticle(fromAdmin) : undefined)
+          );
+          setError(null);
+        })
+        .catch((err) => {
+          if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)));
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
     }
 
-    // Show partial from list cache immediately (headline, dek, hero) so the page isn’t blank
-    const fromAdmin = isPreview ? getAdminArticleBySlug(slug) : null;
-    const partial = getPublicArticleBySlug(slug) ?? (fromAdmin ? adminToArticle(fromAdmin) : undefined);
+    // Public: R2 first (no Supabase), then seed
+    if (!isR2ArticlesConfigured()) {
+      setArticle(getPublicArticleBySlug(slug) ?? undefined);
+      setLoading(false);
+      return;
+    }
+    const partial = getPublicArticleBySlug(slug);
     if (partial) setArticle(partial);
-
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getArticleBySlugFromSupabase(slug, { publishedOnly: !isPreview })
-      .then((admin) => {
+    getArticleBySlugFromR2(slug)
+      .then((fromR2) => {
         if (cancelled) return;
-        if (admin) {
-          setArticle(adminToArticle(admin));
-        } else {
-          // Not in Supabase (e.g. older/seed-only article) — use merged list (seed + admin)
-          const fromPublic = getPublicArticleBySlug(slug);
-          const fromAdmin = isPreview ? getAdminArticleBySlug(slug) : null;
-          setArticle(fromPublic ?? (fromAdmin ? adminToArticle(fromAdmin) : undefined));
-        }
+        setArticle(fromR2 ?? getPublicArticleBySlug(slug) ?? undefined);
         setError(null);
       })
       .catch((err) => {
         if (!cancelled) {
           setError(err instanceof Error ? err : new Error(String(err)));
-          setArticle(undefined);
+          setArticle(getPublicArticleBySlug(slug) ?? undefined);
         }
       })
       .finally(() => {

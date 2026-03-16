@@ -21,7 +21,8 @@ import {
 import { toast } from 'sonner';
 import {
   getAdminArticlesList, deleteAdminArticle, duplicateAdminArticle,
-  importJsonArticle, getDeletedArticleIds, type AdminArticle,
+  importJsonArticle, getDeletedArticleIds, getAdminArticle, getAdminArticleBySlug,
+  type AdminArticle,
   WORKFLOW_LABELS, WORKFLOW_COLORS, PRIORITY_COLORS,
 } from '@/lib/adminDataService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
@@ -40,30 +41,28 @@ const ALL_STATUSES = [
 ] as const;
 
 function mergeAll(): AdminArticle[] {
-  const map = new Map<string, AdminArticle>();
+  const byId = new Map<string, AdminArticle>();
   const deletedIds = new Set(getDeletedArticleIds().map(String));
-  
-  // Add seed articles (excluding deleted ones)
-  jsonArticles.forEach((a) => {
-    if (!deletedIds.has(String(a.id))) {
-    map.set(String(a.id), {
-        id: String(a.id), slug: a.slug, headline: a.headline, dek: a.dek,
-        body: a.body, image: a.image, images: a.images ?? [],
-        imageCaption: a.imageCaption, section: a.section, author: { ...a.author },
-        publishedAt: a.publishedAt.toISOString(), updatedAt: a.updatedAt?.toISOString(),
-        readingTime: a.readingTime, tags: a.tags, status: 'published', priority: 'normal',
-    });
-    }
-  });
-  
-  // Add admin articles (excluding deleted ones)
+
+  // Admin/Supabase first (source of truth)
   getAdminArticlesList().forEach((a) => {
-    if (!deletedIds.has(a.id)) {
-      map.set(a.id, a);
-    }
+    if (!deletedIds.has(a.id)) byId.set(a.id, a);
   });
-  
-  return Array.from(map.values());
+  const adminSlugs = new Set(Array.from(byId.values()).map((a) => a.slug));
+
+  // Seed only if not already in admin (by slug) — avoids duplicate when same story in both
+  jsonArticles.forEach((a) => {
+    if (deletedIds.has(String(a.id)) || adminSlugs.has(a.slug)) return;
+    byId.set(String(a.id), {
+      id: String(a.id), slug: a.slug, headline: a.headline, dek: a.dek,
+      body: a.body, image: a.image, images: a.images ?? [],
+      imageCaption: a.imageCaption, section: a.section, author: { ...a.author },
+      publishedAt: a.publishedAt.toISOString(), updatedAt: a.updatedAt?.toISOString(),
+      readingTime: a.readingTime, tags: a.tags, status: 'published', priority: 'normal',
+    });
+  });
+
+  return Array.from(byId.values());
 }
 
 export default function AdminStories() {
@@ -213,21 +212,31 @@ export default function AdminStories() {
   const [editLoading, setEditLoading] = useState(false);
 
   const handleEdit = async (article: AdminArticle) => {
-    // For seed/JSON articles (non-UUID, non-admin_ IDs), import into admin storage first
-    // so the editor can find them. Await so navigation only happens after the article is saved.
-    if (!article.id.match(/^[0-9a-f-]{36}$/i) && !article.id.startsWith('admin_')) {
-      setEditLoading(true);
-      try {
-        const imported = await importJsonArticle(article as unknown as Record<string, unknown>);
-        navigate(`/admin/stories/edit/${imported.id}`);
-      } catch (err) {
-        console.error('Import seed article failed:', err);
-        toast.error('Failed to open story for editing. Please try again.');
-      } finally {
-        setEditLoading(false);
-      }
-    } else {
+    // Already in admin (UUID or admin_ id) — open by id
+    if (article.id.match(/^[0-9a-f-]{36}$/i) || article.id.startsWith('admin_')) {
       navigate(`/admin/stories/edit/${article.id}`);
+      return;
+    }
+    // Seed-style id: only import if not already in admin (avoids duplicate on section change)
+    const alreadyInAdminById = getAdminArticle(article.id);
+    if (alreadyInAdminById) {
+      navigate(`/admin/stories/edit/${article.id}`);
+      return;
+    }
+    const alreadyInAdminBySlug = getAdminArticleBySlug(article.slug);
+    if (alreadyInAdminBySlug) {
+      navigate(`/admin/stories/edit/${alreadyInAdminBySlug.id}`);
+      return;
+    }
+    setEditLoading(true);
+    try {
+      const imported = await importJsonArticle(article as unknown as Record<string, unknown>);
+      navigate(`/admin/stories/edit/${imported.id}`);
+    } catch (err) {
+      console.error('Import seed article failed:', err);
+      toast.error('Failed to open story for editing. Please try again.');
+    } finally {
+      setEditLoading(false);
     }
   };
 

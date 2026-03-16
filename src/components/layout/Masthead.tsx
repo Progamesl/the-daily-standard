@@ -155,17 +155,18 @@ export function Masthead() {
             <Link
               to="/"
               className={cn(
-                "flex-1 flex flex-col items-center justify-end min-w-0 overflow-hidden origin-center",
-                "transition-[height] duration-300 ease-out",
+                "flex-1 relative flex items-center justify-center min-w-0 overflow-hidden",
+                "transition-[height] duration-300 ease-in-out",
                 isScrolled ? "h-9 sm:h-10" : "h-24 sm:h-28 md:h-36"
               )}
             >
-              <span
+              {/* Expanded logo — fades out when condensing */}
+              <div
                 className={cn(
-                  "flex flex-col items-center justify-center origin-top transition-transform duration-300 ease-out",
-                  isScrolled && "scale-[0.38]"
+                  "absolute inset-0 flex flex-col items-center justify-center",
+                  "transition-opacity duration-300 ease-in-out",
+                  isScrolled ? "opacity-0 pointer-events-none" : "opacity-100"
                 )}
-                style={{ willChange: "transform" }}
               >
                 <img
                   src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"
@@ -177,10 +178,22 @@ export function Masthead() {
                 <h1 className="font-serif font-bold tracking-tight text-2xl sm:text-3xl md:text-5xl mt-1">
                   The Octagon
                 </h1>
-                <p className="text-xs text-muted-foreground md:block mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   A Sacramento Country Day School Newspaper
                 </p>
-              </span>
+              </div>
+
+              {/* Condensed logo — fades in when condensing */}
+              <div
+                className={cn(
+                  "transition-opacity duration-300 ease-in-out",
+                  isScrolled ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}
+              >
+                <span className="font-serif font-bold tracking-tight text-xl sm:text-2xl">
+                  The Octagon
+                </span>
+              </div>
             </Link>
 
             {/* Right: Account + Subscribe */}
