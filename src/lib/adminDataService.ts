@@ -450,100 +450,14 @@ export function getAdminArticlesList(): AdminArticle[] {
  * This allows editing seed articles that haven't been migrated to Supabase yet
  */
 export function getAdminArticle(id: string): AdminArticle | undefined {
-  // First check Supabase/localStorage (admin-created articles)
-  const adminArticle = getAdminArticlesMap()[id];
-  if (adminArticle) return adminArticle;
-  
-  // Fallback to seed data (for articles that haven't been migrated yet)
-  if (typeof window !== 'undefined') {
-    try {
-      const { articles: seedArticles } = require('@/data/seedData');
-      const seedArticle = seedArticles.find(a => String(a.id) === String(id));
-      if (seedArticle) {
-        // Convert seed Article to AdminArticle format
-        return {
-          id: String(seedArticle.id),
-          slug: seedArticle.slug,
-          headline: seedArticle.headline,
-          dek: seedArticle.dek,
-          body: seedArticle.body,
-          image: seedArticle.image,
-          images: seedArticle.images ?? [],
-          imageCaption: seedArticle.imageCaption,
-          section: seedArticle.section,
-          author: {
-            id: seedArticle.author.id,
-            name: seedArticle.author.name,
-            role: seedArticle.author.role,
-            bio: seedArticle.author.bio,
-            image: seedArticle.author.image,
-            email: seedArticle.author.email,
-            twitter: seedArticle.author.twitter,
-          },
-          publishedAt: seedArticle.publishedAt.toISOString(),
-          updatedAt: seedArticle.updatedAt?.toISOString(),
-          readingTime: seedArticle.readingTime,
-          tags: seedArticle.tags,
-          status: 'published', // Seed articles are always published
-          priority: 'normal',
-        };
-      }
-    } catch (e) {
-      // Seed data not available, return undefined
-    }
-  }
-  
-  return undefined;
+  return getAdminArticlesMap()[id];
 }
 
 /**
- * Get article by slug - checks both Supabase/localStorage AND seed data
+ * Get article by slug — checks Supabase cache and localStorage only.
  */
 export function getAdminArticleBySlug(slug: string): AdminArticle | undefined {
-  // First check Supabase/localStorage
-  const adminArticle = Object.values(getAdminArticlesMap()).find(a => a.slug === slug);
-  if (adminArticle) return adminArticle;
-  
-  // Fallback to seed data
-  if (typeof window !== 'undefined') {
-    try {
-      const { articles: seedArticles } = require('@/data/seedData');
-      const seedArticle = seedArticles.find(a => a.slug === slug);
-      if (seedArticle) {
-        // Convert seed Article to AdminArticle format
-        return {
-          id: String(seedArticle.id),
-          slug: seedArticle.slug,
-          headline: seedArticle.headline,
-          dek: seedArticle.dek,
-          body: seedArticle.body,
-          image: seedArticle.image,
-          images: seedArticle.images ?? [],
-          imageCaption: seedArticle.imageCaption,
-          section: seedArticle.section,
-          author: {
-            id: seedArticle.author.id,
-            name: seedArticle.author.name,
-            role: seedArticle.author.role,
-            bio: seedArticle.author.bio,
-            image: seedArticle.author.image,
-            email: seedArticle.author.email,
-            twitter: seedArticle.author.twitter,
-          },
-          publishedAt: seedArticle.publishedAt.toISOString(),
-          updatedAt: seedArticle.updatedAt?.toISOString(),
-          readingTime: seedArticle.readingTime,
-          tags: seedArticle.tags,
-          status: 'published',
-          priority: 'normal',
-        };
-      }
-    } catch (e) {
-      // Seed data not available
-    }
-  }
-  
-  return undefined;
+  return Object.values(getAdminArticlesMap()).find(a => a.slug === slug);
 }
 
 /**
@@ -618,11 +532,11 @@ export async function saveAdminArticle(
   return saved;
 }
 
-export function createAdminArticle(
+export async function createAdminArticle(
   data: Omit<AdminArticle, 'id' | 'updatedAt' | 'wordCount' | 'revisions'>,
   savedById?: string,
   savedByName?: string
-): AdminArticle {
+): Promise<AdminArticle> {
   const article: AdminArticle = {
     ...data,
     id: generateId(),
@@ -733,13 +647,13 @@ export function getTrashedArticles(): TrashedArticle[] {
   return getStorage<TrashedArticle[]>(TRASH_KEY, []);
 }
 
-export function restoreTrashedArticle(trashId: string): AdminArticle | undefined {
+export async function restoreTrashedArticle(trashId: string): Promise<AdminArticle | undefined> {
   const trash = getTrashedArticles();
   const idx = trash.findIndex(t => t.article.id === trashId);
   if (idx === -1) return undefined;
   
   const trashed = trash[idx];
-  const restored = saveAdminArticle(trashed.article, undefined, undefined, 'Restored from trash');
+  const restored = await saveAdminArticle(trashed.article, undefined, undefined, 'Restored from trash');
   
   // Remove from trash
   trash.splice(idx, 1);
@@ -794,7 +708,7 @@ export function getDeletedArticleIds(): string[] {
   return getStorage<string[]>(DELETED_KEY, []);
 }
 
-export function duplicateAdminArticle(id: string): AdminArticle | undefined {
+export async function duplicateAdminArticle(id: string): Promise<AdminArticle | undefined> {
   const source = getAdminArticle(id);
   if (!source) return undefined;
   return createAdminArticle({
@@ -804,7 +718,6 @@ export function duplicateAdminArticle(id: string): AdminArticle | undefined {
     status: 'draft',
     publishedAt: new Date().toISOString(),
     internalNotes: [],
-    revisions: [],
   });
 }
 
@@ -838,12 +751,12 @@ export function deleteInternalNote(articleId: string, noteId: string): void {
 }
 
 // ─── Revision Restore ─────────────────────────────────────────────────────────
-export function restoreRevision(
+export async function restoreRevision(
   articleId: string,
   revisionId: string,
   restoredById: string,
   restoredByName: string
-): AdminArticle | undefined {
+): Promise<AdminArticle | undefined> {
   const article = getAdminArticle(articleId);
   if (!article) return undefined;
   const rev = (article.revisions ?? []).find(r => r.id === revisionId);
@@ -1064,10 +977,15 @@ export function mergeDuplicateAuthors(): { merged: number; articlesUpdated: numb
 }
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
-export function importJsonArticle(jsonArticle: Record<string, unknown>): AdminArticle {
+export async function importJsonArticle(jsonArticle: Record<string, unknown>): Promise<AdminArticle> {
   const authorRaw = (jsonArticle.author ?? {}) as Record<string, unknown>;
+  // Always generate a fresh admin ID so Supabase UUID column is never fed a numeric/seed ID
+  const existingId = String(jsonArticle.id ?? '');
+  const id = existingId.startsWith('admin_') || existingId.match(/^[0-9a-f-]{36}$/i)
+    ? existingId
+    : generateId();
   const article: AdminArticle = {
-    id: String(jsonArticle.id ?? generateId()),
+    id,
     slug: String(jsonArticle.slug ?? ''),
     headline: String(jsonArticle.headline ?? ''),
     dek: String(jsonArticle.dek ?? ''),
@@ -1089,8 +1007,8 @@ export function importJsonArticle(jsonArticle: Record<string, unknown>): AdminAr
     updatedAt: new Date().toISOString(),
     readingTime: Number(jsonArticle.readingTime ?? 1),
     tags: Array.isArray(jsonArticle.tags) ? jsonArticle.tags as string[] : [],
-    status: 'published',
-    priority: 'normal',
+    status: (jsonArticle.status as AdminArticle['status']) || 'published',
+    priority: (jsonArticle.priority as ArticlePriority) || 'normal',
     internalNotes: [],
     revisions: [],
   };

@@ -57,9 +57,9 @@ export default function AdminTrash() {
 
   const refresh = () => setRefreshKey(k => k + 1);
 
-  const handleRestore = () => {
+  const handleRestore = async () => {
     if (!restoreTarget) return;
-    const restored = restoreTrashedArticle(restoreTarget.article.id);
+    const restored = await restoreTrashedArticle(restoreTarget.article.id);
     if (restored) {
       toast.success(`"${restored.headline}" restored`);
       setRestoreTarget(null);

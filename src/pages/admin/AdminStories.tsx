@@ -192,17 +192,42 @@ export default function AdminStories() {
     refresh();
   };
 
-  const handleDuplicate = (article: AdminArticle) => {
-    if (!article.id.startsWith('admin_')) importJsonArticle(article as unknown as Record<string, unknown>);
-    if (duplicateAdminArticle(article.id)) {
+  const handleDuplicate = async (article: AdminArticle) => {
+    let targetId = article.id;
+    if (!article.id.match(/^[0-9a-f-]{36}$/i) && !article.id.startsWith('admin_')) {
+      try {
+        const imported = await importJsonArticle(article as unknown as Record<string, unknown>);
+        targetId = imported.id;
+      } catch {
+        toast.error('Failed to import story. Please try again.');
+        return;
+      }
+    }
+    const duped = await duplicateAdminArticle(targetId);
+    if (duped) {
       toast.success('Story duplicated');
       refresh();
     }
   };
 
-  const handleEdit = (article: AdminArticle) => {
-    if (!article.id.startsWith('admin_')) importJsonArticle(article as unknown as Record<string, unknown>);
-    navigate(`/admin/stories/edit/${article.id}`);
+  const [editLoading, setEditLoading] = useState(false);
+
+  const handleEdit = async (article: AdminArticle) => {
+    // For seed/JSON articles (non-UUID, non-admin_ IDs), import into admin storage first
+    // so the editor can find them. Await so navigation only happens after the article is saved.
+    if (!article.id.match(/^[0-9a-f-]{36}$/i) && !article.id.startsWith('admin_')) {
+      setEditLoading(true);
+      try {
+        const imported = await importJsonArticle(article as unknown as Record<string, unknown>);
+        navigate(`/admin/stories/edit/${imported.id}`);
+      } catch {
+        toast.error('Failed to open story for editing. Please try again.');
+      } finally {
+        setEditLoading(false);
+      }
+    } else {
+      navigate(`/admin/stories/edit/${article.id}`);
+    }
   };
 
   const isOverdue = (a: AdminArticle) =>

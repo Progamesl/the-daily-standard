@@ -328,7 +328,7 @@ export default function AdminStoryEditor() {
       const userName = currentUser?.displayName;
 
       if (isNew || !id) {
-        const created = createAdminArticle(built, userId, userName);
+        const created = await createAdminArticle(built, userId, userName);
         setDirty(false);
         setLastSaved(new Date());
         setArticle(created);
@@ -403,9 +403,9 @@ export default function AdminStoryEditor() {
   };
 
   // Revisions
-  const handleRestoreRevision = () => {
+  const handleRestoreRevision = async () => {
     if (!restoreTarget || !id) return;
-    const restored = restoreRevision(id, restoreTarget.id, currentUser?.id ?? '', currentUser?.displayName ?? '');
+    const restored = await restoreRevision(id, restoreTarget.id, currentUser?.id ?? '', currentUser?.displayName ?? '');
     if (restored) {
       setArticle(restored);
       setForm(prev => ({ ...prev, headline: restored.headline, body: restored.body, status: restored.status }));
