@@ -376,6 +376,8 @@ export function stripBase64ImagesFromHtml(html: string): string {
 let supabaseArticlesCache: Record<string, AdminArticle> | null = null;
 let supabaseArticlesCacheTime = 0;
 const SUPABASE_CACHE_TTL = 10 * 60 * 1000; // 10 min (public pages only — admin uses DataSyncContext)
+/** localStorage key for persisting the last-fetch timestamp across page loads */
+const LIST_FETCH_TIME_KEY = 'octagon_list_fetch_ts';
 
 /**
  * HEADLESS CMS: Get articles from Supabase (single source of truth)
@@ -387,7 +389,10 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
   // HEADLESS CMS: Supabase is source of truth - prioritize cache
   if (typeof window !== 'undefined') {
     const now = Date.now();
-    const useCache = supabaseArticlesCache && (now - supabaseArticlesCacheTime) < SUPABASE_CACHE_TTL;
+    // Check both in-memory AND persisted timestamp so refreshes/new tabs skip the fetch
+    const persistedFetchTime = Number(localStorage.getItem(LIST_FETCH_TIME_KEY) || '0');
+    const lastFetch = Math.max(supabaseArticlesCacheTime, persistedFetchTime);
+    const useCache = (now - lastFetch) < SUPABASE_CACHE_TTL;
     
     if (!useCache) {
       // Fetch from Supabase in background (non-blocking for instant render)
@@ -410,6 +415,7 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
               // Update localStorage with merged data (cache for offline)
               try {
                 localStorage.setItem(ARTICLES_KEY, JSON.stringify(merged));
+                localStorage.setItem(LIST_FETCH_TIME_KEY, String(now)); // Persist timestamp
                 storageCache.delete(ARTICLES_KEY);
                 // Trigger global event so pages re-render with fresh data
                 window.dispatchEvent(new CustomEvent('supabase-data-loaded'));
@@ -505,9 +511,10 @@ export async function saveAdminArticle(
       
       if (success) {
         console.log('✅ Article saved to Supabase (HEADLESS CMS):', saved.id);
-        // Invalidate cache so next read gets fresh data
+        // Invalidate both in-memory and persisted cache so next public visitor gets fresh data
         supabaseArticlesCache = null;
         supabaseArticlesCacheTime = 0;
+        try { localStorage.removeItem(LIST_FETCH_TIME_KEY); } catch { /* non-fatal */ }
         // Trigger global refresh event so all pages know to re-render
         window.dispatchEvent(new CustomEvent('supabase-article-saved', { detail: { articleId: saved.id } }));
       } else {
