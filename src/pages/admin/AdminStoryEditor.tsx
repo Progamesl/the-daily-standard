@@ -180,6 +180,10 @@ export default function AdminStoryEditor() {
         } else {
           applyArticleToForm(a);
         }
+      } else if (isSupabaseConfigured()) {
+        // Article not in local cache — Supabase may not have synced yet.
+        // Try fetching directly from Supabase before giving up.
+        setLoadingFull(true);
       } else {
         toast.error('Article not found');
         navigate('/admin/stories');
@@ -206,23 +210,32 @@ export default function AdminStoryEditor() {
     setLoaded(true);
   }, [id, navigate]);
 
-  // When Supabase and list-only article (empty body), fetch full article to reduce egress
+  // When Supabase and list-only article (empty body), fetch full article to reduce egress.
+  // Also handles the case where the article wasn't in local cache at all.
   useEffect(() => {
     if (!id || !loadingFull || !isSupabaseConfigured()) return;
     let cancelled = false;
     getArticleByIdFromSupabase(id)
       .then((full) => {
-        if (cancelled || !full) return;
+        if (cancelled) return;
+        if (!full) {
+          toast.error('Article not found');
+          navigate('/admin/stories');
+          return;
+        }
         applyArticleToForm(full);
       })
       .catch(() => {
-        if (!cancelled) toast.error('Failed to load full article');
+        if (!cancelled) {
+          toast.error('Failed to load article. Check your connection and try again.');
+          navigate('/admin/stories');
+        }
       })
       .finally(() => {
         if (!cancelled) setLoadingFull(false);
       });
     return () => { cancelled = true; };
-  }, [id, loadingFull]);
+  }, [id, loadingFull, navigate]);
 
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(prev => {
