@@ -98,15 +98,13 @@ export function Masthead() {
       >
         {/* Top utility bar */}
         <div
-          className={cn(
-            "container-newspaper overflow-hidden transition-all duration-300 ease-in-out",
-            isScrolled ? "max-h-0 opacity-0 mt-0 mb-0" : "max-h-12 opacity-100"
-          )}
+          className="container-newspaper grid overflow-hidden"
           style={{
-            transitionProperty: 'max-height, opacity, margin',
-            transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            gridTemplateRows: isScrolled ? '0fr' : '1fr',
+            transition: 'grid-template-rows 300ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
+          <div className="min-h-0 overflow-hidden">
           <div className="flex items-center justify-between py-2 text-xs">
             <div className="flex items-center gap-4 text-muted-foreground">
               <span>{formatDate(today)}</span>
@@ -124,19 +122,16 @@ export function Masthead() {
               <Link to="/advertise" className="font-semibold hover:text-foreground transition-colors" style={{ color: "#8B1A1A" }}>Advertise</Link>
             </div>
           </div>
+          </div>
         </div>
 
         {/* Main masthead */}
         <div className="container-newspaper">
           <div 
             className={cn(
-              "flex items-center justify-between transition-all duration-300 ease-in-out",
+              "flex items-center justify-between transition-[padding] duration-300 ease-in-out",
               isScrolled ? "py-2" : "py-4"
             )}
-            style={{
-              transitionProperty: 'padding',
-              transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
           >
             {/* Left: Mobile menu + Search */}
             <div className="flex items-center gap-1 sm:gap-2 w-20 sm:w-32">
@@ -156,11 +151,12 @@ export function Masthead() {
               </button>
             </div>
 
-            {/* Center: Logo/Wordmark — only transform animates (GPU); height snaps to avoid reflow stutter */}
+            {/* Center: Logo/Wordmark */}
             <Link
               to="/"
               className={cn(
                 "flex-1 flex flex-col items-center justify-end min-w-0 overflow-hidden origin-center",
+                "transition-[height] duration-300 ease-out",
                 isScrolled ? "h-9 sm:h-10" : "h-24 sm:h-28 md:h-36"
               )}
             >
