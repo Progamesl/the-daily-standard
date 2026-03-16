@@ -146,11 +146,21 @@ export async function getArticleByIdFromSupabase(id: string): Promise<AdminArtic
   }
 }
 
+// Per-article body cache — avoids re-fetching on navigate-away-and-back
+const articleSlugCache = new Map<string, { article: AdminArticle; fetchedAt: number }>();
+const ARTICLE_BODY_CACHE_TTL = 10 * 60 * 1000; // 10 min
+
 /** Fetch one full article by slug (for public article page). Reduces egress vs loading all bodies. */
 export async function getArticleBySlugFromSupabase(
   slug: string,
   options?: { publishedOnly?: boolean }
 ): Promise<AdminArticle | null> {
+  const cacheKey = `${slug}:${options?.publishedOnly ?? true}`;
+  const cached = articleSlugCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < ARTICLE_BODY_CACHE_TTL) {
+    return cached.article;
+  }
+
   const client = await initSupabase();
   if (!client) return null;
   try {
@@ -160,9 +170,20 @@ export async function getArticleBySlugFromSupabase(
     }
     const { data, error } = await q.maybeSingle();
     if (error || !data) return null;
-    return rowToAdminArticle(data, true);
+    const article = rowToAdminArticle(data, true);
+    articleSlugCache.set(cacheKey, { article, fetchedAt: Date.now() });
+    return article;
   } catch {
     return null;
+  }
+}
+
+/** Clear article body cache (call after saving an article so editors see updated content). */
+export function clearArticleBodyCache(slug?: string): void {
+  if (slug) {
+    articleSlugCache.forEach((_, key) => { if (key.startsWith(`${slug}:`)) articleSlugCache.delete(key); });
+  } else {
+    articleSlugCache.clear();
   }
 }
 
@@ -218,6 +239,7 @@ export async function saveArticleToSupabase(article: AdminArticle): Promise<bool
       throw error;
     }
     console.log('✅ Article saved to Supabase successfully');
+    clearArticleBodyCache(article.slug); // Bust cache so editors see updates immediately
     return true;
   } catch (error) {
     console.error('❌ Error saving article to Supabase:', error);

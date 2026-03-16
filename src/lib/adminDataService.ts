@@ -375,7 +375,7 @@ export function stripBase64ImagesFromHtml(html: string): string {
 // ─── Article CRUD ─────────────────────────────────────────────────────────────
 let supabaseArticlesCache: Record<string, AdminArticle> | null = null;
 let supabaseArticlesCacheTime = 0;
-const SUPABASE_CACHE_TTL = 60 * 1000; // 1 min
+const SUPABASE_CACHE_TTL = 10 * 60 * 1000; // 10 min (public pages only — admin uses DataSyncContext)
 
 /**
  * HEADLESS CMS: Get articles from Supabase (single source of truth)

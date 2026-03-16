@@ -47,13 +47,12 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AdminAuthProvider>
-        <DataSyncProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
           <ScrollToTop />
           <Routes>
-            {/* Public routes */}
+            {/* Public routes — no DataSyncProvider here (saves Supabase egress) */}
             <Route path="/" element={<Index />} />
             <Route path="/article/:slug" element={<ArticlePage />} />
             <Route path="/section/:slug" element={<SectionPage />} />
@@ -64,9 +63,9 @@ const App = () => (
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/secretstuff" element={<GamesPage />} />
 
-            {/* Admin routes */}
+            {/* Admin routes — DataSyncProvider only here */}
             <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<AdminLayout />}>
+            <Route path="/admin" element={<DataSyncProvider><AdminLayout /></DataSyncProvider>}>
               <Route index element={<AdminDashboard />} />
               <Route path="stories" element={<AdminStories />} />
               <Route path="stories/new" element={<AdminStoryEditor />} />
@@ -85,7 +84,6 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-        </DataSyncProvider>
       </AdminAuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
