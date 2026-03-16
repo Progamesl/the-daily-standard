@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import {
   LayoutDashboard, FileText, Users, LogOut, ExternalLink,
   ChevronLeft, ChevronRight, Newspaper, Settings, Activity,
-  UserCog, Trash2, BookOpen, BarChart3, Shield, Gamepad2,
+  UserCog, Trash2, BookOpen, BarChart3, Shield, Gamepad2, MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -14,6 +14,7 @@ import { ROLE_LABELS, ROLE_COLORS, canDo } from '@/lib/adminUserService';
 const NAV_ITEMS = [
   { label: 'Dashboard',  path: '/admin',          icon: LayoutDashboard, exact: true,  permission: null },
   { label: 'Stories',    path: '/admin/stories',   icon: FileText,        exact: false, permission: null },
+  { label: 'Comments',   path: '/admin/comments',  icon: MessageSquare,   exact: true,  permission: null },
   { label: 'Analytics', path: '/admin/analytics', icon: BarChart3,       exact: true,  permission: null },
   { label: 'PDF Import', path: '/admin/pdf-import', icon: BookOpen,        exact: true,  permission: null },
   { label: 'Security',   path: '/admin/security',   icon: Shield,          exact: true,  permission: 'super_admin_only' as const },

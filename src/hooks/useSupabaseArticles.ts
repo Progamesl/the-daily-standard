@@ -22,7 +22,7 @@ interface UseSupabaseArticlesResult {
 let globalArticlesCache: Record<string, AdminArticle> | null = null;
 let globalCacheTime = 0;
 let globalLoadingPromise: Promise<Record<string, AdminArticle>> | null = null;
-const CACHE_TTL = 60 * 60 * 1000; // 1 hr — keeps egress down; refetch on save still works
+const CACHE_TTL = 60 * 1000; // 1 min
 
 async function fetchArticlesFromSupabase(): Promise<Record<string, AdminArticle>> {
   // If already loading, return the same promise

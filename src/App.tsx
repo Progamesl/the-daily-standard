@@ -31,6 +31,7 @@ import AdminTrash from "./pages/admin/AdminTrash";
 import AdminPdfImport from "./pages/admin/AdminPdfImport";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSecurity from "./pages/admin/AdminSecurity";
+import AdminComments from "./pages/admin/AdminComments";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,7 @@ const App = () => (
               <Route path="pdf-import" element={<AdminPdfImport />} />
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="security" element={<AdminSecurity />} />
+              <Route path="comments" element={<AdminComments />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
