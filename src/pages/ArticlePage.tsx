@@ -24,6 +24,7 @@ import { useState, useEffect } from "react";
 import { addToHistory } from "@/components/user/UserMenu";
 import { CommentSection } from "@/components/article/CommentSection";
 import { useArticleBySlug } from "@/hooks/useArticleBySlug";
+import { AdSlot } from "@/components/ads/AdSlot";
 
 export default function ArticlePage() {
   // Subscribe to Supabase sync — re-renders automatically when fresh data arrives
@@ -290,8 +291,10 @@ export default function ArticlePage() {
 
             {/* Sidebar */}
             <aside className="lg:col-span-4">
-              <div className="sticky top-24">
+              <div className="sticky top-24 space-y-6">
+                <AdSlot placement="sidebar" />
                 <MostPopular articles={mostPopular} />
+                <AdSlot placement="inline" />
               </div>
             </aside>
           </div>

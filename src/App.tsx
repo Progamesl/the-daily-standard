@@ -33,6 +33,7 @@ import AdminPdfImport from "./pages/admin/AdminPdfImport";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSecurity from "./pages/admin/AdminSecurity";
 import AdminComments from "./pages/admin/AdminComments";
+import AdminAds from "./pages/admin/AdminAds";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,7 @@ const App = () => (
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="security" element={<AdminSecurity />} />
               <Route path="comments" element={<AdminComments />} />
+              <Route path="ads" element={<AdminAds />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
