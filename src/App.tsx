@@ -14,6 +14,7 @@ import SubscribePage from "./pages/SubscribePage";
 import StaffPage from "./pages/StaffPage";
 import NotFound from "./pages/NotFound";
 import GamesPage from "./pages/GamesPage";
+import AdvertisePage from "./pages/AdvertisePage";
 
 // Admin
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/subscribe" element={<SubscribePage />} />
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/secretstuff" element={<GamesPage />} />
+            <Route path="/advertise" element={<AdvertisePage />} />
 
             {/* Admin routes — DataSyncProvider only here */}
             <Route path="/admin/login" element={<AdminLogin />} />

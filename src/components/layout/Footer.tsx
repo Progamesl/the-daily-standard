@@ -33,6 +33,7 @@ const footerSections = [
       { name: "About", href: "/about" },
       { name: "Contact", href: "/contact" },
       { name: "Staff", href: "/staff" },
+      { name: "Advertise", href: "/advertise" },
     ],
   },
 ];

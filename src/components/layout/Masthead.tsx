@@ -120,6 +120,8 @@ export function Masthead() {
               <Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">About</Link>
               <span className="text-muted-foreground">|</span>
               <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
+              <span className="text-muted-foreground">|</span>
+              <Link to="/advertise" className="font-semibold hover:text-foreground transition-colors" style={{ color: "#8B1A1A" }}>Advertise</Link>
             </div>
           </div>
         </div>
