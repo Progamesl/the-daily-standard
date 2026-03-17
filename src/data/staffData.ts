@@ -28,29 +28,6 @@ export const ALL_MEMBERS: StaffMember[] = [
     bio: "Senior Rehan Afzal keeps himself occupied by participating in mock trial, taking photos and most importantly, managing his sidekick, sophomore Sid Shukla. His busy schedule includes long hours spent at school, and even night shifts due to procrastinating the day’s homework. After a hard day of “work”, Rehan likes to relax by going to the driving range with his dad, or hitting the gym and benching 405 lbs. Contact him at rafzal26@scdsstudent.org.",
     email: "rafzal26@scdsstudent.org",
   },
-  {
-    name: "Eesha Dhawan",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_5652069_971.jpg?resize=200,200",
-    role: "Editor-in-Chief",
-    primarySection: "Hidden",
-    altSections: [],
-  },
-  {
-    name: "Anisha Mondal",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7137947_730.jpg?resize=200,200",
-    role: "Editor-in-Chief",
-    primarySection: "Hidden",
-    altSections: [],
-    tags: ["Page Editor"],
-  },
-  {
-    name: "Zema Nasirov",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_4613340_941.jpg?resize=200,200",
-    role: "Editor-in-Chief",
-    primarySection: "Hidden",
-    altSections: [],
-    tags: ["Page Editor", "Photographer", "Graphic Artist"],
-  },
 
   // ── Section Editors ───────────────────────────────────────────────────────
   {
