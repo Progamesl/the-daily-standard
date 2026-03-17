@@ -31,7 +31,7 @@ import { articles as jsonArticles } from '@/data/seedData';
 import { cn } from '@/lib/utils';
 
 const SECTION_NAMES: Record<string, string> = {
-  us: 'News', arts: 'Arts', opinion: 'Opinion',
+  us: 'News', arts: 'Arts & Entertainment', opinion: 'Opinion',
   editorial: 'Editorial', sports: 'Sports',
 };
 

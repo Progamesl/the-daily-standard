@@ -561,10 +561,15 @@ export default function AboutPage() {
             <div>
               <p className="about-font-body text-xs uppercase tracking-[0.2em] text-white/40 mb-5">Sections</p>
               <ul className="flex flex-col gap-3">
-                {["News", "Opinion", "Arts", "Sports"].map(s => (
-                  <li key={s}>
-                    <Link to={`/section/${s.toLowerCase()}`} className="about-font-body text-white/60 hover:text-white text-sm transition-colors">
-                      {s}
+                {[
+                  { name: "News", slug: "us" },
+                  { name: "Opinion", slug: "opinion" },
+                  { name: "Arts & Entertainment", slug: "arts" },
+                  { name: "Sports", slug: "sports" },
+                ].map(({ name, slug }) => (
+                  <li key={slug}>
+                    <Link to={`/section/${slug}`} className="about-font-body text-white/60 hover:text-white text-sm transition-colors">
+                      {name}
                     </Link>
                   </li>
                 ))}

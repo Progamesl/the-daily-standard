@@ -17,9 +17,9 @@ const footerSections = [
     ],
   },
   {
-    title: "Arts & Life",
+    title: "Arts & Entertainment",
     links: [
-      { name: "Arts", href: "/section/arts" },
+      { name: "Arts & Entertainment", href: "/section/arts" },
       { name: "Sports", href: "/section/sports" },
       { name: "Science", href: "/section/science" },
       { name: "Health", href: "/section/health" },
