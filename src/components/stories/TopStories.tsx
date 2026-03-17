@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Article, formatTimestamp, getSectionBySlug } from "@/data/seedData";
 import { cn } from "@/lib/utils";
-import { enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
+import { getImageOrNull } from "@/lib/imageHelpers";
 
 interface TopStoriesProps {
   articles: Article[];
@@ -15,18 +15,22 @@ export function TopStories({ articles, className }: TopStoriesProps) {
         Top Stories
       </h2>
       <div className="space-y-5">
-        {articles.map((article) => (
+        {articles.map((article) => {
+          const resolvedImage = getImageOrNull(article.image, article.images);
+          return (
           <article key={article.id} className="group border-b border-border last:border-0 pb-5 last:pb-0">
             <Link to={`/article/${article.slug}`} className="flex gap-4">
-                            <figure className="flex-shrink-0 w-24 h-24 md:w-28 md:h-28 rounded-lg overflow-hidden bg-muted shadow-md">
-                              <img
-                                src={enhanceArticleImage(article.image, article.headline, article.section, article.dek, article.images)}
-                                alt={article.headline}
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                loading="lazy"
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
-                              />
-                            </figure>
+              {resolvedImage && (
+                <figure className="flex-shrink-0 w-24 h-24 md:w-28 md:h-28 rounded-lg overflow-hidden bg-muted shadow-md">
+                  <img
+                    src={resolvedImage}
+                    alt={article.headline}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    loading="lazy"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                </figure>
+              )}
               <div className="flex-1 min-w-0">
                 <span className="label text-[10px] text-accent">{getSectionBySlug(article.section)?.name ?? article.section}</span>
                 <h3 className="font-serif text-sm md:text-base font-semibold leading-snug text-balance group-hover:text-accent transition-colors mt-0.5 mb-1 line-clamp-2">
@@ -39,7 +43,7 @@ export function TopStories({ articles, className }: TopStoriesProps) {
               </div>
             </Link>
           </article>
-        ))}
+        );})}
       </div>
     </aside>
   );

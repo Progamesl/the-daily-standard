@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Article, formatTimestamp, getSectionBySlug } from "@/data/seedData";
 import { cn } from "@/lib/utils";
-import { enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
+import { getImageOrNull } from "@/lib/imageHelpers";
 
 interface StoryCardProps {
   article: Article;
@@ -21,19 +21,20 @@ export function StoryCard({
   className,
 }: StoryCardProps) {
   const { slug, headline, dek, image, images, imageCaption, section, author, publishedAt, readingTime } = article;
+  const resolvedImage = getImageOrNull(image, images);
 
   if (variant === "lead") {
     return (
       <article className={cn("group", className)}>
         <Link to={`/article/${slug}`} className="block">
-          {showImage && (
+          {showImage && resolvedImage && (
             <figure className="mb-4 overflow-hidden bg-muted">
               <img
-                src={enhanceArticleImage(image, headline, section, dek, images)}
+                src={resolvedImage}
                 alt={imageCaption || headline}
                 className="w-full aspect-[16/10] object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                 loading="eager"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
               />
               {imageCaption && <figcaption className="caption mt-2">{imageCaption}</figcaption>}
             </figure>
@@ -63,14 +64,14 @@ export function StoryCard({
     return (
       <article className={cn("group", className)}>
         <Link to={`/article/${slug}`} className="block">
-          {showImage && (
+          {showImage && resolvedImage && (
             <figure className="overflow-hidden bg-muted">
               <img
-                src={enhanceArticleImage(image, headline, section, dek, images)}
+                src={resolvedImage}
                 alt={imageCaption || headline}
                 className="w-full aspect-[3/2] object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 loading="lazy"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
               />
             </figure>
           )}
@@ -97,14 +98,14 @@ export function StoryCard({
     return (
       <article className={cn("group", className)}>
         <Link to={`/article/${slug}`} className="flex gap-4">
-          {showImage && (
+          {showImage && resolvedImage && (
             <figure className="flex-shrink-0 w-28 h-28 md:w-32 md:h-24 rounded-lg overflow-hidden bg-muted">
               <img
-                src={enhanceArticleImage(image, headline, section, dek, images)}
+                src={resolvedImage}
                 alt={imageCaption || headline}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).src = SITE_PLACEHOLDER; }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
               />
             </figure>
           )}
