@@ -85,8 +85,25 @@ export function useArticleBySlug(
       };
     }
 
-    // Public: R2 first (no Supabase), then seed
+    // Public: R2 first → Supabase fallback → seed fallback
     if (!isR2ArticlesConfigured()) {
+      // No R2 — try Supabase directly, then seed
+      if (isSupabaseConfigured()) {
+        let cancelled = false;
+        setLoading(true);
+        setError(null);
+        getArticleBySlugFromSupabase(slug, { publishedOnly: true })
+          .then((admin) => {
+            if (cancelled) return;
+            setArticle(admin ? adminToArticle(admin) : (getPublicArticleBySlug(slug) ?? undefined));
+            setError(null);
+          })
+          .catch(() => {
+            if (!cancelled) setArticle(getPublicArticleBySlug(slug) ?? undefined);
+          })
+          .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+      }
       setArticle(getPublicArticleBySlug(slug) ?? undefined);
       setLoading(false);
       return;
@@ -97,10 +114,27 @@ export function useArticleBySlug(
     setLoading(true);
     setError(null);
     getArticleBySlugFromR2(slug)
-      .then((fromR2) => {
+      .then(async (fromR2) => {
         if (cancelled) return;
-        setArticle(fromR2 ?? getPublicArticleBySlug(slug) ?? undefined);
-        setError(null);
+        if (fromR2) {
+          setArticle(fromR2);
+          setError(null);
+          return;
+        }
+        // Article not in R2 yet — fall back to Supabase so newly published articles appear
+        if (isSupabaseConfigured()) {
+          try {
+            const fromSupabase = await getArticleBySlugFromSupabase(slug, { publishedOnly: true });
+            if (!cancelled) {
+              setArticle(fromSupabase ? adminToArticle(fromSupabase) : (getPublicArticleBySlug(slug) ?? undefined));
+              setError(null);
+            }
+          } catch {
+            if (!cancelled) setArticle(getPublicArticleBySlug(slug) ?? undefined);
+          }
+        } else {
+          setArticle(getPublicArticleBySlug(slug) ?? undefined);
+        }
       })
       .catch((err) => {
         if (!cancelled) {

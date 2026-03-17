@@ -531,17 +531,24 @@ export async function saveAdminArticle(
     }
   }
 
-  // Update localStorage cache (for offline/performance)
-  articles[saved.id] = saved;
-  setStorage(ARTICLES_KEY, articles);
+  // Update localStorage cache (for offline/performance — non-fatal if quota exceeded)
+  try {
+    articles[saved.id] = saved;
+    setStorage(ARTICLES_KEY, articles);
+  } catch (storageErr) {
+    // localStorage quota exceeded — Supabase already saved successfully so this is safe to ignore.
+    console.warn('⚠️ localStorage quota exceeded while caching article. Supabase save was successful.', storageErr);
+  }
 
   // Un-delete if it was previously deleted
-  const deleted = getDeletedArticleIds();
-  const idx = deleted.indexOf(saved.id);
-  if (idx > -1) {
-    deleted.splice(idx, 1);
-    setStorage(DELETED_KEY, deleted);
-  }
+  try {
+    const deleted = getDeletedArticleIds();
+    const idx = deleted.indexOf(saved.id);
+    if (idx > -1) {
+      deleted.splice(idx, 1);
+      setStorage(DELETED_KEY, deleted);
+    }
+  } catch { /* non-fatal */ }
 
   return saved;
 }
