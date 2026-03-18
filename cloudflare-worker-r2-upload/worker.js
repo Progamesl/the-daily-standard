@@ -4,7 +4,12 @@
  * Set R2_PUBLIC_BASE_URL in wrangler.toml (e.g. https://pub-xxx.r2.dev/octagon-images).
  */
 
-const ALLOWED_ORIGINS = ['https://scdsoctagon.net', 'http://localhost:5173', 'http://127.0.0.1:5173'];
+const ALLOWED_ORIGINS = [
+  'https://scdsoctagon.net',
+  'https://www.scdsoctagon.net',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+];
 
 function corsHeaders(origin) {
   const o = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];

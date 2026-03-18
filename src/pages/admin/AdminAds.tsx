@@ -16,32 +16,34 @@ const PLACEMENTS: { value: Ad['placement']; label: string; desc: string }[] = [
   { value: 'inline',      label: 'Inline (300×250)',     desc: 'Between article sections' },
 ];
 
-const R2_UPLOAD_URL = import.meta.env.VITE_R2_UPLOAD_URL as string | undefined;
-const R2_SECRET     = import.meta.env.VITE_R2_SECRET     as string | undefined;
-
 async function uploadAdImage(file: File): Promise<string> {
-  if (R2_UPLOAD_URL) {
-    const fd = new FormData();
-    fd.append('file', file);
-    const headers: Record<string, string> = {};
-    if (R2_SECRET) headers['X-R2-Secret'] = R2_SECRET;
-    const res = await fetch(R2_UPLOAD_URL, { method: 'POST', body: fd, headers });
-    if (!res.ok) throw new Error('R2 upload failed');
+  // Use server-side API (no CORS issues, uploads directly to R2)
+  try {
+    const res = await fetch('/api/upload-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type || 'image/jpeg',
+        'X-File-Name': file.name || 'ad.jpg',
+      },
+      body: file,
+    });
+    if (!res.ok) throw new Error(`Server upload failed (${res.status})`);
     const json = await res.json();
-    if (!json.url) throw new Error('No URL returned from R2');
+    if (!json.url) throw new Error('No URL returned');
     return json.url;
+  } catch {
+    // Fallback: Imgur
+    const fd = new FormData();
+    fd.append('image', file);
+    const res = await fetch('https://api.imgur.com/3/image', {
+      method: 'POST',
+      headers: { Authorization: 'Client-ID 546c25a59c58ad7' },
+      body: fd,
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error('Imgur upload failed');
+    return json.data.link;
   }
-  // Fallback: Imgur
-  const fd = new FormData();
-  fd.append('image', file);
-  const res = await fetch('https://api.imgur.com/3/image', {
-    method: 'POST',
-    headers: { Authorization: 'Client-ID 546c25a59c58ad7' },
-    body: fd,
-  });
-  const json = await res.json();
-  if (!json.success) throw new Error('Imgur upload failed');
-  return json.data.link;
 }
 
 const EMPTY_FORM = {
