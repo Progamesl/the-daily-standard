@@ -112,18 +112,20 @@ export default async function handler(req, res) {
       credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     });
 
+    // Keys must match VITE_R2_PUBLIC_BASE_URL which ends with /octagon-images
+    // So files live at octagon-images/articles/... inside the bucket
     const cacheControl = 'public, max-age=30, stale-while-revalidate=60';
     await Promise.all([
       s3.send(new PutObjectCommand({
         Bucket: R2_BUCKET,
-        Key: 'articles/articles.json',
+        Key: 'octagon-images/articles/articles.json',
         Body: JSON.stringify(list),
         ContentType: 'application/json',
         CacheControl: cacheControl,
       })),
       s3.send(new PutObjectCommand({
         Bucket: R2_BUCKET,
-        Key: 'articles/articles-by-slug.json',
+        Key: 'octagon-images/articles/articles-by-slug.json',
         Body: JSON.stringify(bySlug),
         ContentType: 'application/json',
         CacheControl: cacheControl,
