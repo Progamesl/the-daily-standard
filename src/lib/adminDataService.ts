@@ -522,6 +522,10 @@ export async function saveAdminArticle(
         supabaseArticlesCache = null;
         supabaseArticlesCacheTime = 0;
         try { localStorage.removeItem(LIST_FETCH_TIME_KEY); } catch { /* non-fatal */ }
+        // Trigger R2 sync so public site gets fresh data instantly (fire and forget)
+        fetch('/api/sync-r2', { method: 'POST' }).catch(err =>
+          console.warn('⚠️ R2 sync trigger failed (non-fatal — run npm run publish:r2 manually):', err)
+        );
         // Trigger global refresh event so all pages know to re-render
         window.dispatchEvent(new CustomEvent('supabase-article-saved', { detail: { articleId: saved.id } }));
       } else {

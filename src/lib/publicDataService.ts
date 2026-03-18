@@ -1,10 +1,17 @@
 /**
  * Public Data Service
- * Unified data layer that merges seed articles with admin-created articles.
- * This ensures ALL changes made in the admin panel are reflected on the public site.
  *
- * Priority: Admin articles override seed articles if they share the same ID.
- * Only published articles are shown on the public site.
+ * Unified data layer for the public-facing site.
+ *
+ * Data priority (highest → lowest):
+ *   1. R2 cache — set by DataSyncContext after fetching articles/articles.json from R2.
+ *      R2 is the zero-egress source of truth for the public site.
+ *   2. Admin localStorage — for offline fallback / devices without R2 data yet.
+ *   3. Seed articles (octagonData.json) — historical WordPress export, always available.
+ *
+ * When the CMS publishes an article → Supabase saves → /api/sync-r2 runs →
+ * R2 JSON files update → DataSyncContext picks up the change → public site
+ * re-renders with fresh data — all without a redeploy, across all devices.
  */
 
 import { articles as seedArticles, type Article, type Author } from '@/data/seedData';
@@ -13,6 +20,33 @@ import {
   type AdminArticle,
   type AdminAuthor,
 } from '@/lib/adminDataService';
+import type { R2ArticleListItem } from '@/lib/r2Articles';
+
+// ─── R2 Cache (populated by DataSyncContext) ──────────────────────────────────
+
+let r2ArticleList: Article[] | null = null;
+const r2FeaturedIds = new Set<string>();
+const r2BreakingIds = new Set<string>();
+
+/**
+ * Called by DataSyncContext after it fetches article list from R2.
+ * Triggers a re-render of all public pages via syncVersion bump.
+ */
+export function setR2ArticleCache(items: R2ArticleListItem[]): void {
+  r2ArticleList = items.map(i => i.article);
+  r2FeaturedIds.clear();
+  r2BreakingIds.clear();
+  items.forEach(i => {
+    if (i.featured) r2FeaturedIds.add(String(i.article.id));
+    if (i.priority === 'breaking') r2BreakingIds.add(String(i.article.id));
+  });
+}
+
+export function clearR2ArticleCache(): void {
+  r2ArticleList = null;
+  r2FeaturedIds.clear();
+  r2BreakingIds.clear();
+}
 
 // ─── Convert AdminArticle → Article ───────────────────────────────────────────
 function adminToPublic(admin: AdminArticle): Article {
@@ -42,24 +76,31 @@ function adminToPublic(admin: AdminArticle): Article {
   };
 }
 
-// ─── Merge Seed + Admin Articles ───────────────────────────────────────────────
-function mergeAllArticles(): Article[] {
-  const map = new Map<string, Article>();
-  const deletedIds = new Set(getDeletedArticleIds().map(String));
+// ─── Merge Seed + Admin/R2 Articles ──────────────────────────────────────────
 
-  // First, add all seed articles (excluding deleted ones)
+function mergeAllArticles(): Article[] {
+  const deletedIds = new Set(getDeletedArticleIds().map(String));
+  const map = new Map<string, Article>();
+
+  // Base layer: seed articles (always available, historical WordPress export)
   seedArticles.forEach(seed => {
     if (!deletedIds.has(String(seed.id))) {
       map.set(String(seed.id), seed);
     }
   });
 
-  // Then, override with admin articles (only published ones, excluding deleted)
-  getAdminArticlesList()
-    .filter(a => a.status === 'published' && !deletedIds.has(a.id))
-    .forEach(admin => {
-      map.set(admin.id, adminToPublic(admin));
-    });
+  if (r2ArticleList !== null) {
+    // R2 is available — use it as source of truth for CMS articles.
+    // R2 articles override seed articles for the same ID/slug.
+    r2ArticleList
+      .filter(a => !deletedIds.has(String(a.id)))
+      .forEach(a => map.set(String(a.id), a));
+  } else {
+    // R2 not loaded yet — fall back to localStorage admin articles.
+    getAdminArticlesList()
+      .filter(a => a.status === 'published' && !deletedIds.has(a.id))
+      .forEach(admin => map.set(admin.id, adminToPublic(admin)));
+  }
 
   return Array.from(map.values());
 }
@@ -91,38 +132,44 @@ export function getLatestPublicArticles(count: number): Article[] {
 }
 
 export function getFeaturedPublicArticle(): Article | undefined {
-  // First, check for manually featured articles (published only)
+  if (r2ArticleList !== null) {
+    // Use R2 featured metadata
+    const featured = r2ArticleList
+      .filter(a => r2FeaturedIds.has(String(a.id)))
+      .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+    if (featured.length > 0) return featured[0];
+    return getLatestPublicArticles(1)[0];
+  }
+
+  // Fallback: check admin articles for featured flag
   const adminArticles = getAdminArticlesList()
     .filter(a => a.status === 'published' && a.featured === true)
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  
-  if (adminArticles.length > 0) {
-    return adminToPublic(adminArticles[0]);
-  }
-  
-  // Fallback to most recent published article
-  const latest = getLatestPublicArticles(1);
-  return latest[0];
+  if (adminArticles.length > 0) return adminToPublic(adminArticles[0]);
+  return getLatestPublicArticles(1)[0];
 }
 
 export function getBreakingPublicNews(count: number): Article[] {
-  const adminArticles = getAdminArticlesList()
+  if (r2ArticleList !== null) {
+    return r2ArticleList
+      .filter(a => r2BreakingIds.has(String(a.id)))
+      .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+      .slice(0, count);
+  }
+
+  // Fallback: check admin articles for breaking priority
+  return getAdminArticlesList()
     .filter(a => a.status === 'published' && a.priority === 'breaking')
-    .map(adminToPublic);
-  
-  // Sort by published date, newest first
-  return adminArticles
+    .map(adminToPublic)
     .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
     .slice(0, count);
 }
 
 export function getMostPopularPublic(count: number): Article[] {
-  // For now, return latest. In production, this would use view counts.
   return getLatestPublicArticles(count);
 }
 
 export function getEditorsPicksPublic(count: number): Article[] {
-  // For now, return latest. In production, this would use editor curation.
   return getLatestPublicArticles(count);
 }
 
@@ -138,7 +185,6 @@ import { authors as seedAuthors } from '@/data/seedData';
 import { getAdminAuthorsList } from '@/lib/adminDataService';
 
 function mergeAllAuthors(): Author[] {
-  // First pass: deduplicate by ID (admin authors override seed authors)
   const byId = new Map<string, Author>();
 
   seedAuthors.forEach(seed => {
@@ -157,18 +203,15 @@ function mergeAllAuthors(): Author[] {
     });
   });
 
-  // Second pass: deduplicate by normalized name (case-insensitive, trimmed)
-  // If multiple authors have the same name, keep only the first one encountered
   const result: Author[] = [];
   const seenNames = new Set<string>();
-  
+
   Array.from(byId.values()).forEach(author => {
     const normalizedName = author.name.trim().toLowerCase();
     if (!seenNames.has(normalizedName)) {
       seenNames.add(normalizedName);
       result.push(author);
     }
-    // Skip if name already seen (duplicate name, different ID)
   });
 
   return result;
