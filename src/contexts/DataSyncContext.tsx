@@ -64,15 +64,19 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
 
   // ── Public sync: R2 → publicDataService cache ───────────────────────────────
   const runR2Sync = useCallback(async () => {
-    if (!isR2ArticlesConfigured()) return;
+    if (!isR2ArticlesConfigured()) {
+      console.warn('[DataSync] R2 not configured — VITE_R2_PUBLIC_BASE_URL is missing from this build');
+      return;
+    }
     try {
       const items = await getArticleListFromR2();
       if (items) {
         setR2ArticleCache(items);
         setSyncVersion(v => v + 1);
+        console.log(`[DataSync] R2 loaded: ${items.length} articles`);
       }
     } catch (err) {
-      console.warn('R2 sync failed (using cached/seed data):', err);
+      console.warn('[DataSync] R2 fetch failed (using cached/seed data):', err);
     }
   }, []);
 
