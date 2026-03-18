@@ -111,19 +111,21 @@ async function main() {
 
   const cacheControl = 'public, max-age=30, stale-while-revalidate=60';
 
-  console.log('Uploading articles/articles.json…');
+  // Keys must match VITE_R2_PUBLIC_BASE_URL which ends with /octagon-images
+  // So files live at octagon-images/articles/... inside the bucket
+  console.log('Uploading octagon-images/articles/articles.json…');
   await s3.send(new PutObjectCommand({
     Bucket: R2_BUCKET,
-    Key: 'articles/articles.json',
+    Key: 'octagon-images/articles/articles.json',
     Body: JSON.stringify(list),
     ContentType: 'application/json',
     CacheControl: cacheControl,
   }));
 
-  console.log('Uploading articles/articles-by-slug.json…');
+  console.log('Uploading octagon-images/articles/articles-by-slug.json…');
   await s3.send(new PutObjectCommand({
     Bucket: R2_BUCKET,
-    Key: 'articles/articles-by-slug.json',
+    Key: 'octagon-images/articles/articles-by-slug.json',
     Body: JSON.stringify(bySlug),
     ContentType: 'application/json',
     CacheControl: cacheControl,
