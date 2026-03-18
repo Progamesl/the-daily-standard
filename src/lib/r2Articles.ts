@@ -11,7 +11,7 @@
 import type { Article } from '@/data/seedData';
 
 const R2_PUBLIC_BASE = import.meta.env.VITE_R2_PUBLIC_BASE_URL as string | undefined;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
+const CACHE_TTL_MS = 90 * 1000; // 90 seconds — kept short so polls always get fresh R2 data
 
 // ─── Raw types from R2 JSON ───────────────────────────────────────────────────
 

@@ -96,6 +96,16 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
     } else {
       // Public pages: sync from R2 (zero Supabase egress)
       runR2Sync();
+
+      // Poll every 2 minutes so open sessions see new articles without a reload
+      const poll = setInterval(() => {
+        clearR2Cache();
+        clearR2ArticleCache();
+        runR2Sync();
+      }, 2 * 60 * 1000);
+
+      const cleanup = () => clearInterval(poll);
+      window.addEventListener('beforeunload', cleanup);
     }
 
     // When a CMS article is saved, re-sync to show the new article immediately
