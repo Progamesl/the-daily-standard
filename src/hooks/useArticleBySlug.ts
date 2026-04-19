@@ -69,9 +69,13 @@ export function useArticleBySlug(
       getArticleBySlugFromSupabase(slug, { publishedOnly: false })
         .then((admin) => {
           if (cancelled) return;
-          setArticle(
-            admin ? adminToArticle(admin) : getPublicArticleBySlug(slug) ?? (fromAdmin ? adminToArticle(fromAdmin) : undefined)
-          );
+          const converted = admin ? adminToArticle(admin) : getPublicArticleBySlug(slug) ?? (fromAdmin ? adminToArticle(fromAdmin) : undefined);
+          setArticle(prev => {
+            if (prev && converted && prev.id === converted.id && !converted.body && prev.body) {
+              return { ...converted, body: prev.body };
+            }
+            return converted;
+          });
           setError(null);
         })
         .catch((err) => {
@@ -117,7 +121,12 @@ export function useArticleBySlug(
       .then(async (fromR2) => {
         if (cancelled) return;
         if (fromR2) {
-          setArticle(fromR2);
+          setArticle(prev => {
+            if (prev && prev.id === fromR2.id && !fromR2.body && prev.body) {
+              return { ...fromR2, body: prev.body };
+            }
+            return fromR2;
+          });
           setError(null);
           return;
         }
@@ -126,7 +135,13 @@ export function useArticleBySlug(
           try {
             const fromSupabase = await getArticleBySlugFromSupabase(slug, { publishedOnly: true });
             if (!cancelled) {
-              setArticle(fromSupabase ? adminToArticle(fromSupabase) : (getPublicArticleBySlug(slug) ?? undefined));
+              const converted = fromSupabase ? adminToArticle(fromSupabase) : (getPublicArticleBySlug(slug) ?? undefined);
+              setArticle(prev => {
+                if (prev && converted && prev.id === converted.id && !converted.body && prev.body) {
+                  return { ...converted, body: prev.body };
+                }
+                return converted;
+              });
               setError(null);
             }
           } catch {

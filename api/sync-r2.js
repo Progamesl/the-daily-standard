@@ -95,10 +95,20 @@ export default async function handler(req, res) {
       .filter(a => a.slug)
       .map(rowToPublic);
 
-    // 3. Merge: Supabase overrides seed for same slug
+    // 3. Merge: Supabase overrides seed for same slug, but preserve body if new one is empty
     const bySlug = {};
-    for (const a of seedArticles) bySlug[a.slug] = a;
-    for (const a of supabaseArticles) bySlug[a.slug] = a;
+    for (const a of seedArticles) {
+      if (a.slug) bySlug[a.slug] = a;
+    }
+    for (const a of supabaseArticles) {
+      if (!a.slug) continue;
+      const existing = bySlug[a.slug];
+      if (existing && !a.body && existing.body) {
+        bySlug[a.slug] = { ...a, body: existing.body };
+      } else {
+        bySlug[a.slug] = a;
+      }
+    }
 
     // 4. Build list (no body) sorted newest first
     const list = Object.values(bySlug)
