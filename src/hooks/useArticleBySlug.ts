@@ -71,7 +71,7 @@ export function useArticleBySlug(
           if (cancelled) return;
           const converted = admin ? adminToArticle(admin) : getPublicArticleBySlug(slug) ?? (fromAdmin ? adminToArticle(fromAdmin) : undefined);
           setArticle(prev => {
-            if (prev && converted && prev.id === converted.id && !converted.body && prev.body) {
+            if (prev && converted && !converted.body && prev.body) {
               return { ...converted, body: prev.body };
             }
             return converted;
@@ -122,7 +122,8 @@ export function useArticleBySlug(
         if (cancelled) return;
         if (fromR2) {
           setArticle(prev => {
-            if (prev && prev.id === fromR2.id && !fromR2.body && prev.body) {
+            // Always prefer a version with a body
+            if (prev && !fromR2.body && prev.body) {
               return { ...fromR2, body: prev.body };
             }
             return fromR2;
@@ -137,7 +138,7 @@ export function useArticleBySlug(
             if (!cancelled) {
               const converted = fromSupabase ? adminToArticle(fromSupabase) : (getPublicArticleBySlug(slug) ?? undefined);
               setArticle(prev => {
-                if (prev && converted && prev.id === converted.id && !converted.body && prev.body) {
+                if (prev && converted && !converted.body && prev.body) {
                   return { ...converted, body: prev.body };
                 }
                 return converted;

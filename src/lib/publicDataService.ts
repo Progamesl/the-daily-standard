@@ -81,11 +81,14 @@ function adminToPublic(admin: AdminArticle): Article {
 function mergeAllArticles(): Article[] {
   const deletedIds = new Set(getDeletedArticleIds().map(String));
   const map = new Map<string, Article>();
+  const slugMap = new Map<string, string>(); // slug -> id
 
   // Base layer: seed articles (always available, historical WordPress export)
   seedArticles.forEach(seed => {
     if (!deletedIds.has(String(seed.id))) {
-      map.set(String(seed.id), seed);
+      const id = String(seed.id);
+      map.set(id, seed);
+      if (seed.slug) slugMap.set(seed.slug, id);
     }
   });
 
@@ -95,12 +98,19 @@ function mergeAllArticles(): Article[] {
     r2ArticleList
       .filter(a => !deletedIds.has(String(a.id)))
       .forEach(a => {
-        const existing = map.get(String(a.id));
+        const id = String(a.id);
+        // Try matching by ID first, then by slug (important for seed data migration)
+        let existingId = id;
+        if (!map.has(id) && a.slug && slugMap.has(a.slug)) {
+          existingId = slugMap.get(a.slug)!;
+        }
+
+        const existing = map.get(existingId);
         if (existing && !a.body && existing.body) {
-          // Preserve existing body if the new one is empty (common for R2 list items)
-          map.set(String(a.id), { ...a, body: existing.body });
+          // Preserve existing body if the new one is empty
+          map.set(id, { ...a, body: existing.body });
         } else {
-          map.set(String(a.id), a);
+          map.set(id, a);
         }
       });
   } else {
@@ -109,11 +119,18 @@ function mergeAllArticles(): Article[] {
       .filter(a => a.status === 'published' && !deletedIds.has(a.id))
       .forEach(admin => {
         const a = adminToPublic(admin);
-        const existing = map.get(String(a.id));
+        const id = String(a.id);
+        
+        let existingId = id;
+        if (!map.has(id) && a.slug && slugMap.has(a.slug)) {
+          existingId = slugMap.get(a.slug)!;
+        }
+
+        const existing = map.get(existingId);
         if (existing && !a.body && existing.body) {
-          map.set(a.id, { ...a, body: existing.body });
+          map.set(id, { ...a, body: existing.body });
         } else {
-          map.set(a.id, a);
+          map.set(id, a);
         }
       });
   }
