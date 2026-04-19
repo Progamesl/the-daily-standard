@@ -375,7 +375,7 @@ export function stripBase64ImagesFromHtml(html: string): string {
 // ─── Article CRUD ─────────────────────────────────────────────────────────────
 let supabaseArticlesCache: Record<string, AdminArticle> | null = null;
 let supabaseArticlesCacheTime = 0;
-const SUPABASE_CACHE_TTL = 10 * 60 * 1000; // 10 min (public pages only — admin uses DataSyncContext)
+const SUPABASE_CACHE_TTL = 60 * 1000; // 1 min (public pages fallback — admin uses DataSyncContext polling)
 /** localStorage key for persisting the last-fetch timestamp across page loads */
 const LIST_FETCH_TIME_KEY = 'octagon_list_fetch_ts';
 
@@ -398,7 +398,10 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
     // Check both in-memory AND persisted timestamp so refreshes/new tabs skip the fetch
     const persistedFetchTime = Number(localStorage.getItem(LIST_FETCH_TIME_KEY) || '0');
     const lastFetch = Math.max(supabaseArticlesCacheTime, persistedFetchTime);
-    const useCache = (now - lastFetch) < SUPABASE_CACHE_TTL;
+    
+    // In admin panel, we want much more frequent updates
+    const effectiveTTL = window.location.pathname.startsWith('/admin') ? 30 * 1000 : SUPABASE_CACHE_TTL;
+    const useCache = (now - lastFetch) < effectiveTTL;
     
     if (!useCache) {
       // Fetch from Supabase in background (non-blocking for instant render)

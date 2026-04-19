@@ -18,7 +18,7 @@ import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { getArticleListFromR2, isR2ArticlesConfigured, clearR2Cache } from '@/lib/r2Articles';
 import { setR2ArticleCache, clearR2ArticleCache } from '@/lib/publicDataService';
 
-const ADMIN_SYNC_THROTTLE_MS = 5 * 60 * 1000; // 5 min
+const ADMIN_SYNC_THROTTLE_MS = 30 * 1000; // 30 seconds
 const LAST_SYNC_KEY = 'octagon_admin_last_sync';
 
 interface DataSyncContextType {
@@ -95,18 +95,22 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isAdminPath) {
-      // Admin pages: sync from Supabase (throttled)
-      runAdminSync(false);
+      // Poll every 1 minute so open sessions see new articles without a reload
+      const poll = setInterval(() => {
+        runAdminSync(false);
+      }, 60 * 1000);
+      const cleanup = () => clearInterval(poll);
+      window.addEventListener('beforeunload', cleanup);
     } else {
       // Public pages: sync from R2 (zero Supabase egress)
       runR2Sync();
 
-      // Poll every 2 minutes so open sessions see new articles without a reload
+      // Poll every 5 minutes so public sessions see new articles without a reload
       const poll = setInterval(() => {
         clearR2Cache();
         clearR2ArticleCache();
         runR2Sync();
-      }, 2 * 60 * 1000);
+      }, 5 * 60 * 1000);
 
       const cleanup = () => clearInterval(poll);
       window.addEventListener('beforeunload', cleanup);
