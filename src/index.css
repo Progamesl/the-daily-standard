@@ -586,7 +586,7 @@
   }
 
   .article-body > p:first-child::first-letter {
-    display: none; /* Hide default ::first-letter since we use .drop-cap span */
+    /* We use .drop-cap span for the initial letter, no need to hide the browser's default */
   }
 
   /* Mobile: prevent horizontal overflow from body images/embeds */

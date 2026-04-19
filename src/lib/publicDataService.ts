@@ -91,15 +91,31 @@ function mergeAllArticles(): Article[] {
 
   if (r2ArticleList !== null) {
     // R2 is available — use it as source of truth for CMS articles.
-    // R2 articles override seed articles for the same ID/slug.
+    // R2 list articles might not have a body, so we merge carefully.
     r2ArticleList
       .filter(a => !deletedIds.has(String(a.id)))
-      .forEach(a => map.set(String(a.id), a));
+      .forEach(a => {
+        const existing = map.get(String(a.id));
+        if (existing && !a.body && existing.body) {
+          // Preserve existing body if the new one is empty (common for R2 list items)
+          map.set(String(a.id), { ...a, body: existing.body });
+        } else {
+          map.set(String(a.id), a);
+        }
+      });
   } else {
     // R2 not loaded yet — fall back to localStorage admin articles.
     getAdminArticlesList()
       .filter(a => a.status === 'published' && !deletedIds.has(a.id))
-      .forEach(admin => map.set(admin.id, adminToPublic(admin)));
+      .forEach(admin => {
+        const a = adminToPublic(admin);
+        const existing = map.get(String(a.id));
+        if (existing && !a.body && existing.body) {
+          map.set(a.id, { ...a, body: existing.body });
+        } else {
+          map.set(a.id, a);
+        }
+      });
   }
 
   return Array.from(map.values());

@@ -93,12 +93,14 @@ function _allArticles(): Article[] {
   for (const a of adminArticles) {
     if (a.status !== 'published') continue;
     if (deletedIds.has(String(a.id))) continue;
+    
+    const existing = merged.get(String(a.id));
     merged.set(a.id, {
       id: a.id,
       slug: a.slug,
       headline: a.headline,
       dek: a.dek,
-      body: a.body,
+      body: (a.body || (existing ? existing.body : '')),
       image: a.image,
       images: a.images,
       imageCaption: a.imageCaption,
