@@ -13,7 +13,7 @@ export function ArticleContent({ html, className = "" }: ArticleContentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Extract font size from className and apply via inline style for higher specificity
-  const fontSizeStyle: { fontSize?: string; lineHeight?: number; color: string; opacity: number } = { color: '#334155', opacity: 1 };
+  const fontSizeStyle: { fontSize?: string; lineHeight?: number } = {};
   if (className.includes('text-xl')) {
     fontSizeStyle.fontSize = '1.25rem';
     fontSizeStyle.lineHeight = 1.9;
@@ -29,7 +29,7 @@ export function ArticleContent({ html, className = "" }: ArticleContentProps) {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    let cleaned = html;
+    let cleaned = html || "";
 
     // Strip WordPress comments and classes
     cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, "");

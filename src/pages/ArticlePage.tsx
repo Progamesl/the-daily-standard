@@ -184,9 +184,9 @@ export default function ArticlePage() {
             <Link to={`/section/${article.section}`} className="label text-accent hover:opacity-80 transition-opacity inline-block mb-4">
               {section?.name ?? article.section}
             </Link>
-            <h1 className="headline-xl mb-3 sm:mb-4 text-balance text-slate-900">{article.headline}</h1>
-            <p className="font-sans text-base sm:text-lg text-slate-600 mb-4 sm:mb-6 text-balance leading-relaxed">{article.dek}</p>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm border-y border-border py-4 text-slate-700">
+            <h1 className="headline-xl mb-3 sm:mb-4 text-balance text-foreground">{article.headline}</h1>
+            <p className="font-sans text-base sm:text-lg text-muted-foreground mb-4 sm:mb-6 text-balance leading-relaxed">{article.dek}</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm border-y border-border py-4 text-muted-foreground">
               <div className="flex items-center gap-3">
                 <img 
                   src={article.author.image || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"} 
@@ -194,16 +194,16 @@ export default function ArticlePage() {
                   className="w-10 h-10 rounded-full object-cover" 
                 />
                 <div>
-                  <Link to={`/author/${article.author.id}`} className="font-medium text-slate-800 hover:text-accent transition-colors block">
+                  <Link to={`/author/${article.author.id}`} className="font-medium text-foreground hover:text-accent transition-colors block">
                     {article.author.name}
                   </Link>
-                  <span className="text-xs text-slate-500">{article.author.role}</span>
+                  <span className="text-xs text-muted-foreground">{article.author.role}</span>
                 </div>
               </div>
-              <span className="text-slate-400 hidden sm:inline">|</span>
-              <span className="text-slate-600 text-sm">{formatDate(article.publishedAt)}</span>
-              <span className="text-slate-400 hidden sm:inline">|</span>
-              <span className="text-slate-600 text-sm">{article.readingTime} min read</span>
+              <span className="text-muted-foreground hidden sm:inline">|</span>
+              <span className="text-muted-foreground text-sm">{formatDate(article.publishedAt)}</span>
+              <span className="text-muted-foreground hidden sm:inline">|</span>
+              <span className="text-muted-foreground text-sm">{article.readingTime} min read</span>
             </div>
             <ArticleReadingToolbar
               slug={article.slug}
@@ -232,7 +232,7 @@ export default function ArticlePage() {
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
               />
               {article.imageCaption && (
-                <figcaption className="text-sm text-slate-500 mt-3 max-w-3xl mx-auto">{article.imageCaption}</figcaption>
+                <figcaption className="text-sm text-muted-foreground mt-3 max-w-3xl mx-auto">{article.imageCaption}</figcaption>
               )}
             </div>
           </figure>
@@ -244,11 +244,11 @@ export default function ArticlePage() {
             <div className="lg:col-span-8">
               {isPartial ? (
                 <div className="animate-pulse space-y-4">
-                  <div className="h-4 bg-slate-200 rounded w-full" />
-                  <div className="h-4 bg-slate-200 rounded w-full" />
-                  <div className="h-4 bg-slate-200 rounded w-5/6" />
-                  <div className="h-4 bg-slate-200 rounded w-full" />
-                  <div className="h-4 bg-slate-200 rounded w-4/5" />
+                  <div className="h-4 bg-muted rounded w-full" />
+                  <div className="h-4 bg-muted rounded w-full" />
+                  <div className="h-4 bg-muted rounded w-5/6" />
+                  <div className="h-4 bg-muted rounded w-full" />
+                  <div className="h-4 bg-muted rounded w-4/5" />
                 </div>
               ) : (
                 <ArticleContent html={article.body} className={fontSizeClass} />
@@ -259,7 +259,7 @@ export default function ArticlePage() {
                 <h3 className="label mb-4">Related Topics</h3>
                 <div className="flex flex-wrap gap-2">
                   {article.tags.map((tag) => (
-                    <span key={tag} className="px-3 py-1 text-sm bg-muted text-slate-600 hover:bg-border transition-colors cursor-pointer rounded">
+                    <span key={tag} className="px-3 py-1 text-sm bg-muted text-muted-foreground hover:bg-border transition-colors cursor-pointer rounded">
                       {tag}
                     </span>
                   ))}
@@ -276,11 +276,11 @@ export default function ArticlePage() {
                     loading="lazy" 
                   />
                   <div>
-                    <Link to={`/author/${article.author.id}`} className="font-serif text-base sm:text-lg font-bold text-slate-900 hover:text-accent transition-colors">
+                    <Link to={`/author/${article.author.id}`} className="font-serif text-base sm:text-lg font-bold text-foreground hover:text-accent transition-colors">
                       {article.author.name}
                     </Link>
-                    <p className="text-sm text-slate-600 mb-1 sm:mb-2">{article.author.role}</p>
-                    <p className="text-sm text-slate-600 ">{article.author.bio}</p>
+                    <p className="text-sm text-muted-foreground mb-1 sm:mb-2">{article.author.role}</p>
+                    <p className="text-sm text-muted-foreground ">{article.author.bio}</p>
                   </div>
                 </div>
               </div>

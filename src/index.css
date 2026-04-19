@@ -459,7 +459,7 @@
     font-family: var(--font-serif);
     font-size: 1.125rem;
     line-height: 1.75; /* AP Style: 1.7-1.8 for readability */
-    color: #334155;
+    color: hsl(var(--foreground));
     text-align: left;
     hyphens: auto;
     -webkit-hyphens: auto;
@@ -492,7 +492,7 @@
     font-family: var(--font-serif);
     font-size: 1.125rem;
     line-height: 1.8;
-    color: #334155;
+    color: hsl(var(--foreground));
   }
   
   .article-body p,
@@ -500,7 +500,7 @@
   .article-body blockquote,
   .article-body span {
     font-family: var(--font-serif);
-    color: #334155;
+    color: hsl(var(--foreground));
   }
 
   .article-body p {
@@ -518,18 +518,18 @@
   }
 
   .article-body h2, .article-body h3, .article-body h4 {
-    color: #1e293b;
+    color: hsl(var(--foreground));
     margin-top: 2rem;
     margin-bottom: 1rem;
   }
 
   .article-body strong {
-    color: #1e293b;
+    color: hsl(var(--foreground));
     font-weight: 700;
   }
 
   .article-body em {
-    color: #475569;
+    color: hsl(var(--muted-foreground));
   }
 
   .article-body img {
@@ -546,7 +546,7 @@
   .article-body figcaption {
     font-family: var(--font-sans);
     font-size: 0.8125rem;
-    color: #64748b;
+    color: hsl(var(--muted-foreground));
     text-align: center;
     margin-top: 0.5rem;
   }
@@ -561,7 +561,7 @@
     margin-right: 0.5rem;
     margin-top: 0.1em;
     margin-bottom: -0.05em;
-    color: #1e293b;
+    color: hsl(var(--foreground));
     text-transform: uppercase;
     letter-spacing: -0.02em;
   }
