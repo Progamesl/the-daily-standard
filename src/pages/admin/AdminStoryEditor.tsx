@@ -50,19 +50,7 @@ import { DocxImporter } from '@/components/admin/DocxImporter';
 
 const AUTOSAVE_DELAY = 5000;
 
-function getAllAuthors(): AdminAuthor[] {
-  // First pass: deduplicate by ID (admin authors override seed authors)
-  const byId = new Map<string, AdminAuthor>();
-  jsonAuthors.forEach(a => byId.set(a.id, {
-    id: a.id, name: a.name, role: a.role, bio: a.bio,
-    image: a.image, email: a.email, twitter: a.twitter,
-  }));
-  getAdminAuthorsList().forEach(a => byId.set(a.id, a));
-  
-  // Second pass: deduplicate by normalized name (case-insensitive, trimmed)
-  // If multiple authors have the same name, keep only the first one encountered
-  const result: AdminAuthor[] = [];
-  const seenNames = new Set<string>();
+
   
 type ArticlePriority = 'low' | 'normal' | 'high' | 'breaking';
 
