@@ -64,18 +64,6 @@ function getAllAuthors(): AdminAuthor[] {
   const result: AdminAuthor[] = [];
   const seenNames = new Set<string>();
   
-  Array.from(byId.values()).forEach(author => {
-    const normalizedName = author.name.trim().toLowerCase();
-    if (!seenNames.has(normalizedName)) {
-      seenNames.add(normalizedName);
-      result.push(author);
-    }
-    // Skip if name already seen (duplicate name, different ID)
-  });
-  
-  return result.sort((a, b) => a.name.localeCompare(b.name));
-}
-
 type ArticlePriority = 'low' | 'normal' | 'high' | 'breaking';
 
 interface FormState {
@@ -120,8 +108,31 @@ export default function AdminStoryEditor() {
   const { currentUser } = useAdminAuth();
   const isNew = !id;
 
-  const allAuthors = useMemo(getAllAuthors, []);
-  const allTags    = useMemo(getAllAdminTags, []);
+  const allAuthors = useMemo(() => {
+    // First pass: deduplicate by ID (admin authors override seed authors)
+    const byId = new Map<string, AdminAuthor>();
+    jsonAuthors.forEach(a => byId.set(a.id, {
+      id: a.id, name: a.name, role: a.role, bio: a.bio,
+      image: a.image, email: a.email, twitter: a.twitter,
+    }));
+    getAdminAuthorsList().forEach(a => byId.set(a.id, a));
+    
+    // Second pass: deduplicate by normalized name (case-insensitive, trimmed)
+    const result: AdminAuthor[] = [];
+    const seenNames = new Set<string>();
+    
+    Array.from(byId.values()).forEach(author => {
+      const normalizedName = author.name.trim().toLowerCase();
+      if (!seenNames.has(normalizedName)) {
+        seenNames.add(normalizedName);
+        result.push(author);
+      }
+    });
+    
+    return result.sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
+
+  const allTags = useMemo(() => getAllAdminTags(), []);
   const staffUsers = useMemo(() => getUsersList().filter(u => u.active), []);
 
   const [form, setForm]         = useState<FormState>(emptyForm);
