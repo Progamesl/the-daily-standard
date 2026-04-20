@@ -6,6 +6,7 @@
  * Migration path: When a backend (Supabase, etc.) is added, this file
  * becomes the abstraction layer switching between localStorage and the API.
  */
+import octagonData from '@/data/octagonData.json';
 
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
@@ -592,10 +593,9 @@ export function deleteAdminArticle(
   
   // If not in admin articles, check seed data (for seed articles)
   if (!article && typeof window !== 'undefined') {
-    try {
-      const { articles: seedArticles } = require('@/data/seedData');
-      const seedArticle = seedArticles.find(a => String(a.id) === String(id));
-      if (seedArticle) {
+    const seedArticles = (octagonData as any).articles || [];
+    const seedArticle = seedArticles.find((a: any) => String(a.id) === String(id));
+    if (seedArticle) {
         // Convert seed Article to AdminArticle format for trash
         article = {
           id: String(seedArticle.id),
@@ -623,9 +623,6 @@ export function deleteAdminArticle(
           status: 'published',
           priority: 'normal',
         };
-      }
-    } catch (e) {
-      // Seed data not available
     }
   }
   
@@ -913,9 +910,7 @@ export function getDeletedAuthorIds(): string[] {
  * @returns Object with stats: { merged: number, articlesUpdated: number }
  */
 export function mergeDuplicateAuthors(): { merged: number; articlesUpdated: number } {
-  // Dynamic import to avoid circular dependency
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { authors: seedAuthors } = require('@/data/seedData') as { authors: AdminAuthor[] };
+  const seedAuthors = (octagonData as any).authors || [];
   const authors = getAdminAuthorsMap();
   const articles = getAdminArticlesMap();
   
