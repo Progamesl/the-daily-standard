@@ -96,8 +96,13 @@ export default function AdminStoryEditor() {
   const { currentUser } = useAdminAuth();
   const isNew = !id;
 
-  const allAuthors = useMemo(() => {
-    // First pass: deduplicate by ID (admin authors override seed authors)
+  const [allAuthors, setAllAuthors] = useState<AdminAuthor[]>([]);
+  const [allTags, setAllTags]       = useState<string[]>([]);
+  const [staffUsers, setStaffUsers] = useState<any[]>([]);
+
+  // Defer data fetching to avoid initialization order issues (G/W errors)
+  useEffect(() => {
+    // 1. Fetch Authors with deduplication
     const byId = new Map<string, AdminAuthor>();
     jsonAuthors.forEach(a => byId.set(a.id, {
       id: a.id, name: a.name, role: a.role, bio: a.bio,
@@ -105,23 +110,23 @@ export default function AdminStoryEditor() {
     }));
     getAdminAuthorsList().forEach(a => byId.set(a.id, a));
     
-    // Second pass: deduplicate by normalized name (case-insensitive, trimmed)
-    const result: AdminAuthor[] = [];
+    const dedupedAuthors: AdminAuthor[] = [];
     const seenNames = new Set<string>();
-    
     Array.from(byId.values()).forEach(author => {
       const normalizedName = author.name.trim().toLowerCase();
       if (!seenNames.has(normalizedName)) {
         seenNames.add(normalizedName);
-        result.push(author);
+        dedupedAuthors.push(author);
       }
     });
-    
-    return result.sort((a, b) => a.name.localeCompare(b.name));
-  }, []);
+    setAllAuthors(dedupedAuthors.sort((a, b) => a.name.localeCompare(b.name)));
 
-  const allTags = useMemo(() => getAllAdminTags(), []);
-  const staffUsers = useMemo(() => getUsersList().filter(u => u.active), []);
+    // 2. Fetch Tags
+    setAllTags(getAllAdminTags());
+
+    // 3. Fetch Staff
+    setStaffUsers(getUsersList().filter(u => u.active));
+  }, []);
 
   const [form, setForm]         = useState<FormState>(emptyForm);
   const [saving, setSaving]     = useState(false);
