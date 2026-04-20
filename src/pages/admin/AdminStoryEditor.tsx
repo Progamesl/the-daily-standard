@@ -87,16 +87,19 @@ export default function AdminStoryEditor() {
   const [staffUsers, setStaffUsers] = useState<any[]>([]);
 
   // Local Helpers to avoid circular dependency
-  const calculateReadingTime = (html: string) => {
-    const wordsPerMinute = 225;
+  const countWords = (html: string) => {
+    if (!html) return 0;
     const text = html.replace(/<[^>]+>/g, '');
-    const words = text.trim().split(/\s+/).length;
-    return Math.ceil(words / wordsPerMinute);
+    const cleanText = text.trim();
+    if (!cleanText) return 0;
+    return cleanText.split(/\s+/).filter(w => w.length > 0).length;
   };
 
-  const countWords = (html: string) => {
-    const text = html.replace(/<[^>]+>/g, '');
-    return text.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const calculateReadingTime = (html: string) => {
+    const words = countWords(html);
+    if (words === 0) return 0;
+    const wordsPerMinute = 225;
+    return Math.max(1, Math.ceil(words / wordsPerMinute));
   };
 
   const generateSlug = (text: string) => {
@@ -129,10 +132,15 @@ export default function AdminStoryEditor() {
   const [restoreTarget, setRestoreTarget] = useState<ArticleRevision | null>(null);
 
   const applyArticleToForm = useCallback((a: AdminArticle) => {
+    if (!a) return;
+    console.log(`📡 Applying article to form: ${a.headline} (Body length: ${a.body?.length ?? 0})`);
     setArticle(a);
     setForm({
-      headline: a.headline, dek: a.dek, body: a.body,
-      image: a.image, imageCaption: a.imageCaption,
+      headline: a.headline || '', 
+      dek: a.dek || '', 
+      body: a.body || '',
+      image: a.image || '', 
+      imageCaption: a.imageCaption || '',
       section: a.section, authorId: a.author.id, tags: a.tags,
       slug: a.slug, status: a.status,
       publishedAt: a.publishedAt ? new Date(a.publishedAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
@@ -233,28 +241,31 @@ export default function AdminStoryEditor() {
   useEffect(() => {
     if (!id || !loadingFull || !isSupabaseConfigured()) return;
     let cancelled = false;
+    console.log(`📡 Triggering full body fetch for ${id}...`);
     getArticleByIdFromSupabase(id)
       .then((full) => {
         if (cancelled) return;
         if (!full) {
-          toast.error('Article not found');
-          navigate('/admin/stories');
+          console.error('❌ Full article not found in Supabase');
+          toast.error('Article not found in cloud storage.');
+          setLoaded(true); // Still set loaded so they see the empty state instead of infinite loader
           return;
         }
         applyArticleToForm(full);
         setLoaded(true);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
+          console.error('❌ Supabase fetch failed:', err);
           toast.error('Failed to load article from cloud.');
-          navigate('/admin/stories');
+          setLoaded(true);
         }
       })
       .finally(() => {
         if (!cancelled) setLoadingFull(false);
       });
     return () => { cancelled = true; };
-  }, [id, loadingFull, navigate, applyArticleToForm]);
+  }, [id, loadingFull, applyArticleToForm]);
 
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(prev => {
@@ -404,6 +415,15 @@ export default function AdminStoryEditor() {
     approval: 'bg-green-100 text-green-700',
     rejection: 'bg-red-100 text-red-700',
   };
+
+  if (loadingFull) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-50/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
+        <p className="text-slate-600 font-medium">Fetching full article content from cloud…</p>
+      </div>
+    );
+  }
 
   if (!loaded) {
     return (
