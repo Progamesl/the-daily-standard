@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { FileText, Loader2, Wand2 } from 'lucide-react';
+import { FileText, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DocxImporterProps {
@@ -109,7 +109,7 @@ export function DocxImporter({ onImport }: DocxImporterProps) {
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Wand2 className="h-4 w-4" />
+          <Sparkles className="h-4 w-4" />
         )}
         Import from DocX / Word
       </Button>

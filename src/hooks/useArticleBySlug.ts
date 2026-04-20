@@ -29,6 +29,7 @@ function adminToArticle(admin: AdminArticle): Article {
     updatedAt: admin.updatedAt ? new Date(admin.updatedAt) : undefined,
     readingTime: admin.readingTime,
     tags: admin.tags ?? [],
+    isCinematic: admin.isCinematic,
   };
 }
 

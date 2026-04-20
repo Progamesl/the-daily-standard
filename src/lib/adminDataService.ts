@@ -135,8 +135,8 @@ export interface AdminArticle {
   revisions?: ArticleRevision[];
   wordCount?: number;
 
-  // ── Homepage Feature ─────────────────────────────────────────────────────────
   featured?: boolean;  // If true, this article appears as the main featured story on homepage
+  isCinematic?: boolean; // If true, triggers the immersive high-impact design
 }
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────

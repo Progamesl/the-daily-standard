@@ -25,6 +25,7 @@ import { addToHistory } from "@/components/user/UserMenu";
 import { CommentSection } from "@/components/article/CommentSection";
 import { useArticleBySlug } from "@/hooks/useArticleBySlug";
 import { AdSlot } from "@/components/ads/AdSlot";
+import { CinematicArticle } from "@/components/ui/CinematicArticle";
 
 export default function ArticlePage() {
   // Subscribe to Supabase sync — re-renders automatically when fresh data arrives
@@ -152,6 +153,33 @@ export default function ArticlePage() {
     author: { "@type": "Person", name: article.author.name },
     publisher: { "@type": "Organization", name: "The Octagon" },
   };
+
+  if (article.isCinematic) {
+    return (
+      <div className="bg-slate-950">
+        <DocumentHead
+          title={article.headline}
+          description={article.dek}
+          image={heroImage ?? undefined}
+          type="article"
+          publishedTime={article.publishedAt.toISOString()}
+          modifiedTime={(article.updatedAt ?? article.publishedAt).toISOString()}
+          author={article.author.name}
+          section={article.section}
+          jsonLd={jsonLd}
+        />
+        {/* Preview Mode Banner for Cinematic View */}
+        {isPreview && (
+          <div className="fixed top-0 z-[100] w-full bg-amber-400 text-amber-950 py-2 px-4 flex items-center justify-center gap-3 shadow-lg">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="text-xs font-bold uppercase tracking-widest">Cinematic Preview</span>
+            <EyeOff className="h-4 w-4 shrink-0" />
+          </div>
+        )}
+        <CinematicArticle article={article} />
+      </div>
+    );
+  }
 
   return (
     <Layout>

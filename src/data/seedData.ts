@@ -36,6 +36,7 @@ export interface Article {
   updatedAt?: Date;
   readingTime: number;
   tags: string[];
+  isCinematic?: boolean;
 }
 
 export interface Section {
@@ -110,6 +111,7 @@ function _allArticles(): Article[] {
       updatedAt: a.updatedAt ? new Date(a.updatedAt) : undefined,
       readingTime: a.readingTime,
       tags: a.tags,
+      isCinematic: a.isCinematic,
     });
   }
 
