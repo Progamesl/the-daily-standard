@@ -157,10 +157,24 @@ export function RichTextEditor({
     // AP Style: Ensure single space after periods (not double)
     cleaned = cleaned.replace(/\.\s{2,}/g, '. ');
 
-    // Remove any remaining inline formatting that shouldn't be there
-    cleaned = cleaned.replace(/style=["'][^"']*["']/gi, '');
-    
-    return cleaned;
+    // ─── Document Structure Extraction ────────────────────────────────────────
+    // Try to find a headline and byline before we strip everything
+    let extractedHeadline = '';
+    let extractedByline = '';
+
+    const h1 = temp.querySelector('h1');
+    if (h1) extractedHeadline = h1.textContent?.trim() || '';
+
+    // Look for "By [Name]"
+    const text = temp.textContent || '';
+    const bylineMatch = text.match(/By\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/);
+    if (bylineMatch) extractedByline = bylineMatch[1];
+
+    return {
+      html: cleaned,
+      headline: extractedHeadline,
+      byline: extractedByline,
+    };
   }, []);
 
   // Auto Format: apply all formatting rules to current content
@@ -233,10 +247,18 @@ export function RichTextEditor({
 
     // If HTML was pasted, clean it
     if (htmlData && htmlData.trim().length > 0) {
-      const cleaned = cleanPastedHtml(htmlData);
+      const { html, headline, byline } = cleanPastedHtml(htmlData);
       const temp = document.createElement('div');
-      temp.innerHTML = cleaned;
+      temp.innerHTML = html;
       
+      // If we found a headline or byline, notify the parent editor
+      if (headline || byline) {
+        const event = new CustomEvent('document-import', { 
+          detail: { headline, byline } 
+        });
+        window.dispatchEvent(event);
+      }
+
       // Insert cleaned nodes
       const fragment = document.createDocumentFragment();
       while (temp.firstChild) {
@@ -246,6 +268,15 @@ export function RichTextEditor({
     } else if (plainData) {
       // Plain text (PDF, etc.) - convert to formatted HTML
       const html = convertPlainTextToHtml(plainData);
+      
+      // Basic byline detection in plain text
+      const bylineMatch = plainData.match(/By\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/);
+      if (bylineMatch) {
+        window.dispatchEvent(new CustomEvent('document-import', { 
+          detail: { byline: bylineMatch[1] } 
+        }));
+      }
+
       const temp = document.createElement('div');
       temp.innerHTML = html;
       

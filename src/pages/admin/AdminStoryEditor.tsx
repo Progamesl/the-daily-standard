@@ -34,6 +34,7 @@ import { getUsersList, ROLE_LABELS, logActivity } from '@/lib/adminUserService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { authors as jsonAuthors, sections } from '@/data/seedData';
 import { cn } from '@/lib/utils';
+import { DocxImporter } from '@/components/admin/DocxImporter';
 
 const AUTOSAVE_DELAY = 5000;
 
@@ -234,8 +235,40 @@ export default function AdminStoryEditor() {
       .finally(() => {
         if (!cancelled) setLoadingFull(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id, loadingFull, navigate]);
+
+  // Listen for smart import data (from RichTextEditor paste)
+  useEffect(() => {
+    const handleImport = (e: any) => {
+      const { headline, byline } = e.detail;
+
+      if (headline && !form.headline) {
+        updateField('headline', headline);
+        toast.success(`Detected Headline: "${headline}"`);
+      }
+
+      if (byline) {
+        // Try to match author by name
+        const match = allAuthors.find((a) =>
+          a.name.toLowerCase().includes(byline.toLowerCase()) ||
+          byline.toLowerCase().includes(a.name.toLowerCase())
+        );
+
+        if (match) {
+          updateField('authorId', match.id);
+          toast.success(`Matched Author: ${match.name}`);
+        } else {
+          toast.info(`Detected Byline: "${byline}". Please select the author manually.`);
+        }
+      }
+    };
+
+    window.addEventListener('document-import', handleImport);
+    return () => window.removeEventListener('document-import', handleImport);
+  }, [allAuthors, form.headline, updateField]);
 
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(prev => {
@@ -465,6 +498,18 @@ export default function AdminStoryEditor() {
                 <Redo2 className={cn('h-4 w-4', redoStack.length === 0 && 'text-slate-300')} />
                 </Button>
             </div>
+            <DocxImporter onImport={({ headline, body, byline }) => {
+              if (headline) updateField('headline', headline);
+              if (body) updateField('body', body);
+              if (byline) {
+                const match = allAuthors.find(a => 
+                  a.name.toLowerCase().includes(byline.toLowerCase()) || 
+                  byline.toLowerCase().includes(a.name.toLowerCase())
+                );
+                if (match) updateField('authorId', match.id);
+              }
+            }} />
+            <span className="text-slate-300 mx-1">|</span>
             <Button
               variant="ghost"
               size="sm"
