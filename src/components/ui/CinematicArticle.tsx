@@ -53,7 +53,8 @@ export function CinematicArticle({ article }: CinematicArticleProps) {
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-5xl md:text-8xl font-serif font-bold text-white mb-8 tracking-tight leading-[0.9]"
+            className="text-5xl md:text-8xl font-bold text-white mb-8 tracking-tight leading-[0.9]"
+            style={{ fontFamily: "'Playfair Display', serif" }}
           >
             {article.headline}
           </motion.h1>
@@ -63,6 +64,7 @@ export function CinematicArticle({ article }: CinematicArticleProps) {
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.6 }}
             className="flex flex-wrap items-center justify-center gap-6 text-slate-300 text-sm md:text-base font-medium"
+            style={{ fontFamily: "'Inter', sans-serif" }}
           >
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-violet-400" />
@@ -101,18 +103,18 @@ export function CinematicArticle({ article }: CinematicArticleProps) {
             viewport={{ once: true }}
             className="relative -mt-32 mb-20 p-8 md:p-12 rounded-3xl bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl"
           >
-            <p className="text-2xl md:text-3xl text-slate-200 font-serif leading-relaxed italic">
+            <p className="text-2xl md:text-3xl text-slate-200 leading-relaxed italic" style={{ fontFamily: "'Playfair Display', serif" }}>
               {article.dek}
             </p>
           </motion.div>
 
           <div 
             className="prose prose-invert prose-xl max-w-none 
-              prose-headings:font-serif prose-headings:text-white prose-headings:tracking-tight
               prose-p:text-slate-300 prose-p:leading-relaxed prose-p:mb-8
               prose-a:text-violet-400 hover:prose-a:text-violet-300
               prose-blockquote:border-violet-500 prose-blockquote:bg-white/5 prose-blockquote:p-6 prose-blockquote:rounded-xl prose-blockquote:text-slate-200 prose-blockquote:italic
               selection:bg-violet-500/30 selection:text-white"
+            style={{ fontFamily: "'Inter', sans-serif" }}
             dangerouslySetInnerHTML={{ __html: article.body }}
           />
 
@@ -129,9 +131,61 @@ export function CinematicArticle({ article }: CinematicArticleProps) {
         </div>
       </div>
 
-      {/* Floating Gradient Orb */}
-      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-violet-600/10 blur-[120px] rounded-full -z-10 pointer-events-none" />
-      <div className="fixed bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/10 blur-[100px] rounded-full -z-10 pointer-events-none" />
+      {/* Particle Effect (Floating Stardust) */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            initial={{ 
+              opacity: 0,
+              x: Math.random() * 100 + "%",
+              y: Math.random() * 100 + "%" 
+            }}
+            animate={{ 
+              opacity: [0, 0.4, 0],
+              y: ["-10%", "110%"],
+              x: (Math.random() * 20 - 10) + "%"
+            }}
+            transition={{ 
+              duration: Math.random() * 10 + 10,
+              repeat: Infinity,
+              ease: "linear",
+              delay: Math.random() * 10
+            }}
+            className="absolute w-1 h-1 bg-white rounded-full blur-[1px]"
+          />
+        ))}
+      </div>
+
+      {/* Floating Gradient Orbs (Liquid Mesh Effect) */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <motion.div 
+          animate={{
+            scale: [1, 1.2, 1],
+            x: [0, 100, 0],
+            y: [0, 50, 0],
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute -top-[10%] -left-[10%] w-[70%] h-[70%] bg-violet-600/20 blur-[120px] rounded-full"
+        />
+        <motion.div 
+          animate={{
+            scale: [1, 1.5, 1],
+            x: [0, -150, 0],
+            y: [0, -100, 0],
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className="absolute -bottom-[20%] -right-[10%] w-[80%] h-[80%] bg-blue-600/20 blur-[150px] rounded-full"
+        />
+        <motion.div 
+          animate={{
+            scale: [1, 1.3, 1],
+            opacity: [0.1, 0.3, 0.1],
+          }}
+          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+          className="absolute top-[20%] left-[30%] w-[40%] h-[40%] bg-fuchsia-600/10 blur-[100px] rounded-full"
+        />
+      </div>
     </div>
   );
 }
