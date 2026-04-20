@@ -85,28 +85,6 @@ function rawToArticle(raw: R2ArticleRaw | R2ListItemRaw, body = ''): Article {
   };
 }
 
-// ─── By-slug cache (full articles with body) ─────────────────────────────────
-
-let bySlugCached: BySlugRaw | null = null;
-let bySlugCachedAt = 0;
-
-async function fetchBySlug(): Promise<BySlugRaw | null> {
-  if (!R2_PUBLIC_BASE?.trim()) return null;
-  const url = `${R2_PUBLIC_BASE.replace(/\/$/, '')}/articles/articles-by-slug.json`;
-  const now = Date.now();
-  if (bySlugCached && now - bySlugCachedAt < CACHE_TTL_MS) return bySlugCached;
-  try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) return null;
-    const data = (await res.json()) as BySlugRaw;
-    bySlugCached = data;
-    bySlugCachedAt = now;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
 // ─── Article list cache (no body) ────────────────────────────────────────────
 
 let listCached: R2ArticleListItem[] | null = null;
@@ -144,24 +122,42 @@ export async function getArticleListFromR2(): Promise<R2ArticleListItem[] | null
   }
 }
 
+// ─── Individual article cache (full body) ────────────────────────────────────
+const articleCache = new Map<string, { article: Article; fetchedAt: number }>();
+
 /**
  * Fetch a single article by slug from R2 (includes body).
+ * Each article is stored in its own small JSON file to minimize egress.
  * Used by the article page. Falls back to null when R2 is not configured.
  */
 export async function getArticleBySlugFromR2(slug: string): Promise<Article | null> {
-  const data = await fetchBySlug();
-  if (!data) return null;
-  const raw = data[slug];
-  return raw ? rawToArticle(raw) : null;
+  if (!R2_PUBLIC_BASE?.trim()) return null;
+  
+  const now = Date.now();
+  const cached = articleCache.get(slug);
+  if (cached && (now - cached.fetchedAt) < CACHE_TTL_MS) {
+    return cached.article;
+  }
+
+  const url = `${R2_PUBLIC_BASE.replace(/\/$/, '')}/articles/content/${slug}.json`;
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as R2ArticleRaw;
+    const article = rawToArticle(data);
+    articleCache.set(slug, { article, fetchedAt: now });
+    return article;
+  } catch {
+    return null;
+  }
 }
 
 /**
- * Bust both in-memory caches. Call after a successful R2 sync so the next
+ * Bust all in-memory caches. Call after a successful R2 sync so the next
  * fetch picks up freshly published articles.
  */
 export function clearR2Cache(): void {
-  bySlugCached = null;
-  bySlugCachedAt = 0;
+  articleCache.clear();
   listCached = null;
   listCachedAt = 0;
 }

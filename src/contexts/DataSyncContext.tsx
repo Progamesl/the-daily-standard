@@ -95,25 +95,28 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isAdminPath) {
-      // Poll every 1 minute so open sessions see new articles without a reload
+      // Poll every 5 minutes so open sessions see new articles without a reload.
+      // Egress optimization: Only poll if the tab is active/visible.
       const poll = setInterval(() => {
-        runAdminSync(false);
-      }, 60 * 1000);
-      const cleanup = () => clearInterval(poll);
-      window.addEventListener('beforeunload', cleanup);
+        if (document.visibilityState === 'visible') {
+          runAdminSync(false);
+        }
+      }, 5 * 60 * 1000);
+      return () => clearInterval(poll);
     } else {
       // Public pages: sync from R2 (zero Supabase egress)
       runR2Sync();
 
-      // Poll every 5 minutes so public sessions see new articles without a reload
+      // Poll every 10 minutes (R2 egress is free/cheap, but still good to be efficient)
       const poll = setInterval(() => {
-        clearR2Cache();
-        clearR2ArticleCache();
-        runR2Sync();
-      }, 5 * 60 * 1000);
+        if (document.visibilityState === 'visible') {
+          clearR2Cache();
+          clearR2ArticleCache();
+          runR2Sync();
+        }
+      }, 10 * 60 * 1000);
 
-      const cleanup = () => clearInterval(poll);
-      window.addEventListener('beforeunload', cleanup);
+      return () => clearInterval(poll);
     }
 
     // When a CMS article is saved, re-sync to show the new article immediately

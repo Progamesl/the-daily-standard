@@ -122,25 +122,37 @@ export default async function handler(req, res) {
       credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     });
 
-    const cacheControl = 'public, max-age=30, stale-while-revalidate=60';
-    await Promise.all([
-      s3.send(new PutObjectCommand({
-        Bucket: R2_BUCKET,
-        Key: 'articles/articles.json',
-        Body: JSON.stringify(list),
-        ContentType: 'application/json',
-        CacheControl: cacheControl,
-      })),
-      s3.send(new PutObjectCommand({
-        Bucket: R2_BUCKET,
-        Key: 'articles/articles-by-slug.json',
-        Body: JSON.stringify(bySlug),
-        ContentType: 'application/json',
-        CacheControl: cacheControl,
-      })),
-    ]);
+    const cacheControl = 'public, max-age=3600, stale-while-revalidate=86400'; // Cache for 1 hour, serve stale for 1 day
+    
+    // Preparation: list of upload promises
+    const uploads = [];
 
-    console.log(`[sync-r2] Synced ${list.length} articles (${supabaseArticles.length} Supabase + ${seedArticles.length} seed) to R2`);
+    // A. Upload the lightweight list
+    uploads.push(s3.send(new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: 'articles/articles.json',
+      Body: JSON.stringify(list),
+      ContentType: 'application/json',
+      CacheControl: cacheControl,
+    })));
+
+    // B. Upload individual article files (THE CORE OPTIMIZATION)
+    // This allows the frontend to fetch only the data for the specific story being read.
+    for (const article of Object.values(bySlug)) {
+      if (!article.slug) continue;
+      uploads.push(s3.send(new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: `articles/content/${article.slug}.json`,
+        Body: JSON.stringify(article),
+        ContentType: 'application/json',
+        CacheControl: cacheControl,
+      })));
+    }
+
+    // Wait for all uploads to complete
+    await Promise.all(uploads);
+
+    console.log(`[sync-r2] Synced ${list.length} articles to R2 as individual files.`);
     return res.status(200).json({
       ok: true,
       total: list.length,

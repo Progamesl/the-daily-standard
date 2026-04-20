@@ -33,6 +33,8 @@ export function useComments(articleId: string): UseCommentsReturn {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  const [tableMissing, setTableMissing] = useState(false);
+
   // ─── Initial fetch ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!supabase || !articleId) {
@@ -43,6 +45,10 @@ export function useComments(articleId: string): UseCommentsReturn {
     let cancelled = false;
 
     async function fetchComments() {
+      if (tableMissing) {
+        setLoading(false);
+        return;
+      }
       try {
         const { data, error } = await supabase
           .from('comments')
@@ -52,7 +58,14 @@ export function useComments(articleId: string): UseCommentsReturn {
           .order('created_at', { ascending: true });
 
         if (error) {
-          console.error('Failed to fetch comments:', error);
+          // 42P01 is the PostgREST/Postgres error for "relation does not exist"
+          if (error.code === '42P01') {
+            console.warn('ℹ️ Comment system is not yet initialized (table "public.comments" missing). Run migrations_comments_only.sql to enable.');
+            setTableMissing(true);
+          } else {
+            console.error('Failed to fetch comments:', error);
+          }
+          
           if (!cancelled) {
             setComments([]);
             setLoading(false);

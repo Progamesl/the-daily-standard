@@ -525,17 +525,17 @@ export async function saveAdminArticle(
         supabaseArticlesCache = null;
         supabaseArticlesCacheTime = 0;
         try { localStorage.removeItem(LIST_FETCH_TIME_KEY); } catch { /* non-fatal */ }
-        // Trigger R2 sync so public site gets fresh data instantly
-        fetch('/api/sync-r2', { method: 'POST' })
-          .then(r => r.json())
-          .then(data => {
-            if (data?.ok) {
-              console.log(`✅ R2 sync complete: ${data.total} articles published (${data.supabase} CMS + ${data.seed} seed)`);
-            } else {
-              console.error('❌ R2 sync returned error:', data);
-            }
-          })
-          .catch(err => console.error('❌ R2 sync fetch failed:', err));
+        // Trigger R2 sync so public site gets fresh data instantly (only for published articles)
+        if (saved.status === 'published') {
+          fetch('/api/sync-r2', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+              if (data?.ok) {
+                console.log(`✅ R2 sync complete: ${data.total} articles published`);
+              }
+            })
+            .catch(err => console.error('❌ R2 sync fetch failed:', err));
+        }
         // Trigger global refresh event so all pages know to re-render
         window.dispatchEvent(new CustomEvent('supabase-article-saved', { detail: { articleId: saved.id } }));
       } else {
