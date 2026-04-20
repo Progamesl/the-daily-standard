@@ -46,7 +46,7 @@ import { getUsersList, ROLE_LABELS, logActivity } from '@/lib/adminUserService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { authors as jsonAuthors, sections } from '@/data/seedData';
 import { cn } from '@/lib/utils';
-import { DocxImporter } from '@/components/admin/DocxImporter';
+// import { DocxImporter } from '@/components/admin/DocxImporter';
 
 const AUTOSAVE_DELAY = 5000;
 
@@ -251,6 +251,7 @@ export default function AdminStoryEditor() {
     };
   }, [id, loadingFull, navigate]);
 
+  /*
   // Listen for smart import data (from RichTextEditor paste)
   useEffect(() => {
     const handleImport = (e: any) => {
@@ -280,6 +281,7 @@ export default function AdminStoryEditor() {
     window.addEventListener('document-import', handleImport);
     return () => window.removeEventListener('document-import', handleImport);
   }, [allAuthors, form.headline, updateField]);
+  */
 
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(prev => {
@@ -509,7 +511,7 @@ export default function AdminStoryEditor() {
                 <Redo2 className={cn('h-4 w-4', redoStack.length === 0 && 'text-slate-300')} />
                 </Button>
             </div>
-            <DocxImporter onImport={({ headline, body, byline }) => {
+            {/* <DocxImporter onImport={({ headline, body, byline }) => {
               if (headline) updateField('headline', headline);
               if (body) updateField('body', body);
               if (byline) {
@@ -520,7 +522,7 @@ export default function AdminStoryEditor() {
                 if (match) updateField('authorId', match.id);
               }
             }} />
-            <span className="text-slate-300 mx-1">|</span>
+            <span className="text-slate-300 mx-1">|</span> */}
             <Button
               variant="ghost"
               size="sm"
