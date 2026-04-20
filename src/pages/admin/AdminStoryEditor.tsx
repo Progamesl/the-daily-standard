@@ -21,12 +21,24 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  getAdminArticle, saveAdminArticle, createAdminArticle,
-  generateSlug, calculateReadingTime, countWords, getAllAdminTags,
+  getAdminArticle,
+  saveAdminArticle,
+  createAdminArticle,
+  generateSlug,
+  calculateReadingTime,
+  countWords,
+  getAllAdminTags,
   stripBase64ImagesFromHtml,
-  addInternalNote, deleteInternalNote, restoreRevision,
-  type AdminArticle, type AdminAuthor, type InternalNote, type ArticleRevision,
-  getAdminAuthorsList, WORKFLOW_LABELS,
+  addInternalNote,
+  deleteInternalNote,
+  restoreRevision,
+  getAdminAuthorsList,
+  WORKFLOW_LABELS,
+  type AdminArticle,
+  type AdminAuthor,
+  type InternalNote,
+  type ArticleRevision,
+  type WorkflowStatus
 } from '@/lib/adminDataService';
 import { getArticleByIdFromSupabase } from '@/lib/supabaseDataService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
@@ -64,7 +76,6 @@ function getAllAuthors(): AdminAuthor[] {
   return result.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-type WorkflowStatus = AdminArticle['status'];
 type ArticlePriority = 'low' | 'normal' | 'high' | 'breaking';
 
 interface FormState {
