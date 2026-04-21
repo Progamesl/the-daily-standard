@@ -105,9 +105,15 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
       return () => clearInterval(poll);
     } else {
       // Public pages: sync from R2 (zero Supabase egress)
-      runR2Sync();
+      if (isR2ArticlesConfigured()) {
+        runR2Sync();
+      } else {
+        // Fallback to Supabase sync if R2 is not configured/available
+        console.log('[DataSync] Falling back to Supabase sync (R2 unavailable)');
+        runAdminSync(false);
+      }
 
-      // Poll every 10 minutes (R2 egress is free/cheap, but still good to be efficient)
+      // Poll every 10 minutes
       const poll = setInterval(() => {
         if (document.visibilityState === 'visible') {
           clearR2Cache();

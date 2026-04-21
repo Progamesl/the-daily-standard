@@ -389,19 +389,15 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
   
   // HEADLESS CMS: Supabase is source of truth - prioritize cache
   if (typeof window !== 'undefined') {
-    // Critical egress optimization: public site should NOT call Supabase.
-    // Only the admin app (under /admin) performs live syncs from Supabase.
-    if (!window.location.pathname.startsWith('/admin')) {
-      return localArticles;
-    }
-
     const now = Date.now();
     // Check both in-memory AND persisted timestamp so refreshes/new tabs skip the fetch
     const persistedFetchTime = Number(localStorage.getItem(LIST_FETCH_TIME_KEY) || '0');
     const lastFetch = Math.max(supabaseArticlesCacheTime, persistedFetchTime);
     
-    // In admin panel, we want much more frequent updates
-    const effectiveTTL = window.location.pathname.startsWith('/admin') ? 30 * 1000 : SUPABASE_CACHE_TTL;
+    // In admin panel, we want much more frequent updates (30s)
+    // Public site uses a longer TTL (5 min) to optimize egress
+    const isAdmin = window.location.pathname.startsWith('/admin');
+    const effectiveTTL = isAdmin ? 30 * 1000 : 5 * 60 * 1000;
     const useCache = (now - lastFetch) < effectiveTTL;
     
     if (!useCache) {
