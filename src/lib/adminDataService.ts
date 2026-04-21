@@ -537,8 +537,18 @@ export async function saveAdminArticle(
             })
             .catch(err => console.error('❌ R2 sync fetch failed:', err));
         }
+        // 3. UPDATE LOCAL CACHE IMMEDIATELY (Prevents race conditions in list view)
+        try {
+          const currentLocal = getStorage<Record<string, AdminArticle>>(ARTICLES_KEY, {});
+          currentLocal[saved.id] = saved;
+          localStorage.setItem(ARTICLES_KEY, JSON.stringify(currentLocal));
+          storageCache.delete(ARTICLES_KEY);
+        } catch (e) { console.error('Failed to update local cache:', e); }
+
         // Trigger global refresh event so all pages know to re-render
         window.dispatchEvent(new CustomEvent('supabase-article-saved', { detail: { articleId: saved.id } }));
+        window.dispatchEvent(new CustomEvent('octagon-data-sync'));
+        window.dispatchEvent(new StorageEvent('storage', { key: ARTICLES_KEY }));
       } else {
         console.error('❌ CRITICAL: Failed to save to Supabase. Article saved to localStorage only.');
         throw new Error('Failed to save article to Supabase. Please check your connection and try again.');

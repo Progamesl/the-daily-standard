@@ -66,17 +66,17 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl p-0 gap-0 overflow-hidden">
-        <DialogHeader className="sr-only">
-          <DialogTitle>Search articles</DialogTitle>
+      <DialogContent className="sm:max-w-xl p-0 gap-0 overflow-hidden shadow-2xl border-rule-thick">
+        <DialogHeader className="px-5 py-4 border-b border-border bg-muted/20">
+          <DialogTitle className="font-serif text-xl italic">Search The Octagon</DialogTitle>
         </DialogHeader>
-        <div className="flex items-center border-b border-border px-3">
-          <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="flex items-center border-b border-border px-4 bg-background">
+          <Search className="h-5 w-5 text-muted-foreground shrink-0" />
           <Input
-            placeholder="Search by headline, section..."
+            placeholder="Search by headline, section, author..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none h-12"
+            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none h-14 text-base"
             autoFocus
             aria-label="Search"
           />

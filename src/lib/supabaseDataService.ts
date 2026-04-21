@@ -65,6 +65,7 @@ function rowToAdminArticle(row: any, includeBody = false): AdminArticle {
     status: row.status,
     priority: row.priority,
     featured: row.featured,
+    isCinematic: row.is_cinematic || false,
     assignedToId: row.assigned_to_id,
     assignedToName: row.assigned_to_name,
     assignedById: row.assigned_by_id,
@@ -230,6 +231,7 @@ export async function saveArticleToSupabase(article: AdminArticle, upsertBy: 'id
         internal_notes: article.internalNotes || [],
         revisions: article.revisions || [],
         word_count: article.wordCount,
+        is_cinematic: article.isCinematic || false,
       }, {
         onConflict: upsertBy,
       });
