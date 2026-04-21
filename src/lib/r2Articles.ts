@@ -104,7 +104,7 @@ export async function getArticleListFromR2(): Promise<R2ArticleListItem[] | null
   const now = Date.now();
   if (listCached && now - listCachedAt < CACHE_TTL_MS) return listCached;
 
-  const url = `${R2_PUBLIC_BASE.replace(/\/$/, '')}/articles/articles.json`;
+  const url = `${R2_PUBLIC_BASE.replace(/\/$/, '')}/articles/articles.json?t=${Date.now()}`;
   try {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return null;
@@ -139,7 +139,7 @@ export async function getArticleBySlugFromR2(slug: string): Promise<Article | nu
     return cached.article;
   }
 
-  const url = `${R2_PUBLIC_BASE.replace(/\/$/, '')}/articles/content/${slug}.json`;
+  const url = `${R2_PUBLIC_BASE.replace(/\/$/, '')}/articles/content/${slug}.json?t=${Date.now()}`;
   try {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return null;

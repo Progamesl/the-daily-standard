@@ -122,19 +122,16 @@ export default async function handler(req, res) {
       credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     });
 
-    const cacheControl = 'public, max-age=3600, stale-while-revalidate=86400'; // Cache for 1 hour, serve stale for 1 day
-    
-    // Preparation: list of upload promises
-    const uploads = [];
-
-    // A. Upload the lightweight list
+    // A. Upload the lightweight list - Short cache for the list to ensure updates appear quickly
     uploads.push(s3.send(new PutObjectCommand({
       Bucket: R2_BUCKET,
       Key: 'articles/articles.json',
       Body: JSON.stringify(list),
       ContentType: 'application/json',
-      CacheControl: cacheControl,
+      CacheControl: 'public, max-age=60, stale-while-revalidate=300', 
     })));
+
+    const articleCacheControl = 'public, max-age=3600, stale-while-revalidate=86400';
 
     // B. Upload individual article files (THE CORE OPTIMIZATION)
     // This allows the frontend to fetch only the data for the specific story being read.
@@ -145,7 +142,7 @@ export default async function handler(req, res) {
         Key: `articles/content/${article.slug}.json`,
         Body: JSON.stringify(article),
         ContentType: 'application/json',
-        CacheControl: cacheControl,
+        CacheControl: articleCacheControl,
       })));
     }
 
