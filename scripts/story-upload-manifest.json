@@ -1,0 +1,419 @@
+{
+  "name": "website-audit-upload",
+  "generatedFrom": "Copy Editing Checklist selections captured in /Users/sidshukla/.cursor/plans/website_audit_upload_4fee8410.plan.md",
+  "statusMapping": {
+    "Yes": "published",
+    "No": "draft"
+  },
+  "sectionMapping": {
+    "News": "us",
+    "Feature": "features",
+    "Centerpoint": "features",
+    "Backpage": "features",
+    "Endpoint": "features",
+    "Opinion": "opinion",
+    "A&E": "arts",
+    "Sports": "sports"
+  },
+  "notes": [
+    "Google Docs are the source of truth where a document URL is present.",
+    "Name-only references require a matching local export before import.",
+    "Rows marked N/A or blank in the source checklist are excluded."
+  ],
+  "rows": [
+    {
+      "id": "checklist-1-news-1-tahoe-avalanche-story-d4",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "News 1",
+      "storyTitleReference": "Tahoe Avalanche Story D4",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-1-news-1-refugee-story",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "News 1",
+      "storyTitleReference": "Refugee story",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-1-news-2-teacher-strike-d1",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "News 2",
+      "storyTitleReference": "Teacher Strike D1",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-1-feature-4-google-doc",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "Feature 4",
+      "storyTitleReference": "Feature 4 Google Doc",
+      "sourceType": "google_doc",
+      "sourceUrl": "https://docs.google.com/document/d/1NC8-RBXq1S89zf-7mL1y9QUMpIwm964JO_qZAlwr-t0/edit?tab=t.0",
+      "googleDocId": "1NC8-RBXq1S89zf-7mL1y9QUMpIwm964JO_qZAlwr-t0",
+      "targetSection": "features",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-1-feature-5-google-doc",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "Feature 5",
+      "storyTitleReference": "Feature 5 Google Doc",
+      "sourceType": "google_doc",
+      "sourceUrl": "https://docs.google.com/document/d/1y1FRWX4hXDHtOSCDp40YphpAXGkcRS7X5rB8SPA1-xk/edit?tab=t.0",
+      "googleDocId": "1y1FRWX4hXDHtOSCDp40YphpAXGkcRS7X5rB8SPA1-xk",
+      "targetSection": "features",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-1-centerpoint-6-7-artists-of-country-day-d3",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "Centerpoint 6-7",
+      "storyTitleReference": "Artists of Country Day d3",
+      "sourceType": "name_reference",
+      "targetSection": "features",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-1-opinion-8-google-doc",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "Opinion 8",
+      "storyTitleReference": "Opinion 8 Google Doc",
+      "sourceType": "google_doc",
+      "sourceUrl": "https://docs.google.com/document/d/1dj89zl7ztEqq3QsYL-nmESVsmZ8rFVn9D0sjXurMCLc/edit?tab=t.0",
+      "googleDocId": "1dj89zl7ztEqq3QsYL-nmESVsmZ8rFVn9D0sjXurMCLc",
+      "targetSection": "opinion",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-1-opinion-9-my-angle-therapist",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "Opinion 9",
+      "storyTitleReference": "My Angle: Therapist",
+      "sourceType": "name_reference",
+      "targetSection": "opinion",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-1-opinion-9-advice-column",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "Opinion 9",
+      "storyTitleReference": "Advice Column",
+      "sourceType": "name_reference",
+      "targetSection": "opinion",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-1-ae-10-off-campus-food-review",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "A&E 10",
+      "storyTitleReference": "Off Campus Food Review",
+      "sourceType": "name_reference",
+      "targetSection": "arts",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "checklist-1-ae-11-google-doc",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "A&E 11",
+      "storyTitleReference": "A&E 11 Google Doc",
+      "sourceType": "google_doc",
+      "sourceUrl": "https://docs.google.com/document/d/1Ja0Jt0W6svjDpugZFITVNQAz32irNwj9jFFbDiPBrsE/edit?tab=t.0",
+      "googleDocId": "1Ja0Jt0W6svjDpugZFITVNQAz32irNwj9jFFbDiPBrsE",
+      "targetSection": "arts",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "checklist-1-backpage-12-google-doc",
+      "checklistGroup": "copy-checklist-1",
+      "pageLabel": "Backpage 12",
+      "storyTitleReference": "Backpage 12 Google Doc",
+      "sourceType": "google_doc",
+      "sourceUrl": "https://docs.google.com/document/d/1Y2C9lNAB6J8qfvdBpGpD04VFJPRfwysBCF0lH4c9Gcc/edit?tab=t.0",
+      "googleDocId": "1Y2C9lNAB6J8qfvdBpGpD04VFJPRfwysBCF0lH4c9Gcc",
+      "targetSection": "features",
+      "finalCheck": "Yes",
+      "intendedStatus": "published"
+    },
+    {
+      "id": "checklist-2-news-1-cognitive-development",
+      "checklistGroup": "copy-checklist-2",
+      "pageLabel": "News 1",
+      "storyTitleReference": "Cognitive Development",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "checklist-2-news-1-coyote-creek-d1",
+      "checklistGroup": "copy-checklist-2",
+      "pageLabel": "News 1",
+      "storyTitleReference": "coyote creek d1",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "checklist-2-news-2-sports-gambling",
+      "checklistGroup": "copy-checklist-2",
+      "pageLabel": "News 2",
+      "storyTitleReference": "Sports Gambling",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "checklist-2-feature-4-cara-shin-ff",
+      "checklistGroup": "copy-checklist-2",
+      "pageLabel": "Feature 4",
+      "storyTitleReference": "Cara Shin FF",
+      "sourceType": "name_reference",
+      "targetSection": "features",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "checklist-2-ae-10-google-doc",
+      "checklistGroup": "copy-checklist-2",
+      "pageLabel": "A&E 10",
+      "storyTitleReference": "A&E 10 Google Doc",
+      "sourceType": "google_doc",
+      "sourceUrl": "https://docs.google.com/document/d/1C4wvtopOFcRRGqB00npiR8ePs27w3eq7jFBdM-dE3go/edit?tab=t.0",
+      "googleDocId": "1C4wvtopOFcRRGqB00npiR8ePs27w3eq7jFBdM-dE3go",
+      "targetSection": "arts",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "checklist-2-backpage-12-google-doc",
+      "checklistGroup": "copy-checklist-2",
+      "pageLabel": "Backpage 12",
+      "storyTitleReference": "Backpage 12 Google Doc",
+      "sourceType": "google_doc",
+      "sourceUrl": "https://docs.google.com/document/d/1-BhIac3zB1Id99csG6uWU5-MQVqmXN_oc90FeS_QAp0/edit?usp=sharing",
+      "googleDocId": "1-BhIac3zB1Id99csG6uWU5-MQVqmXN_oc90FeS_QAp0",
+      "targetSection": "features",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-news-1-d2-soccer-crash",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "News 1 - Parsiny",
+      "storyTitleReference": "D2 Soccer Crash",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-news-1-ai-data-centers",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "News 1 - Parsiny",
+      "storyTitleReference": "Ai data centers - done",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-news-2-jea",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "News 2 - Noor & Ammar",
+      "storyTitleReference": "JEA - done",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-news-2-positions",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "News 2 - Noor & Ammar",
+      "storyTitleReference": "Positions - done",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-news-3-jump",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "News 3",
+      "storyTitleReference": "Jump",
+      "sourceType": "name_reference",
+      "targetSection": "us",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-feature-4-leaving-teachers-feature",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Feature 4 - Lukas",
+      "storyTitleReference": "Leaving Teachers Feature",
+      "sourceType": "name_reference",
+      "targetSection": "features",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-feature-5-ashley-lattyak-freshman-foci",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Feature 5 - Jacob",
+      "storyTitleReference": "Ashley Lattyak Freshman Foci D4 - done",
+      "sourceType": "name_reference",
+      "targetSection": "features",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-centerpoint-6-7-senior-university-doc",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Centerpoint 6-7 - Lukas & Chloey",
+      "storyTitleReference": "senior university doc of seniors and their universities",
+      "sourceType": "name_reference",
+      "targetSection": "features",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-opinion-8-no-shame-community-college",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Opinion 8 - Sid",
+      "storyTitleReference": "Draft 4: No Shame in Community College - done",
+      "sourceType": "name_reference",
+      "targetSection": "opinion",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-opinion-8-advice-column",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Opinion 8 - Sid",
+      "storyTitleReference": "Advice column - done",
+      "sourceType": "name_reference",
+      "targetSection": "opinion",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-opinion-9-noor-my-angle",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Opinion 9 - Zachary",
+      "storyTitleReference": "Noor's My Angle - done",
+      "sourceType": "name_reference",
+      "targetSection": "opinion",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-opinion-9-sid-my-angle",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Opinion 9 - Zachary",
+      "storyTitleReference": "Sid's My Angle - done",
+      "sourceType": "name_reference",
+      "targetSection": "opinion",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-ae-10-starbucks-summer-menu-review",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "A&E 10 - Sid",
+      "storyTitleReference": "Starbucks Summer Menu Review d1",
+      "sourceType": "name_reference",
+      "targetSection": "arts",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-ae-11-kanye-album-review",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "A&E 11 - Noor",
+      "storyTitleReference": "d4 kanye album review - done",
+      "sourceType": "name_reference",
+      "targetSection": "arts",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-ae-11-iceman-album-review",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "A&E 11 - Noor",
+      "storyTitleReference": "Iceman Album Review - A&E - done",
+      "sourceType": "name_reference",
+      "targetSection": "arts",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-centerpoint-12-13-senior-goodbyes",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Centerpoint 12-13 - Jacob & Susie",
+      "storyTitleReference": "Senior goodbyes",
+      "sourceType": "name_reference",
+      "targetSection": "features",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-sports-14-no-mlb-season-2027",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Sports 14 - Parsa",
+      "storyTitleReference": "D4 No MLB Season 2027-Parsa Salari - done",
+      "sourceType": "name_reference",
+      "targetSection": "sports",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-sports-14-octagon-golf-feature",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Sports 14 - Parsa",
+      "storyTitleReference": "Octagon Golf Feature - done",
+      "sourceType": "name_reference",
+      "targetSection": "sports",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-feature-15-entrepreneurship-reborn",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Feature 15 - Zachary",
+      "storyTitleReference": "Feature 15: Entrepreneurship Reborn at Country Day - Brenden Yu D4 - done",
+      "sourceType": "name_reference",
+      "targetSection": "features",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    },
+    {
+      "id": "may-27-endpoint-16-senior-superlatives",
+      "checklistGroup": "print-date-may-27",
+      "pageLabel": "Endpoint 16 - Vivian",
+      "storyTitleReference": "Senior Superlatives - done",
+      "sourceType": "name_reference",
+      "targetSection": "features",
+      "finalCheck": "No",
+      "intendedStatus": "draft"
+    }
+  ]
+}

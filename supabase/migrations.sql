@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS articles (
   status TEXT NOT NULL DEFAULT 'draft',
   priority TEXT DEFAULT 'normal',
   featured BOOLEAN DEFAULT FALSE,
+  is_cinematic BOOLEAN DEFAULT FALSE,
   
   -- Editorial workflow
   assigned_to_id TEXT,

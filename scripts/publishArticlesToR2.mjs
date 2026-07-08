@@ -3,14 +3,12 @@
  *
  * Manual equivalent of POST /api/sync-r2.
  * Fetches all published articles from Supabase + seed data from octagonData.json,
- * merges them, and uploads static JSON to R2.
+ * merges them, and uploads the static JSON files consumed by src/lib/r2Articles.ts:
  *
- * Run this:
- *   - Once during initial setup to populate R2
- *   - Any time you want to force a full sync
- *   - After any bulk Supabase change
+ *   articles/articles.json          — lightweight list for homepage/section pages
+ *   articles/content/{slug}.json    — full article body for article pages
  *
- * In normal usage, /api/sync-r2 fires automatically after every CMS save.
+ * Run after any bulk Supabase change. Normal CMS saves still call /api/sync-r2.
  */
 
 import dotenv from 'dotenv';
@@ -20,28 +18,32 @@ dotenv.config({ path: '.env' });
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const octagonData = JSON.parse(
   readFileSync(join(__dirname, '../src/data/octagonData.json'), 'utf8')
 );
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
-const R2_BUCKET = process.env.R2_BUCKET || 'octagon-images';
-const R2_S3_ENDPOINT = process.env.R2_S3_ENDPOINT;
+function getRequiredEnv() {
+  const env = {
+    SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
+    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+    R2_BUCKET: process.env.R2_BUCKET || 'octagon-images',
+    R2_S3_ENDPOINT: process.env.R2_S3_ENDPOINT,
+  };
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
-  process.exit(1);
-}
-if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_S3_ENDPOINT) {
-  console.error('Missing R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, or R2_S3_ENDPOINT');
-  process.exit(1);
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
+  }
+  if (!env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_S3_ENDPOINT) {
+    throw new Error('Missing R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, or R2_S3_ENDPOINT');
+  }
+
+  return env;
 }
 
 function rowToPublic(row) {
@@ -70,21 +72,21 @@ function rowToPublic(row) {
     tags: row.tags ?? [],
     featured: row.featured ?? false,
     priority: row.priority ?? 'normal',
+    isCinematic: row.is_cinematic ?? row.isCinematic ?? false,
   };
 }
 
-async function main() {
-  console.log('Fetching published articles from Supabase…');
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export async function publishArticlesToR2() {
+  const env = getRequiredEnv();
+
+  console.log('Fetching published articles from Supabase...');
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
   const { data, error } = await supabase
     .from('articles')
-    .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority')
+    .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority,is_cinematic')
     .eq('status', 'published');
 
-  if (error) {
-    console.error('Supabase error:', error);
-    process.exit(1);
-  }
+  if (error) throw error;
 
   const supabaseArticles = (data || []).map(rowToPublic);
   console.log(`  ${supabaseArticles.length} articles from Supabase`);
@@ -92,49 +94,75 @@ async function main() {
   const seedArticles = (octagonData.articles || []).filter(a => a.slug).map(rowToPublic);
   console.log(`  ${seedArticles.length} articles from octagonData.json`);
 
-  // Merge: Supabase overrides seed for same slug
   const bySlug = {};
-  for (const a of seedArticles) bySlug[a.slug] = a;
-  for (const a of supabaseArticles) bySlug[a.slug] = a;
+  for (const article of seedArticles) {
+    if (article.slug) bySlug[article.slug] = article;
+  }
+  for (const article of supabaseArticles) {
+    if (!article.slug) continue;
+    const existing = bySlug[article.slug];
+    bySlug[article.slug] = existing && !article.body && existing.body
+      ? { ...article, body: existing.body }
+      : article;
+  }
 
   const list = Object.values(bySlug)
-    .map(({ body: _b, ...rest }) => rest)
+    .map(({ body: _body, ...rest }) => rest)
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
   console.log(`  ${list.length} total articles after merge`);
 
   const s3 = new S3Client({
     region: 'auto',
-    endpoint: R2_S3_ENDPOINT,
-    credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
+    endpoint: env.R2_S3_ENDPOINT,
+    credentials: {
+      accessKeyId: env.R2_ACCESS_KEY_ID,
+      secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    },
   });
 
-  const cacheControl = 'public, max-age=30, stale-while-revalidate=60';
+  const uploads = [];
+  const listCacheControl = 'public, max-age=60, stale-while-revalidate=300';
+  const articleCacheControl = 'public, max-age=3600, stale-while-revalidate=86400';
 
-  // Keys must match VITE_R2_PUBLIC_BASE_URL which ends with /octagon-images
-  // So files live at octagon-images/articles/... inside the bucket
-  console.log('Uploading octagon-images/articles/articles.json…');
-  await s3.send(new PutObjectCommand({
-    Bucket: R2_BUCKET,
-    Key: 'octagon-images/articles/articles.json',
+  console.log('Uploading articles/articles.json...');
+  uploads.push(s3.send(new PutObjectCommand({
+    Bucket: env.R2_BUCKET,
+    Key: 'articles/articles.json',
     Body: JSON.stringify(list),
     ContentType: 'application/json',
-    CacheControl: cacheControl,
-  }));
+    CacheControl: listCacheControl,
+  })));
 
-  console.log('Uploading octagon-images/articles/articles-by-slug.json…');
-  await s3.send(new PutObjectCommand({
-    Bucket: R2_BUCKET,
-    Key: 'octagon-images/articles/articles-by-slug.json',
-    Body: JSON.stringify(bySlug),
-    ContentType: 'application/json',
-    CacheControl: cacheControl,
-  }));
+  for (const article of Object.values(bySlug)) {
+    if (!article.slug) continue;
+    uploads.push(s3.send(new PutObjectCommand({
+      Bucket: env.R2_BUCKET,
+      Key: `articles/content/${article.slug}.json`,
+      Body: JSON.stringify(article),
+      ContentType: 'application/json',
+      CacheControl: articleCacheControl,
+    })));
+  }
 
-  console.log('Done.');
+  await Promise.all(uploads);
+
+  const result = {
+    total: list.length,
+    supabase: supabaseArticles.length,
+    seed: seedArticles.length,
+    keys: {
+      list: 'articles/articles.json',
+      contentPrefix: 'articles/content/',
+    },
+  };
+  console.log(`Done. Synced ${result.total} articles to R2.`);
+  return result;
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  publishArticlesToR2().catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -2,8 +2,8 @@
  * Public article data from R2.
  *
  * Two JSON files are maintained by /api/sync-r2 (triggered after every CMS save):
- *   articles/articles.json        — list without body (for homepage / section pages)
- *   articles/articles-by-slug.json — full articles with body (for article pages)
+ *   articles/articles.json          — list without body (for homepage / section pages)
+ *   articles/content/{slug}.json    — full article body for article pages
  *
  * Reading from R2 produces zero Supabase egress and zero Cloudflare egress fees.
  */
@@ -42,6 +42,7 @@ type R2ArticleRaw = {
   tags: string[];
   featured?: boolean;
   priority?: string;
+  isCinematic?: boolean;
 };
 
 type R2ListItemRaw = Omit<R2ArticleRaw, 'body'>;
@@ -82,6 +83,7 @@ function rawToArticle(raw: R2ArticleRaw | R2ListItemRaw, body = ''): Article {
     updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : undefined,
     readingTime: raw.readingTime ?? 1,
     tags: raw.tags ?? [],
+    isCinematic: raw.isCinematic ?? false,
   };
 }
 

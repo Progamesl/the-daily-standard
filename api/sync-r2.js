@@ -4,8 +4,8 @@
  * Fetches all published articles from Supabase (+ seed data from octagonData.json),
  * merges them, then uploads two static JSON files to Cloudflare R2:
  *
- *   articles/articles.json        — lightweight list (no body) for homepage/section pages
- *   articles/articles-by-slug.json — full articles with body for article pages
+ *   articles/articles.json          — lightweight list (no body) for homepage/section pages
+ *   articles/content/{slug}.json    — full article body for article pages
  *
  * The public site reads from R2 (zero Supabase egress, free Cloudflare CDN egress).
  * Called automatically from the CMS after every article save.
@@ -63,6 +63,7 @@ function rowToPublic(row) {
     tags: row.tags ?? [],
     featured: row.featured ?? false,
     priority: row.priority ?? 'normal',
+    isCinematic: row.is_cinematic ?? row.isCinematic ?? false,
   };
 }
 
@@ -83,7 +84,7 @@ export default async function handler(req, res) {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { data, error } = await supabase
       .from('articles')
-      .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority')
+      .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority,is_cinematic')
       .eq('status', 'published');
 
     if (error) throw error;
@@ -121,6 +122,7 @@ export default async function handler(req, res) {
       endpoint: R2_S3_ENDPOINT,
       credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY },
     });
+    const uploads = [];
 
     // A. Upload the lightweight list - Short cache for the list to ensure updates appear quickly
     uploads.push(s3.send(new PutObjectCommand({
@@ -155,6 +157,10 @@ export default async function handler(req, res) {
       total: list.length,
       supabase: supabaseArticles.length,
       seed: seedArticles.length,
+      keys: {
+        list: 'articles/articles.json',
+        contentPrefix: 'articles/content/',
+      },
     });
   } catch (err) {
     console.error('[sync-r2] Error:', err);

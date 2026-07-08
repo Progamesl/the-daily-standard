@@ -15,6 +15,8 @@ import StaffPage from "./pages/StaffPage";
 import NotFound from "./pages/NotFound";
 import GamesPage from "./pages/GamesPage";
 import AdvertisePage from "./pages/AdvertisePage";
+import SeniorSuperlativesPage from "./pages/SeniorSuperlativesPage";
+import PoemsPage from "./pages/PoemsPage";
 
 // Admin
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
@@ -65,6 +67,8 @@ const App = () => (
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/secretstuff" element={<GamesPage />} />
             <Route path="/advertise" element={<AdvertisePage />} />
+            <Route path="/special/senior-superlatives" element={<SeniorSuperlativesPage />} />
+            <Route path="/special/poems" element={<PoemsPage />} />
 
             {/* Admin routes — DataSyncProvider only here */}
             <Route path="/admin/login" element={<AdminLogin />} />
