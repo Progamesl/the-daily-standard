@@ -14,7 +14,13 @@ import {
 } from "recharts";
 import { ArrowLeft, ExternalLink, Link as LinkIcon } from "lucide-react";
 import { DocumentHead } from "@/components/seo/DocumentHead";
-import { interactiveNewsPilot, type InteractiveNewsPilot, type PilotChart, type PilotSource } from "@/data/interactiveNewsPilot";
+import {
+  interactiveNewsPilot,
+  type InteractiveNewsPilot,
+  type PilotArticleBlock,
+  type PilotChart,
+  type PilotSource,
+} from "@/data/interactiveNewsPilot";
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -70,27 +76,66 @@ function SourceCard({
   );
 }
 
-function StatGrid({ story, getSource }: { story: InteractiveNewsPilot; getSource: (id: string) => PilotSource | undefined }) {
+function InlineStatStrip({
+  story,
+  statIndexes,
+  getSource,
+}: {
+  story: InteractiveNewsPilot;
+  statIndexes: number[];
+  getSource: (id: string) => PilotSource | undefined;
+}) {
+  const stats = statIndexes.map((index) => story.stats[index]).filter(Boolean);
+
+  if (!stats.length) return null;
+
   return (
-    <section className="grid border-l border-t border-[#1b160f]/20 md:grid-cols-3">
-      {story.stats.map((stat) => (
-        <motion.article
+    <aside className="my-8 grid gap-4 sm:grid-cols-2">
+      {stats.map((stat) => (
+        <motion.div
           key={stat.label}
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.5, ease: EASE }}
-          className="border-b border-r border-[#1b160f]/20 bg-[#f7f0e0] p-6"
+          className="border-l-4 border-[#8f2b1f] bg-[#fbf4e5] p-5 shadow-[5px_5px_0_rgba(27,22,15,0.08)]"
         >
           <p className="font-serif text-5xl font-black leading-none tracking-[-0.05em] text-[#1b160f]">{stat.value}</p>
-          <h3 className="mt-4 text-sm font-black uppercase leading-6 tracking-[0.18em] text-[#1b160f]">{stat.label}</h3>
+          <h3 className="mt-3 text-sm font-black uppercase leading-6 tracking-[0.15em] text-[#1b160f]">{stat.label}</h3>
           <p className="mt-3 text-sm leading-6 text-[#4a4033]">{stat.context}</p>
           <div className="mt-4">
             <SourceLink source={getSource(stat.sourceId)} />
           </div>
-        </motion.article>
+        </motion.div>
       ))}
-    </section>
+    </aside>
+  );
+}
+
+function SourceButtons({
+  sourceIds,
+  getSource,
+  onFocus,
+}: {
+  sourceIds?: string[];
+  getSource: (id: string) => PilotSource | undefined;
+  onFocus: (id: string) => void;
+}) {
+  if (!sourceIds?.length) return null;
+
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      {sourceIds.map((sourceId) => (
+        <button
+          key={sourceId}
+          type="button"
+          onClick={() => onFocus(sourceId)}
+          className="border border-[#8f2b1f]/35 px-3 py-2 text-[0.65rem] font-black uppercase tracking-[0.16em] text-[#8f2b1f] transition-colors hover:border-[#8f2b1f] hover:bg-[#fff9ec]"
+        >
+          {sourceLabel(getSource(sourceId))}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -167,6 +212,66 @@ function TrendChart({ chart, source }: { chart: PilotChart; source?: PilotSource
   );
 }
 
+function ArticleBlock({
+  block,
+  story,
+  getSource,
+  onFocusSource,
+}: {
+  block: PilotArticleBlock;
+  story: InteractiveNewsPilot;
+  getSource: (id: string) => PilotSource | undefined;
+  onFocusSource: (id: string) => void;
+}) {
+  if (block.type === "heading") {
+    return (
+      <h2 className="mt-12 border-t border-[#1b160f]/20 pt-8 font-serif text-4xl font-black leading-tight tracking-[-0.04em] text-[#1b160f] sm:text-5xl">
+        {block.text}
+      </h2>
+    );
+  }
+
+  if (block.type === "paragraph") {
+    return (
+      <section>
+        <p className="font-serif text-[1.35rem] leading-9 text-[#2f281f]">{block.text}</p>
+        <SourceButtons sourceIds={block.sourceIds} getSource={getSource} onFocus={onFocusSource} />
+      </section>
+    );
+  }
+
+  if (block.type === "pullquote") {
+    return (
+      <aside className="my-8 border-y border-[#1b160f]/25 py-7">
+        <p className="font-serif text-3xl font-black italic leading-tight tracking-[-0.04em] text-[#1b160f] sm:text-4xl">
+          “{block.quote}”
+        </p>
+        <p className="mt-4 text-xs font-black uppercase tracking-[0.2em] text-[#8f2b1f]">{block.attribution}</p>
+      </aside>
+    );
+  }
+
+  if (block.type === "stat-strip") {
+    return <InlineStatStrip story={story} statIndexes={block.statIndexes} getSource={getSource} />;
+  }
+
+  if (block.type === "chart") {
+    const chart = story.charts[block.chartId];
+    const source = getSource(chart.sourceId);
+
+    return block.chartId === "comparison" ? <ComparisonChart chart={chart} source={source} /> : <TrendChart chart={chart} source={source} />;
+  }
+
+  return (
+    <aside className="my-8 border border-[#1b160f]/20 bg-[#f7f0e0] p-5">
+      <p className="text-xs font-black uppercase tracking-[0.26em] text-[#8f2b1f]">Evidence note</p>
+      <h3 className="mt-2 font-serif text-2xl font-black leading-tight tracking-[-0.03em] text-[#1b160f]">{block.title}</h3>
+      <p className="mt-3 text-sm leading-7 text-[#3f362b]">{block.text}</p>
+      <SourceButtons sourceIds={block.sourceIds} getSource={getSource} onFocus={onFocusSource} />
+    </aside>
+  );
+}
+
 export function InteractiveNewsFeature({ story = interactiveNewsPilot }: { story?: InteractiveNewsPilot }) {
   const [activeSource, setActiveSource] = useState(story.heroStat.sourceId);
   const sourceMap = useMemo(() => new Map(story.sources.map((source) => [source.id, source])), [story.sources]);
@@ -216,43 +321,26 @@ export function InteractiveNewsFeature({ story = interactiveNewsPilot }: { story
           </aside>
         </section>
 
-        <section className="mx-auto max-w-[1240px] px-5 sm:px-8">
-          <StatGrid story={story} getSource={getSource} />
-        </section>
-
         <section className="mx-auto grid max-w-[1240px] gap-8 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="space-y-8">
-            {story.sections.map((section) => (
-              <motion.section
-                key={section.title}
-                initial={{ opacity: 0, y: 16 }}
+          <div className="space-y-7">
+            <div className="border-b border-[#1b160f]/20 pb-6">
+              <p className="text-xs font-black uppercase tracking-[0.32em] text-[#8f2b1f]">Full Article</p>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-[#4a4033]">
+                The reporting below is the article itself. Graphics and source cards appear where they clarify the evidence.
+              </p>
+            </div>
+
+            {story.articleBlocks.map((block, index) => (
+              <motion.div
+                key={`${block.type}-${index}`}
+                initial={{ opacity: 0, y: 14 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.55, ease: EASE }}
-                className="border-t border-[#1b160f]/25 pt-7"
+                transition={{ duration: 0.5, ease: EASE }}
               >
-                <p className="text-xs font-black uppercase tracking-[0.32em] text-[#8f2b1f]">{section.eyebrow}</p>
-                <h2 className="mt-3 max-w-3xl font-serif text-4xl font-black leading-tight tracking-[-0.04em] sm:text-5xl">
-                  {section.title}
-                </h2>
-                <p className="mt-5 max-w-3xl font-serif text-xl leading-9 text-[#2f281f]">{section.body}</p>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  {section.sourceIds.map((sourceId) => (
-                    <button
-                      key={sourceId}
-                      type="button"
-                      onClick={() => setActiveSource(sourceId)}
-                      className="border border-[#8f2b1f]/35 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#8f2b1f] transition-colors hover:border-[#8f2b1f] hover:bg-[#fff9ec]"
-                    >
-                      {sourceLabel(getSource(sourceId))}
-                    </button>
-                  ))}
-                </div>
-              </motion.section>
+                <ArticleBlock block={block} story={story} getSource={getSource} onFocusSource={setActiveSource} />
+              </motion.div>
             ))}
-
-            <ComparisonChart chart={story.charts.comparison} source={getSource(story.charts.comparison.sourceId)} />
-            <TrendChart chart={story.charts.trend} source={getSource(story.charts.trend.sourceId)} />
 
             <section id="methodology" className="border border-[#1b160f]/20 bg-[#f7f0e0] p-6">
               <p className="text-xs font-black uppercase tracking-[0.32em] text-[#8f2b1f]">Methodology</p>

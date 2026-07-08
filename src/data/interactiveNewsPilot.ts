@@ -20,6 +20,36 @@ export type PilotSection = {
   sourceIds: string[];
 };
 
+export type PilotArticleBlock =
+  | {
+      type: "heading";
+      text: string;
+    }
+  | {
+      type: "paragraph";
+      text: string;
+      sourceIds?: string[];
+    }
+  | {
+      type: "pullquote";
+      quote: string;
+      attribution: string;
+    }
+  | {
+      type: "stat-strip";
+      statIndexes: number[];
+    }
+  | {
+      type: "chart";
+      chartId: "comparison" | "trend";
+    }
+  | {
+      type: "source-note";
+      title: string;
+      text: string;
+      sourceIds: string[];
+    };
+
 export type PilotChart = {
   id: string;
   title: string;
@@ -43,6 +73,7 @@ export type InteractiveNewsPilot = {
   heroStat: PilotStat;
   stats: PilotStat[];
   sections: PilotSection[];
+  articleBlocks: PilotArticleBlock[];
   sources: PilotSource[];
   charts: {
     comparison: PilotChart;
@@ -52,14 +83,14 @@ export type InteractiveNewsPilot = {
 };
 
 export const interactiveNewsPilot: InteractiveNewsPilot = {
-  kicker: "Interactive News Lab",
-  headline: "How sports betting reaches students before they can legally bet",
+  kicker: "Interactive News",
+  headline: "Online Sports Gambling Must Be Regulated",
   dek:
     "Country Day students report seeing betting ads and placing bets, while national data shows online sportsbooks have become a growing public-health concern.",
-  byline: "Ethan Minton and The Octagon News Lab",
-  date: "Issue 10 interactive draft",
+  byline: "Ethan Minton",
+  date: "May 7, 2026",
   editorNote:
-    "Professional prototype based on the draft story “Online Sports Gambling Must Be Regulated.” The page keeps source context visible so the story can rely less on repetitive attribution language.",
+    "Editor preview: this version preserves the full article while embedding source cards, poll results and charts inside the story flow.",
   heroStat: {
     value: "51%",
     label: "of Octagon poll respondents said they had placed a sports bet",
@@ -107,6 +138,150 @@ export const interactiveNewsPilot: InteractiveNewsPilot = {
       body:
         "Sports betting remains illegal in California, but fantasy and prediction-market products complicate the picture. A 2025 California attorney general opinion concluded that paid daily fantasy sports games constitute unlawful sports wagering under state law.",
       sourceIds: ["cal-ag", "bill"],
+    },
+  ],
+  articleBlocks: [
+    {
+      type: "paragraph",
+      text:
+        "Ryan Hobbs, Sacramento Country Day middle school dean of students, is worried about his students' attitudes toward sports betting. While he has not witnessed students placing sports bets, he has seen kids as young as 11 joking about doing so.",
+    },
+    {
+      type: "pullquote",
+      quote:
+        "One of the kids in my elective pulled up all of the prop bets for the Super Bowl, and students were taking turns saying what they would have bet for each of the prop bets.",
+      attribution: "Ryan Hobbs, middle school dean of students",
+    },
+    {
+      type: "paragraph",
+      text:
+        "U.S. adults have a substantial gambling problem. The National Council on Problem Gambling estimates that 2.5 million adults likely suffer from gambling disorder, and a UC San Diego-led study found that online searches for gambling-addiction help increased by about 23% nationally after the expansion of legalized sports betting in 2018.",
+      sourceIds: ["ncpg", "ucsd"],
+    },
+    {
+      type: "stat-strip",
+      statIndexes: [1],
+    },
+    {
+      type: "chart",
+      chartId: "trend",
+    },
+    {
+      type: "paragraph",
+      text:
+        "Hobbs said he is concerned about the negative effects Cavaliers joking about the issue today could have on their futures.",
+    },
+    {
+      type: "pullquote",
+      quote:
+        "You can't just let kids loose on this stuff, right? Gambling ruins people's lives. In an alternate future where it is a problem, schools should handle it the same way as a kid doing drugs.",
+      attribution: "Ryan Hobbs",
+    },
+    {
+      type: "heading",
+      text: "A new age of sports gambling",
+    },
+    {
+      type: "paragraph",
+      text:
+        "Sports gambling has existed for millennia, from people wagering on chariot races in the sixth century B.C.E. to sports leagues in the 21st century. In May 2018, the Supreme Court overturned the Professional and Amateur Sports Protection Act, opening the door for states to legalize online sports gambling for adults.",
+      sourceIds: ["ucsd"],
+    },
+    {
+      type: "paragraph",
+      text:
+        "Now, professional sports leagues such as the NFL and NBA partner with betting platforms including FanDuel and DraftKings. Sports that prohibit their own players, coaches and staff from betting increasingly push betting commercials and content across social media and television.",
+    },
+    {
+      type: "paragraph",
+      text:
+        "Sophomore Lucas Holz, a sports fan, said he has seen many sports-betting ads and is concerned about how betting companies sell their products. On TikTok, he said, videos promote how much viewers can win, not the potential losses that come with betting. He said a betting ad can seem to appear every three scrolls.",
+    },
+    {
+      type: "heading",
+      text: "Increase in underage sports gambling",
+    },
+    {
+      type: "paragraph",
+      text:
+        "The issue of underage sports gambling is present even in California, where most forms of sports gambling remain illegal. An increasing number of teens use apps like PrizePicks or crypto-based sites to bet on player props, wagers on individual player statistics or milestones rather than a game's final outcome.",
+      sourceIds: ["cal-ag"],
+    },
+    {
+      type: "source-note",
+      title: "What California says about player-prop products",
+      text:
+        "California Attorney General Rob Bonta concluded in a 2025 legal opinion that paid daily fantasy sports games played by people physically located in California constitute sports wagering under state law.",
+      sourceIds: ["cal-ag"],
+    },
+    {
+      type: "paragraph",
+      text:
+        "USA Today reported that, since 2023, DraftKings had 620 reports of suspected underage activity in Ohio, accounting for $2.78 million in wagers. FanDuel had 162 underage reports, accounting for $63,152 in bets.",
+      sourceIds: ["usa-today"],
+    },
+    {
+      type: "stat-strip",
+      statIndexes: [2],
+    },
+    {
+      type: "paragraph",
+      text:
+        "USA Today investigative reporter Nick Penzenstadler described how minors can get around safeguards by borrowing or stealing identifying information, or by uploading a parent's or older sibling's identification.",
+      sourceIds: ["usa-today"],
+    },
+    {
+      type: "paragraph",
+      text:
+        "A 2024 Redwood High School survey in Larkspur, California, found that nearly three-fourths of male students and one-fourth of female students had placed a sports bet online despite being underage. Some Redwood students anonymously described using VPNs to claim they were located elsewhere.",
+    },
+    {
+      type: "paragraph",
+      text:
+        "Forty-three Country Day high school students filled out a similar Octagon poll on March 24. About half, 51%, reported placing a sports bet. Additionally, 42% said they had seen more than 11 sports-betting ads per day, and 88% had come across at least one per day.",
+      sourceIds: ["octagon-poll"],
+    },
+    {
+      type: "chart",
+      chartId: "comparison",
+    },
+    {
+      type: "heading",
+      text: "Legislation and action",
+    },
+    {
+      type: "paragraph",
+      text:
+        "Sites like Kalshi and Polymarket, considered prediction markets, are still permitted to operate in California. Both platforms cater to younger audiences through paid creator promotion and TikTok-style, high-volume ads.",
+    },
+    {
+      type: "paragraph",
+      text:
+        "Polymarket came under scrutiny after offering betting on when U.S. soldiers shot down in Iran would be rescued, according to NBC News. Kalshi also faced backlash after refusing to pay out $54 million in bets related to the removal of Iran's Ayatollah Ali Khamenei.",
+    },
+    {
+      type: "paragraph",
+      text:
+        "California legislators Pilar Schiavo and Mia Bonta plan to introduce Assembly Bill 2617, the Protecting Kids From Online Gambling Act. The bill would ban platforms like FanDuel and DraftKings from marketing to minors or allowing them to play.",
+      sourceIds: ["bill"],
+    },
+    {
+      type: "source-note",
+      title: "What editors should verify before publication",
+      text:
+        "The bill reference, Redwood High School survey, Journal of Behavioral Addictions figures, Center for Public Justice claim and American Institute for Boys and Men debt figure should be linked or rechecked before this interactive is published outside editor review.",
+      sourceIds: ["source-note"],
+    },
+    {
+      type: "paragraph",
+      text:
+        "The California Office of Problem Gambling identifies warning signs such as playing longer than intended, constantly checking a phone, feeling pulled back in when trying to stop, or feeling stressed, irritated or restless when not playing.",
+    },
+    {
+      type: "paragraph",
+      text:
+        "The National Council on Problem Gambling provides resources for people struggling with gambling problems, including answers to common questions, a gambling behavior self-assessment, treatment information and the National Problem Gambling Helpline at 1-800-MY-RESET.",
+      sourceIds: ["ncpg"],
     },
   ],
   sources: [
