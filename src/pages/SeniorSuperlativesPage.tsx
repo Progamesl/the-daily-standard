@@ -62,14 +62,15 @@ function AwardScene({ index, title, winner }: { index: number; title: string; wi
   const ref = useRef<HTMLLIElement>(null);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
-  const ghostY = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [110, -110]);
+  const ghostY = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [70, -70]);
+  const ruleX = useTransform(scrollYProgress, [0.15, 0.45], [0.25, 1]);
   const right = index % 2 === 1;
 
   return (
-    <li ref={ref} className="relative overflow-hidden border-t border-[#1b160f]/20">
+    <li ref={ref} className="relative isolate min-h-[72svh] overflow-hidden border-t border-[#1b160f]/20">
       <motion.span
         style={{ y: ghostY }}
-        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 select-none font-serif text-[clamp(12rem,34vw,26rem)] font-black leading-none text-[#1b160f]/[0.045] ${
+        className={`pointer-events-none absolute top-1/2 -z-10 -translate-y-1/2 select-none font-serif text-[clamp(16rem,42vw,34rem)] font-black leading-none text-[#1b160f]/[0.055] ${
           right ? "left-[-0.08em]" : "right-[-0.08em]"
         }`}
         aria-hidden="true"
@@ -78,39 +79,35 @@ function AwardScene({ index, title, winner }: { index: number; title: string; wi
       </motion.span>
 
       <div
-        className={`relative mx-auto flex min-h-[44vh] w-full max-w-[1100px] flex-col justify-center px-6 py-16 sm:px-10 ${
-          right ? "items-end text-right" : "items-start text-left"
+        className={`relative mx-auto grid min-h-[72svh] w-full max-w-[1180px] items-center gap-8 px-6 py-20 sm:px-10 lg:grid-cols-[0.42fr_1fr] ${
+          right ? "lg:grid-cols-[1fr_0.42fr]" : ""
         }`}
       >
-        <motion.p
-          initial={{ opacity: 0, y: 14 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.6, ease: EASE }}
-          className="text-xs font-bold uppercase tracking-[0.35em] text-[#87281a]"
-        >
-          {title}
-        </motion.p>
-
-        <h3 className="mt-4 max-w-full overflow-hidden font-serif text-[clamp(3.2rem,10vw,8.5rem)] font-black leading-[0.92] tracking-[-0.05em] text-[#1b160f]">
+        <div className={`space-y-5 ${right ? "lg:col-start-2 lg:text-right" : ""}`}>
+          <p className="text-[0.65rem] font-black uppercase tracking-[0.42em] text-[#87281a] sm:text-xs">
+            {String(index + 1).padStart(2, "0")}
+          </p>
+          <p className="max-w-[18rem] text-sm font-bold uppercase leading-7 tracking-[0.28em] text-[#87281a] sm:text-base">
+            {title}
+          </p>
           <motion.span
-            className="block"
-            initial={{ y: "108%" }}
-            whileInView={{ y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.85, delay: 0.08, ease: EASE }}
+            style={{ scaleX: ruleX }}
+            className={`block h-[3px] w-24 bg-[#1b160f] ${right ? "ml-auto origin-right" : "origin-left"}`}
+            aria-hidden="true"
+          />
+        </div>
+
+        <div className={right ? "lg:col-start-1 lg:row-start-1 lg:text-left" : ""}>
+          <motion.h3
+            initial={{ opacity: 0.25, y: 18, letterSpacing: "-0.08em" }}
+            whileInView={{ opacity: 1, y: 0, letterSpacing: "-0.055em" }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.75, ease: EASE }}
+            className="max-w-full break-words font-serif text-[clamp(4.6rem,14vw,13rem)] font-black leading-[0.82] text-[#1b160f]"
           >
             {winner}
-          </motion.span>
-        </h3>
-
-        <motion.span
-          className={`mt-8 h-[3px] w-24 bg-[#1b160f] ${right ? "origin-right" : "origin-left"}`}
-          initial={{ scaleX: 0 }}
-          whileInView={{ scaleX: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7, delay: 0.25, ease: EASE }}
-        />
+          </motion.h3>
+        </div>
       </div>
     </li>
   );
@@ -251,17 +248,15 @@ export default function SeniorSuperlativesPage() {
             Best bromance
           </motion.p>
 
-          <h2 className="mt-6 overflow-hidden font-serif text-[clamp(3.2rem,11vw,9.5rem)] font-black leading-[0.9] tracking-[-0.05em]">
-            <motion.span
-              className="block"
-              initial={{ y: "108%" }}
-              whileInView={{ y: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.9, delay: 0.1, ease: EASE }}
-            >
-              Dylan + Kamron
-            </motion.span>
-          </h2>
+          <motion.h2
+            initial={{ opacity: 0.3, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
+            className="mt-6 font-serif text-[clamp(4rem,13vw,11rem)] font-black leading-[0.85] tracking-[-0.055em]"
+          >
+            Dylan + Kamron
+          </motion.h2>
 
           <motion.div
             initial={{ scale: 1.7, opacity: 0, rotate: -10 }}

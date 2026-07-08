@@ -70,7 +70,7 @@ function PoemLines({ text }: { text: string }) {
         ) : (
           <div key={i} className="overflow-hidden">
             <motion.p
-              initial={{ y: "115%", opacity: 0 }}
+              initial={{ y: 12, opacity: 0.35 }}
               whileInView={{ y: 0, opacity: 1 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.65, delay: Math.min((i % 8) * 0.06, 0.5), ease: EASE }}
@@ -123,17 +123,15 @@ function PoemScene({
               {String(index + 1).padStart(2, "0")}
             </motion.p>
 
-            <h2 className="mt-5 overflow-hidden font-serif text-[clamp(2.6rem,6vw,5rem)] font-black leading-[0.95] tracking-[-0.045em] text-[#1b160f]">
-              <motion.span
-                className="block"
-                initial={{ y: "108%" }}
-                whileInView={{ y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.85, delay: 0.08, ease: EASE }}
-              >
-                {title}
-              </motion.span>
-            </h2>
+            <motion.h2
+              initial={{ opacity: 0.4, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.75, delay: 0.08, ease: EASE }}
+              className="mt-5 font-serif text-[clamp(2.9rem,6.8vw,5.9rem)] font-black leading-[0.92] tracking-[-0.055em] text-[#1b160f]"
+            >
+              {title}
+            </motion.h2>
 
             <motion.p
               initial={{ opacity: 0 }}
