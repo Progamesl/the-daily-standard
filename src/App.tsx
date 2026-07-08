@@ -17,6 +17,7 @@ import GamesPage from "./pages/GamesPage";
 import AdvertisePage from "./pages/AdvertisePage";
 import SeniorSuperlativesPage from "./pages/SeniorSuperlativesPage";
 import PoemsPage from "./pages/PoemsPage";
+import InteractiveNewsFeature from "./components/article/InteractiveNewsFeature";
 
 // Admin
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
@@ -69,6 +70,7 @@ const App = () => (
             <Route path="/advertise" element={<AdvertisePage />} />
             <Route path="/special/senior-superlatives" element={<SeniorSuperlativesPage />} />
             <Route path="/special/poems" element={<PoemsPage />} />
+            <Route path="/editor-preview/sports-gambling-a7k9m2q4" element={<InteractiveNewsFeature />} />
 
             {/* Admin routes — DataSyncProvider only here */}
             <Route path="/admin/login" element={<AdminLogin />} />
