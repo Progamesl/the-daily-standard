@@ -1,133 +1,191 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Sparkles, Trophy } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 
 const superlatives = [
-  { title: "Most likely to cure cancer", winner: "Rebecca", accent: "from-emerald-300 to-cyan-300" },
-  { title: "Most likely to be a millionaire", winner: "Ashly", accent: "from-amber-300 to-orange-400" },
-  { title: "Most likely to go viral", winner: "Riley", accent: "from-fuchsia-300 to-violet-400" },
-  { title: "Best dressed", winner: "Ella H", accent: "from-rose-300 to-pink-400" },
-  { title: "Best humor", winner: "Jake", accent: "from-lime-300 to-green-400" },
-  { title: "Most likely to not study and get an A", winner: "Andrew", accent: "from-blue-300 to-indigo-400" },
-  { title: "Most likely to be late for graduation", winner: "Itzel", accent: "from-yellow-200 to-amber-400" },
-  { title: "Worst sleep schedule", winner: "Liam", accent: "from-slate-300 to-purple-400" },
-  { title: "Worst case of senioritis", winner: "Rehan", accent: "from-red-300 to-orange-400" },
-  { title: "Best bromance", winner: "Dylan + Kamron", accent: "from-sky-300 to-blue-500" },
+  { title: "Most likely to cure cancer", winner: "Rebecca", mark: "01" },
+  { title: "Most likely to be a millionaire", winner: "Ashly", mark: "02" },
+  { title: "Most likely to go viral", winner: "Riley", mark: "03" },
+  { title: "Best dressed", winner: "Ella H", mark: "04" },
+  { title: "Best humor", winner: "Jake", mark: "05" },
+  { title: "Most likely to not study and get an A", winner: "Andrew", mark: "06" },
+  { title: "Most likely to be late for graduation", winner: "Itzel", mark: "07" },
+  { title: "Worst sleep schedule", winner: "Liam", mark: "08" },
+  { title: "Worst case of senioritis", winner: "Rehan", mark: "09" },
+  { title: "Best bromance", winner: "Dylan + Kamron", mark: "10" },
 ];
+
+const inkPath =
+  "M12 94 C86 36 161 21 236 48 C298 70 356 133 421 112 C472 96 503 43 557 51 C612 59 641 109 706 94";
 
 export default function SeniorSuperlativesPage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
+    <main className="min-h-screen overflow-hidden bg-[#eee5d2] text-[#17130d]">
       <DocumentHead
         title="Senior Superlatives"
-        description="A cinematic senior superlatives feature from The Octagon."
+        description="An ink-wash senior superlatives feature from The Octagon."
         type="article"
       />
 
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(168,85,247,0.35),transparent_32%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,0.25),transparent_28%),radial-gradient(circle_at_50%_90%,rgba(251,191,36,0.22),transparent_34%)]" />
-        <motion.div
-          className="absolute left-1/2 top-1/2 h-[44rem] w-[44rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 55, repeat: Infinity, ease: "linear" }}
-        />
-        <motion.div
-          className="absolute left-1/2 top-1/2 h-[30rem] w-[30rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10"
-          animate={{ rotate: -360 }}
-          transition={{ duration: 38, repeat: Infinity, ease: "linear" }}
-        />
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute inset-0 bg-[#eee5d2]" />
+        <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(90deg,rgba(23,19,13,.08)_1px,transparent_1px),linear-gradient(rgba(23,19,13,.06)_1px,transparent_1px)] [background-size:79px_79px]" />
+        <svg className="absolute -left-32 top-10 h-[35rem] w-[35rem] text-[#17130d]/[0.045]" viewBox="0 0 500 500" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M72 238C42 142 123 58 232 52c94-5 197 47 211 140 16 103-84 203-197 210C146 409 97 320 72 238Z"
+          />
+        </svg>
+        <svg className="absolute bottom-[-6rem] right-[-12rem] h-[31rem] w-[31rem] text-[#7d1d14]/[0.08]" viewBox="0 0 500 500" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M84 259C57 181 86 82 185 62c120-25 241 36 257 140 14 89-57 181-152 214C198 448 112 342 84 259Z"
+          />
+        </svg>
+        <motion.svg
+          className="absolute right-[-8rem] top-20 h-[22rem] w-[48rem] text-[#17130d]/20"
+          viewBox="0 0 720 160"
+          fill="none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.9 }}
+          aria-hidden="true"
+        >
+          <motion.path
+            d={inkPath}
+            stroke="currentColor"
+            strokeWidth="28"
+            strokeLinecap="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 1.8, ease: [0.65, 0, 0.35, 1] }}
+          />
+          <motion.path
+            d={inkPath}
+            stroke="#17130d"
+            strokeWidth="2"
+            strokeLinecap="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 2.2, delay: 0.12, ease: [0.65, 0, 0.35, 1] }}
+          />
+        </motion.svg>
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-12">
+      <div className="relative mx-auto max-w-[1320px] px-[22px] py-7 sm:px-8 lg:px-[54px]">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/80 backdrop-blur transition hover:bg-white/15 hover:text-white"
+          className="inline-flex items-center gap-2 border border-[#17130d] bg-[#f7f0e2] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#17130d] shadow-[5px_5px_0_rgba(23,19,13,0.16)] transition-colors duration-200 hover:bg-[#17130d] hover:text-[#f7f0e2]"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to The Octagon
         </Link>
 
-        <section className="grid min-h-[70vh] items-center gap-10 py-16 lg:grid-cols-[1fr_0.9fr]">
+        <section className="grid min-h-[72vh] gap-12 py-[73px] lg:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.78fr)] lg:items-end">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.32em] text-white/70 backdrop-blur">
-              <Sparkles className="h-4 w-4" />
-              Class of 2026
-            </div>
-            <h1 className="max-w-4xl font-serif text-6xl font-black leading-[0.9] tracking-tight text-white sm:text-7xl lg:text-8xl">
-              Senior
-              <span className="block bg-gradient-to-r from-amber-200 via-pink-200 to-sky-200 bg-clip-text text-transparent">
-                Superlatives
+            <div className="mb-8 flex items-center gap-4">
+              <span className="h-px w-16 bg-[#17130d]" />
+              <span className="font-sans text-xs font-bold uppercase tracking-[0.42em] text-[#7d1d14]">
+                Class of 2026
               </span>
+            </div>
+            <h1 className="max-w-[860px] font-serif text-[clamp(4.2rem,12vw,11rem)] font-black leading-[0.78] tracking-[-0.075em] text-[#17130d]">
+              Senior <span className="block pl-[0.38em] italic">Superlatives</span>
             </h1>
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-white/70">
-              A high-gloss awards wall for the tiny, funny truths the senior class voted into legend.
+            <p className="mt-8 max-w-[610px] border-l-[6px] border-[#17130d] pl-6 font-serif text-xl leading-8 text-[#332b20] sm:text-2xl">
+              A ceremonial award scroll for the tiny, funny truths the senior class voted into legend.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <span className="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-950">10 awards</span>
-              <span className="rounded-full border border-white/15 px-4 py-2 text-sm font-bold text-white/75">15 poll responses</span>
+            <div className="mt-10 grid max-w-md grid-cols-2 border-y border-[#17130d] text-sm uppercase tracking-[0.22em]">
+              <div className="border-r border-[#17130d] px-4 py-4">
+                <p className="text-[0.68rem] font-bold text-[#6d6254]">Awards</p>
+                <p className="mt-1 font-serif text-3xl font-black tracking-normal text-[#17130d]">10</p>
+              </div>
+              <div className="px-4 py-4">
+                <p className="text-[0.68rem] font-bold text-[#6d6254]">Ballots</p>
+                <p className="mt-1 font-serif text-3xl font-black tracking-normal text-[#17130d]">15</p>
+              </div>
             </div>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.92, rotate: -3 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{ duration: 0.9, delay: 0.15 }}
-            className="relative"
+            initial={{ opacity: 0, x: 28 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.9, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
+            className="relative border-2 border-[#17130d] bg-[#f7f0e2] p-[18px] shadow-[14px_14px_0_rgba(23,19,13,0.15)]"
           >
-            <div className="absolute -inset-6 rounded-[3rem] bg-gradient-to-br from-amber-300/30 via-fuchsia-400/25 to-sky-300/30 blur-3xl" />
-            <div className="relative overflow-hidden rounded-[2.5rem] border border-white/15 bg-white/10 p-6 backdrop-blur-xl">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/50">Spotlight</p>
-                  <h2 className="mt-1 font-serif text-3xl font-bold">Best Bromance</h2>
-                </div>
-                <Trophy className="h-10 w-10 text-amber-200" />
-              </div>
-              <div className="rounded-[2rem] bg-slate-950/70 p-8">
-                <p className="text-sm uppercase tracking-[0.35em] text-sky-200/70">Winners</p>
-                <p className="mt-5 bg-gradient-to-r from-sky-200 to-blue-400 bg-clip-text font-serif text-6xl font-black text-transparent">
-                  Dylan + Kamron
-                </p>
-              </div>
+            <div className="absolute -right-6 -top-6 grid h-24 w-24 place-items-center bg-[#7d1d14] text-center font-serif text-xl font-black leading-none text-[#f7f0e2] shadow-[6px_6px_0_rgba(23,19,13,0.18)]">
+              Class
+              <span className="block text-2xl">26</span>
+            </div>
+            <div className="border border-[#17130d]/35 p-7">
+              <p className="text-xs font-black uppercase tracking-[0.38em] text-[#7d1d14]">Spotlight Award</p>
+              <h2 className="mt-6 font-serif text-[clamp(2.6rem,6vw,5.8rem)] font-black leading-[0.88] tracking-[-0.06em]">
+                Best
+                <span className="block italic">Bromance</span>
+              </h2>
+              <div className="my-7 h-px bg-[#17130d]" />
+              <p className="font-sans text-xs font-black uppercase tracking-[0.35em] text-[#6d6254]">Winners</p>
+              <p className="mt-3 font-serif text-5xl font-black tracking-[-0.04em] text-[#17130d] sm:text-6xl">
+                Dylan + Kamron
+              </p>
+              <p className="mt-7 max-w-sm text-sm leading-6 text-[#4d4438]">
+                Stamped into the class record with the gravity of an old clan banner and the accuracy of a hallway joke.
+              </p>
             </div>
           </motion.div>
         </section>
 
-        <section className="pb-20">
-          <div className="mb-8 flex items-end justify-between gap-6">
+        <section className="pb-24">
+          <div className="mb-9 grid gap-4 border-t-4 border-[#17130d] pt-6 md:grid-cols-[0.72fr_1.28fr] md:items-end">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/45">The Awards Board</p>
-              <h2 className="mt-2 font-serif text-4xl font-bold">Voted most likely</h2>
+              <p className="text-xs font-black uppercase tracking-[0.35em] text-[#7d1d14]">The Award Register</p>
+              <h2 className="mt-3 font-serif text-5xl font-black tracking-[-0.055em]">Voted most likely</h2>
             </div>
+            <div className="hidden h-px bg-[#17130d]/45 md:block" />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid border-l border-t border-[#17130d] sm:grid-cols-2 lg:grid-cols-5">
             {superlatives.map((item, index) => (
               <motion.article
                 key={item.title}
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.5, delay: index * 0.04 }}
-                whileHover={{ y: -8, scale: 1.02 }}
-                className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.07] p-5 backdrop-blur"
+                transition={{ duration: 0.55, delay: index * 0.035, ease: [0.22, 1, 0.36, 1] }}
+                className="group relative min-h-[278px] border-b border-r border-[#17130d] bg-[#f4ecd9] p-5 transition-colors duration-300 hover:bg-[#fbf4e7]"
               >
-                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${item.accent}`} />
-                <div className="flex min-h-56 flex-col justify-between">
-                  <p className="text-sm font-medium leading-6 text-white/65">{item.title}</p>
+                <div className="absolute right-4 top-4 grid h-12 w-12 place-items-center border border-[#7d1d14] text-xs font-black text-[#7d1d14]">
+                  {item.mark}
+                </div>
+                <div className="flex h-full flex-col justify-between">
+                  <p className="max-w-[13rem] text-sm font-semibold leading-6 text-[#42382d]">{item.title}</p>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.28em] text-white/35">Winner</p>
-                    <h3 className="mt-3 font-serif text-4xl font-black leading-none text-white">{item.winner}</h3>
+                    <p className="text-[0.68rem] font-black uppercase tracking-[0.32em] text-[#7d1d14]">Winner</p>
+                    <h3 className="mt-3 font-serif text-[2.75rem] font-black leading-[0.88] tracking-[-0.055em] text-[#17130d]">
+                      {item.winner}
+                    </h3>
                   </div>
                 </div>
-                <div className={`absolute -bottom-16 -right-16 h-36 w-36 rounded-full bg-gradient-to-br ${item.accent} opacity-20 blur-2xl transition group-hover:opacity-40`} />
+                <motion.div
+                  className="absolute bottom-5 left-5 h-[3px] w-20 origin-left bg-[#17130d]"
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.65, delay: 0.18 + index * 0.025 }}
+                />
               </motion.article>
             ))}
+          </div>
+
+          <div className="mt-10 flex justify-end">
+            <div className="max-w-sm border-l-4 border-[#7d1d14] pl-5 font-serif text-lg italic leading-7 text-[#4d4438]">
+              Recorded in ink, voted in laughter, and filed under senior mythology.
+            </div>
           </div>
         </section>
       </div>
