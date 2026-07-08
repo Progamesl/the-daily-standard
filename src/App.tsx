@@ -70,7 +70,7 @@ const App = () => (
             <Route path="/advertise" element={<AdvertisePage />} />
             <Route path="/special/senior-superlatives" element={<SeniorSuperlativesPage />} />
             <Route path="/special/poems" element={<PoemsPage />} />
-            <Route path="/editor-preview/sports-gambling-a7k9m2q4" element={<InteractiveNewsFeature />} />
+            <Route path="/editor-preview/sports-gambling-r9x4p7b2" element={<InteractiveNewsFeature />} />
 
             {/* Admin routes — DataSyncProvider only here */}
             <Route path="/admin/login" element={<AdminLogin />} />
