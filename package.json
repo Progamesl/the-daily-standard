@@ -12,6 +12,8 @@
     "upload:prepare:downloads": "node scripts/prepare-downloaded-stories.mjs",
     "upload:prepare:issue6": "node scripts/prepare-issue-6-stories.mjs",
     "upload:import": "node scripts/import-prepared-stories.mjs",
+    "upload:import:python": "python3 scripts/import_prepared_stories.py",
+    "upload:sync-r2:python": "python3 scripts/sync_r2_articles.py",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
