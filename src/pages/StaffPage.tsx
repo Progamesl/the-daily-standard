@@ -5,6 +5,7 @@ import { Layout } from "@/components/layout/Layout";
 import { getArticles } from "@/data/seedData";
 import type { Article } from "@/data/seedData";
 import { ALL_MEMBERS } from "@/data/staffData";
+import { str } from "@/lib/normalizeArticle";
 import type { StaffMember as Member } from "@/data/staffData";
 
 const SECTION_TABS = [
@@ -23,12 +24,18 @@ const SECTION_TABS = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function initials(name: string) {
-  const p = name.trim().split(/\s+/);
-  return p.length === 1 ? p[0].slice(0, 2).toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
+  // Guarded: a missing or oddly-spaced name previously produced "undefined"
+  // via p[0][0], or threw outright if `name` wasn't a string.
+  const parts = str(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function articlesByName(name: string): Article[] {
-  return getArticles().filter((a) => a.author?.name?.toLowerCase() === name.toLowerCase());
+  const target = str(name).trim().toLowerCase();
+  if (!target) return [];
+  return getArticles().filter((a) => str(a.author?.name).trim().toLowerCase() === target);
 }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
