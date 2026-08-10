@@ -88,6 +88,28 @@ if (profile) {
   console.log(`  role         : ${profile.role}`);
 }
 
+// ── 3. Optional: check the staff-management endpoint accepts this session ───
+// e.g. --api https://www.scdsoctagon.net
+const apiBase = arg('api');
+if (apiBase) {
+  console.log(`\nChecking ${apiBase}/api/staff`);
+  try {
+    const r = await fetch(`${apiBase.replace(/\/$/, '')}/api/staff`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const j = await r.json().catch(() => ({}));
+    check(r.ok, 'staff endpoint authorised this session', r.ok ? '' : j.error || `HTTP ${r.status}`);
+    if (r.ok) {
+      console.log(`  staff accounts : ${(j.staff || []).length}`);
+      (j.staff || []).forEach((s) =>
+        console.log(`    - ${s.display_name} <${s.email}> ${s.role}${s.active ? '' : ' (inactive)'}`)
+      );
+    }
+  } catch (e) {
+    check(false, 'staff endpoint reachable', String(e.message || e));
+  }
+}
+
 console.log(
   failures === 0
     ? '\nAll checks passed — this account can sign in to the CMS.'
