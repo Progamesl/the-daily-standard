@@ -114,14 +114,16 @@ export function Masthead() {
                 {weatherLabel}
               </span>
             </div>
-            <div className="flex items-center gap-3">
+            {/* Hidden on phones: four links plus the date in ~400px squeezed the
+                date onto two lines. These live in the mobile menu instead. */}
+            <div className="hidden sm:flex items-center gap-3">
               <Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">About</Link>
               <span className="text-muted-foreground">|</span>
               <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
               <span className="text-muted-foreground">|</span>
-              <Link to="/advertise" className="font-semibold hover:text-foreground transition-colors" style={{ color: "#8B1A1A" }}>Advertise</Link>
+              <Link to="/advertise" className="font-semibold text-accent hover:text-foreground transition-colors">Advertise</Link>
               <span className="text-muted-foreground">|</span>
-              <Link to="/staff" className="font-semibold hover:text-foreground transition-colors" style={{ color: "#8B1A1A" }}>Staff</Link>
+              <Link to="/staff" className="font-semibold text-accent hover:text-foreground transition-colors">Staff</Link>
             </div>
           </div>
           </div>
@@ -171,16 +173,19 @@ export function Masthead() {
                 )}
               >
                 <img
-                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"
-                  alt="The Octagon Logo"
+                  src="/favicon.png"
+                  alt=""
                   width={80}
                   height={80}
-                  className="object-contain h-10 sm:h-14 md:h-[4.5rem] w-auto"
+                  className="object-contain h-8 sm:h-14 md:h-[4.5rem] w-auto"
                 />
                 <h1 className="font-serif font-bold tracking-tight text-2xl sm:text-3xl md:text-5xl mt-1">
                   The Octagon
                 </h1>
-                <p className="text-xs text-muted-foreground mt-1">
+                {/* Kept to one line on phones: at the default size this wrapped to
+                    two lines and overflowed the fixed-height masthead, slicing
+                    the word "Newspaper" in half. */}
+                <p className="mt-1 whitespace-nowrap text-[10px] leading-tight text-muted-foreground sm:whitespace-normal sm:text-xs">
                   A Sacramento Country Day School Newspaper
                 </p>
               </div>
@@ -262,7 +267,30 @@ export function Masthead() {
                 ))}
               </ul>
             </nav>
-            <div className="mt-8 pt-8 border-t border-border">
+            {/* Secondary links. On phones the top utility bar is hidden, so
+                without these there'd be no way to reach these pages at all. */}
+            <nav className="mt-8 pt-6 border-t border-border" aria-label="More">
+              <ul className="grid grid-cols-2 gap-1">
+                {[
+                  { to: '/about', label: 'About' },
+                  { to: '/contact', label: 'Contact' },
+                  { to: '/advertise', label: 'Advertise' },
+                  { to: '/staff', label: 'Staff' },
+                ].map((item) => (
+                  <li key={item.to}>
+                    <Link
+                      to={item.to}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block rounded-lg px-4 py-3 text-base font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:bg-muted touch-manipulation"
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+
+            <div className="mt-6 pt-6 border-t border-border">
               <Button asChild variant="default" size="lg" className="w-full font-semibold" onClick={() => setMobileMenuOpen(false)}>
                 <Link to="/subscribe">Subscribe</Link>
               </Button>
