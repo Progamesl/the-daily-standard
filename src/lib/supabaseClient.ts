@@ -93,7 +93,17 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | und
 let _client: SupabaseClient<Database> | null = null;
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-  _client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+  try {
+    _client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (err) {
+    // A malformed VITE_SUPABASE_URL must not crash the whole app — degrade to
+    // localStorage/R2 instead of throwing at import time.
+    console.error(
+      '⚠️ Failed to initialize Supabase client (check VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY):',
+      err
+    );
+    _client = null;
+  }
 } else {
   console.warn(
     '⚠️ Supabase not configured — missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
