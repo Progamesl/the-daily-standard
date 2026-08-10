@@ -181,11 +181,11 @@ export default function AdminAuthors() {
           >
             <div className="flex items-start gap-4">
               <img
-                src={author.image || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"}
+                src={author.image || "/favicon.png"}
                 alt={author.name}
                 className="w-12 h-12 rounded-full object-cover bg-slate-100 shrink-0"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s";
+                  (e.target as HTMLImageElement).src = "/favicon.png";
                 }}
               />
               <div className="flex-1 min-w-0">

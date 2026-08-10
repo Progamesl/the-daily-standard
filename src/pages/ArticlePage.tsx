@@ -217,7 +217,7 @@ export default function ArticlePage() {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm border-y border-border py-4 text-muted-foreground">
               <div className="flex items-center gap-3">
                 <img 
-                  src={article.author.image || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"} 
+                  src={article.author.image || "/favicon.png"} 
                   alt={article.author.name} 
                   className="w-10 h-10 rounded-full object-cover" 
                 />
@@ -298,7 +298,7 @@ export default function ArticlePage() {
               <div className="mt-8 p-4 sm:p-6 bg-muted rounded-lg">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-4 text-center sm:text-left">
                   <img 
-                    src={article.author.image || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s"} 
+                    src={article.author.image || "/favicon.png"} 
                     alt={article.author.name} 
                     className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover" 
                     loading="lazy" 

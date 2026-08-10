@@ -40,7 +40,7 @@ function articlesByName(name: string): Article[] {
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-const DEFAULT_AVATAR = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRDipdfJoNun68DCzbb0IGCbIZOjiBu7a7URg&s";
+const DEFAULT_AVATAR = "/favicon.png";
 
 function Avatar({ name, photo, size }: { name: string; photo?: string | null; size: number }) {
   const [err, setErr] = useState(false);
