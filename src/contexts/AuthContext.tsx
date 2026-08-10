@@ -32,6 +32,7 @@ const AuthContext = createContext<AuthContextValue>({
   isConfigured: false,
   signIn: async () => 'AuthProvider not mounted',
   signOut: async () => {},
+  refresh: async () => {},
 });
 
 // ─── Provider ────────────────────────────────────────────────────────────────

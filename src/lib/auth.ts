@@ -102,42 +102,48 @@ export async function signIn(
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
+  // Security tracking is deliberately fire-and-forget: recordLoginAttempt /
+  // createUserSession call an external IP-geolocation service (5s timeout), so
+  // awaiting them made every sign-in — including failures — stall for seconds.
+  // They swallow their own errors, so nothing here can break the login flow.
+
   if (error) {
-    // Record failed login attempt
-    await recordLoginAttempt(email, false, null);
+    void recordLoginAttempt(email, false, null);
     return { user: null, profile: null, error: error.message };
   }
 
   const user = data.user;
   if (!user) {
-    await recordLoginAttempt(email, false, null);
+    void recordLoginAttempt(email, false, null);
     return { user: null, profile: null, error: 'Sign-in succeeded but no user was returned.' };
   }
 
   const profile = await fetchAdminProfile(user);
   if (!profile) {
-    // User authenticated but has no admin_users row → not an admin
+    // Authenticated with Supabase but has no admin_users row → not staff.
     await supabase.auth.signOut();
-    await recordLoginAttempt(email, false, null);
-    return { user: null, profile: null, error: 'No admin account found for this email.' };
+    void recordLoginAttempt(email, false, null);
+    return {
+      user: null,
+      profile: null,
+      error: 'This email is not set up as an Octagon staff account.',
+    };
   }
 
   if (!profile.active) {
     await supabase.auth.signOut();
-    await recordLoginAttempt(email, false, profile.id);
+    void recordLoginAttempt(email, false, profile.id);
     return { user: null, profile: null, error: 'Your account has been deactivated.' };
   }
 
-  // Success! Record successful login and create session
-  await recordLoginAttempt(email, true, profile.id);
+  void recordLoginAttempt(email, true, profile.id);
 
-  // Create session record with security tracking
   const sessionToken = data.session?.access_token || `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const expiresAt = data.session?.expires_at
     ? new Date(data.session.expires_at * 1000)
     : new Date(Date.now() + 8 * 60 * 60 * 1000); // 8 hours default
 
-  await createUserSession(profile.id, user.id, sessionToken, expiresAt);
+  void createUserSession(profile.id, user.id, sessionToken, expiresAt);
 
   return { user, profile, error: null };
 }
@@ -199,6 +205,8 @@ export interface UseAuthReturn {
   signIn: (email: string, password: string) => Promise<string | null>;
   /** Sign out. */
   signOut: () => Promise<void>;
+  /** Re-fetch the admin_users profile for the current session. */
+  refresh: () => Promise<void>;
 }
 
 export function useAuth(): UseAuthReturn {
@@ -262,6 +270,12 @@ export function useAuth(): UseAuthReturn {
     setProfile(null);
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    const { user: u, profile: p } = await getCurrentUser();
+    setUser(u);
+    setProfile(p);
+  }, []);
+
   return {
     user,
     profile,
@@ -270,5 +284,6 @@ export function useAuth(): UseAuthReturn {
     isConfigured: configured,
     signIn: handleSignIn,
     signOut: handleSignOut,
+    refresh: handleRefresh,
   };
 }

@@ -28,12 +28,27 @@ const NAV_ITEMS = [
 ];
 
 export default function AdminLayout() {
-  const { isAuthenticated, currentUser, logout } = useAdminAuth();
+  const { isAuthenticated, loading, currentUser, logout } = useAdminAuth();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
+  // Restoring a Supabase session is async. Without this gate, a signed-in
+  // editor would be bounced to /admin/login on every page load.
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+          <p className="text-sm text-slate-500">Loading your newsroom…</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
-    return <Navigate to="/admin/login" replace />;
+    // Preserve where they were headed so login can return them there.
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/admin/login?returnTo=${returnTo}`} replace />;
   }
 
   const isActive = (path: string, exact: boolean) =>
@@ -105,8 +120,8 @@ export default function AdminLayout() {
             )}
             {/* Logout button in user section */}
             <button
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await logout();
                 window.location.href = '/admin/login';
               }}
               title="Sign Out"
@@ -160,8 +175,8 @@ export default function AdminLayout() {
             {!collapsed && <span>View Live Site</span>}
           </Link>
           <button
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await logout();
               window.location.href = '/admin/login';
             }}
             title={collapsed ? 'Sign Out' : undefined}

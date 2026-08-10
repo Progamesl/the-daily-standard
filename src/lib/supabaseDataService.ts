@@ -13,30 +13,24 @@
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 import type { AdminArticle, AdminAuthor } from './adminDataService';
 
-let supabase: any = null;
-
+/**
+ * Returns the SHARED Supabase client singleton from supabaseClient.ts.
+ *
+ * This module used to call createClient() itself, which produced a second,
+ * independent client. Because ten call sites race on `await initSupabase()`,
+ * that spawned ~11 GoTrueClient instances all sharing one auth storage key
+ * ("Multiple GoTrueClient instances detected" + undefined auth behaviour).
+ *
+ * Critically, article reads/writes then ran on a DIFFERENT client than the one
+ * src/lib/auth.ts signs in on — so once RLS requires an authenticated role,
+ * those writes could fail. Everything must share one authenticated client.
+ */
 async function initSupabase() {
-  if (supabase) return supabase;
   if (!isSupabaseConfigured()) {
     console.warn('⚠️ Supabase not configured: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
     return null;
   }
-  
-  try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const url = import.meta.env.VITE_SUPABASE_URL;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    if (url && anonKey) {
-      supabase = createClient(url, anonKey);
-      console.log('✅ Supabase client initialized:', url);
-      return supabase;
-    } else {
-      console.warn('⚠️ Supabase env vars missing:', { hasUrl: !!url, hasKey: !!anonKey });
-    }
-  } catch (error) {
-    console.error('❌ Failed to initialize Supabase:', error);
-  }
-  return null;
+  return getSupabaseClient();
 }
 
 // List-only: minimal columns for table/search (saves significant egress)

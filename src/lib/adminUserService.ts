@@ -261,29 +261,16 @@ function saveUsers(users: AdminUser[]): void {
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
-/** Creates a default super admin on first load if no users exist. */
-export function ensureDefaultAdmin(): void {
-  if (loadUsers().length === 0) {
-    saveUsers([{
-      id: 'user_default_admin',
-      username: 'admin',
-      passwordHash: simpleHash('octagon2025'),
-      displayName: 'Administrator',
-      email: 'admin@octagon.edu',
-      role: 'super_admin',
-      createdAt: new Date().toISOString(),
-      active: true,
-      emailVerified: true,  // Default admin is pre-verified
-      twoFactorEnabled: false,  // Can be enabled later
-      approvedBy: 'system',
-      approvedAt: new Date().toISOString(),
-    }]);
-  }
-}
+// REMOVED: ensureDefaultAdmin() used to seed a hardcoded super admin
+// (username "admin" with a fixed password) into localStorage on first load, in
+// every browser that opened the site. Combined with the client-side gate, that
+// was a permanent skeleton key to the CMS.
+//
+// Identity now lives in Supabase Auth (see src/lib/auth.ts). Staff accounts are
+// created deliberately, not seeded, so this local user list starts empty.
 
 // ─── User CRUD ────────────────────────────────────────────────────────────────
 export function getUsersList(): AdminUser[] {
-  ensureDefaultAdmin();
   return loadUsers();
 }
 
@@ -633,64 +620,29 @@ export function initiateLogin(username: string, password: string): {
   };
 }
 
-export function verifyCode(userId: string, code: string): {
+/**
+ * @deprecated Retired. Sign-in goes through Supabase Auth (src/lib/auth.ts).
+ *
+ * This used to compare against a single hardcoded constant shared by every
+ * user and shipped in the public bundle, presented as "email verification"
+ * even though no email was ever sent. The constant is gone and this path is
+ * permanently closed; it is kept only so any stale reference fails safely.
+ */
+export function verifyCode(_userId: string, _code: string): {
   success: boolean;
   error: string | null;
   user?: AdminUser;
 } {
-  // The secret code is always "SID-6767" - looks like email verification but it's just a code
-  const SECRET_CODE = 'SID-6767';
-  
-  if (code.trim().toUpperCase() !== SECRET_CODE) {
-    return { success: false, error: 'Invalid verification code. Please check your email and try again.' };
-  }
-  
-  const pendingLogin = JSON.parse(localStorage.getItem('pending_login') || '{}');
-  if (pendingLogin.userId !== userId) {
-    return { success: false, error: 'Invalid verification session. Please sign in again.' };
-  }
-  
-  // Code is correct - complete login
-  const user = getUser(userId);
-  if (!user) {
-    return { success: false, error: 'User not found.' };
-  }
-  
-  // Clear pending login
-  localStorage.removeItem('pending_login');
-  
-  // Update last login and clear failed attempts
-  updateUser(userId, { 
-    lastLogin: new Date().toISOString(),
-    failedAttempts: 0,
-    lockedUntil: undefined,
-  });
-  
-  // Create session
-  localStorage.setItem(SESSION_KEY, JSON.stringify({
-    userId,
-    expiry: Date.now() + SESSION_DURATION,
-    loginIP: pendingLogin.ip,
-    loginUserAgent: pendingLogin.userAgent,
-  }));
-  
-  saveLoginAttempt({
-    id: `attempt_${Date.now()}`,
-    username: user.username,
-    ip: pendingLogin.ip,
-    userAgent: pendingLogin.userAgent,
-    success: true,
-    timestamp: new Date().toISOString(),
-    userId,
-  });
-  
-  logActivity('login', `${user.displayName} signed in from ${pendingLogin.ip?.slice(0, 30) || 'unknown'}...`, userId);
-  
-  return { success: true, error: null, user };
+  return {
+    success: false,
+    error: 'This sign-in method has been retired. Please sign in with your email and password.',
+  };
 }
 
-
-// Legacy login function for backward compatibility (now calls initiateLogin)
+/**
+ * @deprecated Retired alongside verifyCode(). Sign-in is Supabase Auth now.
+ * Kept exported only so any stale import fails safely rather than at build time.
+ */
 export function loginUser(username: string, password: string): { user: AdminUser | null; error: string | null; locked: boolean } {
   const result = initiateLogin(username, password);
   
@@ -737,7 +689,11 @@ export type Permission =
   | 'edit_any'
   | 'create';
 
-export function canDo(user: AdminUser, action: Permission): boolean {
+/**
+ * Permission check. Accepts anything carrying a role — the Supabase-backed
+ * session user (AdminSessionUser) as well as the legacy AdminUser record.
+ */
+export function canDo(user: { role: UserRole }, action: Permission): boolean {
   const level = ROLE_LEVEL[user.role];
   switch (action) {
     case 'manage_users':    return level >= 5;
