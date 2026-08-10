@@ -23,22 +23,38 @@
 --       re-run it rather than rolling back.
 -- ═══════════════════════════════════════════════════════════════════════════
 
-DROP POLICY IF EXISTS "Staff manage articles"          ON articles;
-DROP POLICY IF EXISTS "Public can read published articles" ON articles;
-CREATE POLICY "Allow anon access to articles" ON articles FOR ALL USING (true);
+-- Guarded the same way as the lockdown: this project doesn't have every table
+-- that migrations.sql describes, and an unguarded reference aborts the run.
+DO $rollback$
+BEGIN
+  IF to_regclass('public.articles') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Staff manage articles" ON articles';
+    EXECUTE 'DROP POLICY IF EXISTS "Public can read published articles" ON articles';
+    EXECUTE 'CREATE POLICY "Allow anon access to articles" ON articles FOR ALL USING (true)';
+  END IF;
 
-DROP POLICY IF EXISTS "Staff manage authors"    ON authors;
-DROP POLICY IF EXISTS "Public can read authors" ON authors;
-CREATE POLICY "Allow anon access to authors" ON authors FOR ALL USING (true);
+  IF to_regclass('public.authors') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Staff manage authors" ON authors';
+    EXECUTE 'DROP POLICY IF EXISTS "Public can read authors" ON authors';
+    EXECUTE 'CREATE POLICY "Allow anon access to authors" ON authors FOR ALL USING (true)';
+  END IF;
 
-DROP POLICY IF EXISTS "Staff manage users"     ON admin_users;
-DROP POLICY IF EXISTS "Staff read own profile" ON admin_users;
-CREATE POLICY "Allow anon access to admin_users" ON admin_users FOR ALL USING (true);
+  IF to_regclass('public.admin_users') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Staff manage users" ON admin_users';
+    EXECUTE 'DROP POLICY IF EXISTS "Staff read own profile" ON admin_users';
+    EXECUTE 'CREATE POLICY "Allow anon access to admin_users" ON admin_users FOR ALL USING (true)';
+  END IF;
 
-DROP POLICY IF EXISTS "Staff read views" ON article_views;
-CREATE POLICY "Allow anon to read views" ON article_views FOR SELECT USING (true);
+  IF to_regclass('public.article_views') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Staff read views" ON article_views';
+    EXECUTE 'CREATE POLICY "Allow anon to read views" ON article_views FOR SELECT USING (true)';
+  END IF;
 
-DROP POLICY IF EXISTS "Staff read engagement" ON article_engagement;
-CREATE POLICY "Allow anon to read engagement" ON article_engagement FOR SELECT USING (true);
+  IF to_regclass('public.article_engagement') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Staff read engagement" ON article_engagement';
+    EXECUTE 'CREATE POLICY "Allow anon to read engagement" ON article_engagement FOR SELECT USING (true)';
+  END IF;
 
-SELECT 'Rolled back to open policies — the database is publicly writable again.' AS status;
+  RAISE NOTICE 'Rolled back to open policies — the database is publicly writable again.';
+END
+$rollback$;
