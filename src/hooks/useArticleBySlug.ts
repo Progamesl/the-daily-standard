@@ -12,25 +12,15 @@ import { getAdminArticleBySlug } from '@/lib/adminDataService';
 import { getArticleBySlugFromR2, isR2ArticlesConfigured } from '@/lib/r2Articles';
 import type { Article } from '@/data/seedData';
 import type { AdminArticle } from '@/lib/adminDataService';
+import { normalizeArticle } from '@/lib/normalizeArticle';
 
 function adminToArticle(admin: AdminArticle): Article {
+  // Supabase rows aren't runtime-type-checked; normalise so a malformed field
+  // can't throw while the article renders.
   return {
-    id: admin.id,
-    slug: admin.slug,
-    headline: admin.headline,
-    dek: admin.dek,
-    body: admin.body,
-    image: admin.image,
-    images: admin.images ?? [],
-    imageCaption: admin.imageCaption,
-    section: admin.section,
-    author: admin.author,
-    publishedAt: new Date(admin.publishedAt),
-    updatedAt: admin.updatedAt ? new Date(admin.updatedAt) : undefined,
-    readingTime: admin.readingTime,
-    tags: admin.tags ?? [],
-    isCinematic: admin.isCinematic,
-  };
+    ...normalizeArticle(admin),
+    isCinematic: Boolean(admin.isCinematic),
+  } as Article;
 }
 
 export function useArticleBySlug(

@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import ArticlePage from "./pages/ArticlePage";
 import SectionPage from "./pages/SectionPage";
@@ -48,6 +49,16 @@ function ScrollToTop() {
   return null;
 }
 
+/**
+ * Route-scoped error boundary. The root boundary in main.tsx replaces the
+ * ENTIRE site when anything throws; this one contains the failure to the
+ * current page and clears itself when the reader navigates elsewhere.
+ */
+function RouteErrorBoundary({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -57,6 +68,7 @@ const App = () => (
         <BrowserRouter>
           <ScrollToTop />
           <DataSyncProvider>
+          <RouteErrorBoundary>
           <Routes>
             {/* Public routes — no DataSyncProvider here (saves Supabase egress) */}
             <Route path="/" element={<Index />} />
@@ -94,6 +106,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </RouteErrorBoundary>
           </DataSyncProvider>
         </BrowserRouter>
       </AdminAuthProvider>

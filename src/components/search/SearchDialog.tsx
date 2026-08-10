@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { getAllPublicArticles } from "@/lib/publicDataService";
+import { str } from "@/lib/normalizeArticle";
 import { useDataSync } from "@/contexts/DataSyncContext";
 import { Search, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,13 +27,17 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase().trim();
+    // str() guards every field: article data is not runtime-type-checked and
+    // production rows contain non-strings (e.g. a numeric tag), which would
+    // otherwise throw "toLowerCase is not a function" and blank the page.
+    const has = (v: unknown) => str(v).toLowerCase().includes(q);
     return getAllPublicArticles().filter(
       (a) =>
-        a.headline.toLowerCase().includes(q) ||
-        a.dek?.toLowerCase().includes(q) ||
-        a.section.toLowerCase().includes(q) ||
-        a.author?.name?.toLowerCase().includes(q) ||
-        a.tags?.some((t) => t.toLowerCase().includes(q))
+        has(a.headline) ||
+        has(a.dek) ||
+        has(a.section) ||
+        has(a.author?.name) ||
+        (Array.isArray(a.tags) && a.tags.some(has))
     );
     // syncVersion in deps so results refresh when live R2 data loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps

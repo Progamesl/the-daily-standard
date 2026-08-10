@@ -9,6 +9,7 @@
  */
 
 import type { Article } from '@/data/seedData';
+import { normalizeArticle } from '@/lib/normalizeArticle';
 
 const R2_PUBLIC_BASE = import.meta.env.VITE_R2_PUBLIC_BASE_URL as string | undefined;
 const CACHE_TTL_MS = 90 * 1000; // 90 seconds — kept short so polls always get fresh R2 data
@@ -60,31 +61,14 @@ export interface R2ArticleListItem {
 // ─── Converters ───────────────────────────────────────────────────────────────
 
 function rawToArticle(raw: R2ArticleRaw | R2ListItemRaw, body = ''): Article {
-  return {
-    id: raw.id,
-    slug: raw.slug,
-    headline: raw.headline,
-    dek: raw.dek,
+  // R2 JSON is not type-checked at runtime and production data contains values
+  // that violate the Article type (a numeric tag, a numeric slug). normalizeArticle
+  // coerces them so a single bad row can't throw during render.
+  const article = normalizeArticle({
+    ...raw,
     body: 'body' in raw ? (raw.body ?? body) : body,
-    image: raw.image ?? '',
-    images: raw.images ?? [],
-    imageCaption: raw.imageCaption ?? '',
-    section: raw.section,
-    author: {
-      id: raw.author?.id ?? '',
-      name: raw.author?.name ?? 'Unknown',
-      role: raw.author?.role ?? 'Student Journalist',
-      bio: raw.author?.bio ?? '',
-      image: raw.author?.image ?? '',
-      email: raw.author?.email,
-      twitter: raw.author?.twitter,
-    },
-    publishedAt: new Date(raw.publishedAt),
-    updatedAt: raw.updatedAt ? new Date(raw.updatedAt) : undefined,
-    readingTime: raw.readingTime ?? 1,
-    tags: raw.tags ?? [],
-    isCinematic: raw.isCinematic ?? false,
-  };
+  });
+  return { ...article, isCinematic: Boolean(raw.isCinematic) } as Article;
 }
 
 // ─── Article list cache (no body) ────────────────────────────────────────────

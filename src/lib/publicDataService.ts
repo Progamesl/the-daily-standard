@@ -21,6 +21,16 @@ import {
   type AdminAuthor,
 } from '@/lib/adminDataService';
 import type { R2ArticleListItem } from '@/lib/r2Articles';
+import { normalizeArticle, slugMatches } from '@/lib/normalizeArticle';
+
+// The bundled WordPress export isn't runtime-type-checked either (it contains
+// e.g. a numeric tag and a numeric slug). Normalise it once, lazily, rather
+// than on every merge — mergeAllArticles runs many times per render.
+let normalizedSeed: Article[] | null = null;
+function getSeedArticles(): Article[] {
+  if (!normalizedSeed) normalizedSeed = seedArticles.map(normalizeArticle);
+  return normalizedSeed;
+}
 
 // ─── R2 Cache (populated by DataSyncContext) ──────────────────────────────────
 
@@ -33,7 +43,7 @@ const r2BreakingIds = new Set<string>();
  * Triggers a re-render of all public pages via syncVersion bump.
  */
 export function setR2ArticleCache(items: R2ArticleListItem[]): void {
-  r2ArticleList = items.map(i => i.article);
+  r2ArticleList = items.map(i => normalizeArticle(i.article));
   r2FeaturedIds.clear();
   r2BreakingIds.clear();
   items.forEach(i => {
@@ -50,7 +60,7 @@ export function clearR2ArticleCache(): void {
 
 // ─── Convert AdminArticle → Article ───────────────────────────────────────────
 function adminToPublic(admin: AdminArticle): Article {
-  return {
+  return normalizeArticle({
     id: admin.id,
     slug: admin.slug,
     headline: admin.headline,
@@ -73,7 +83,7 @@ function adminToPublic(admin: AdminArticle): Article {
     updatedAt: admin.updatedAt ? new Date(admin.updatedAt) : undefined,
     readingTime: admin.readingTime,
     tags: admin.tags ?? [],
-  };
+  });
 }
 
 // ─── Merge Seed + Admin/R2 Articles ──────────────────────────────────────────
@@ -84,7 +94,7 @@ function mergeAllArticles(): Article[] {
   const slugMap = new Map<string, string>(); // slug -> id
 
   // Base layer: seed articles (always available, historical WordPress export)
-  seedArticles.forEach(seed => {
+  getSeedArticles().forEach(seed => {
     if (!deletedIds.has(String(seed.id))) {
       const id = String(seed.id);
       map.set(id, seed);
@@ -145,7 +155,10 @@ export function getAllPublicArticles(): Article[] {
 }
 
 export function getPublicArticleBySlug(slug: string): Article | undefined {
-  return getAllPublicArticles().find(a => a.slug === slug);
+  // Compare loosely: at least one production row has a numeric slug, which a
+  // strict === against the string from the URL would never match, leaving the
+  // article permanently unreachable.
+  return getAllPublicArticles().find(a => slugMatches(a.slug, slug));
 }
 
 export function getPublicArticleById(id: string): Article | undefined {
