@@ -376,6 +376,10 @@ export function stripBase64ImagesFromHtml(html: string): string {
 // ─── Article CRUD ─────────────────────────────────────────────────────────────
 let supabaseArticlesCache: Record<string, AdminArticle> | null = null;
 let supabaseArticlesCacheTime = 0;
+// Guards the background Supabase list fetch so the ~N synchronous
+// getAdminArticlesMap() calls in a single render don't each fire their own
+// request (previously an ~11x egress storm on every page load).
+let supabaseFetchInFlight = false;
 const SUPABASE_CACHE_TTL = 60 * 1000; // 1 min (public pages fallback — admin uses DataSyncContext polling)
 /** localStorage key for persisting the last-fetch timestamp across page loads */
 const LIST_FETCH_TIME_KEY = 'octagon_list_fetch_ts';
@@ -400,16 +404,22 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
     const effectiveTTL = isAdmin ? 30 * 1000 : 5 * 60 * 1000;
     const useCache = (now - lastFetch) < effectiveTTL;
     
-    if (!useCache) {
-      // Fetch from Supabase in background (non-blocking for instant render)
-      import('./supabaseDataService').then(({ getArticlesFromSupabase }) => {
-        import('./supabaseClient').then(({ isSupabaseConfigured }) => {
-          if (isSupabaseConfigured()) {
-            getArticlesFromSupabase().then(supabaseArticles => {
+    if (!useCache && !supabaseFetchInFlight) {
+      // In-flight guard: set synchronously so the other getAdminArticlesMap()
+      // calls in this same render tick skip the fetch. Reset in .finally().
+      supabaseFetchInFlight = true;
+      // Fetch from Supabase in background (non-blocking for instant render).
+      // Promises are returned through the chain so .finally() only resets the
+      // guard once the whole fetch cycle has settled.
+      import('./supabaseDataService')
+        .then(({ getArticlesFromSupabase }) =>
+          import('./supabaseClient').then(({ isSupabaseConfigured }) => {
+            if (!isSupabaseConfigured()) return;
+            return getArticlesFromSupabase().then(supabaseArticles => {
               // Always update cache, even if empty (clears stale data)
               supabaseArticlesCache = supabaseArticles;
               supabaseArticlesCacheTime = now;
-              
+
               // CRITICAL: Supabase is source of truth - it OVERWRITES localStorage
               const merged = { ...supabaseArticles };
               Object.keys(localArticles).forEach(id => {
@@ -417,7 +427,7 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
                   merged[id] = localArticles[id]; // Only add if not in Supabase
                 }
               });
-              
+
               // Update localStorage with merged data (cache for offline)
               try {
                 localStorage.setItem(ARTICLES_KEY, JSON.stringify(merged));
@@ -428,12 +438,15 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
               } catch {
                 // Non-fatal
               }
-            }).catch(() => {
-              // Silent fail - use localStorage
             });
-          }
-        }).catch(() => {});
-      }).catch(() => {});
+          })
+        )
+        .catch(() => {
+          // Silent fail - use localStorage
+        })
+        .finally(() => {
+          supabaseFetchInFlight = false;
+        });
     }
     
     // HEADLESS CMS: Return Supabase cache if available (source of truth)
