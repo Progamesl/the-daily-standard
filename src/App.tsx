@@ -56,6 +56,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <ScrollToTop />
+          <DataSyncProvider>
           <Routes>
             {/* Public routes — no DataSyncProvider here (saves Supabase egress) */}
             <Route path="/" element={<Index />} />
@@ -72,9 +73,9 @@ const App = () => (
             <Route path="/special/poems" element={<PoemsPage />} />
             <Route path="/editor-preview/sports-gambling-r9x4p7b2" element={<InteractiveNewsFeature />} />
 
-            {/* Admin routes — DataSyncProvider only here */}
+            {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<DataSyncProvider><AdminLayout /></DataSyncProvider>}>
+            <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="stories" element={<AdminStories />} />
               <Route path="stories/new" element={<AdminStoryEditor />} />
@@ -93,6 +94,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </DataSyncProvider>
         </BrowserRouter>
       </AdminAuthProvider>
     </TooltipProvider>

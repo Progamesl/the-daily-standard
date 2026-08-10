@@ -4,10 +4,14 @@ import { StoryCard } from "@/components/stories/StoryCard";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { getPublicAuthorById, getAllPublicArticles } from "@/lib/publicDataService";
+import { useDataSync } from "@/contexts/DataSyncContext";
 import { ArrowLeft, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AuthorPage() {
+  // Subscribe to sync — re-renders automatically when fresh R2 data arrives.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { syncVersion } = useDataSync();
   const { id } = useParams<{ id: string }>();
   const author = id ? getPublicAuthorById(id) : undefined;
   const authorArticles = getAllPublicArticles().filter((a) => a.author.id === id);

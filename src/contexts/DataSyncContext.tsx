@@ -1,24 +1,31 @@
 /**
  * DataSyncContext
  *
- * Routing:
- *   /admin/*  → sync from Supabase (admin source of truth, throttled to 5 min)
+ * Mounted ONCE around every route (see App.tsx). Behaviour is route-aware:
+ *   /admin/*  → sync from Supabase (admin source of truth, throttled)
  *   all other → sync from R2 (free egress, updated after every CMS save)
  *
  * After every CMS article save:
  *   1. Supabase is written (adminDataService)
  *   2. /api/sync-r2 runs server-side → uploads fresh JSON to R2
- *   3. DataSyncContext clears R2 cache + re-fetches → public pages re-render
- *   4. All visitors see the new article immediately, no redeploy needed.
+ *   3. This context clears the R2 cache + re-fetches → public pages re-render
+ *   4. Visitors see the new/updated article within the poll window, no redeploy.
+ *
+ * Freshness SLA:
+ *   - editor's own tab: ~1.5s after save (supabase-article-saved event)
+ *   - other visitors:   next visible-tab poll (~30s) + Cloudflare edge cache
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { syncArticlesFromSupabase } from '@/lib/adminDataService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { getArticleListFromR2, isR2ArticlesConfigured, clearR2Cache } from '@/lib/r2Articles';
 import { setR2ArticleCache, clearR2ArticleCache } from '@/lib/publicDataService';
 
 const ADMIN_SYNC_THROTTLE_MS = 30 * 1000; // 30 seconds
+const ADMIN_POLL_MS = 5 * 60 * 1000; // 5 minutes
+const PUBLIC_POLL_MS = 30 * 1000; // 30 seconds while the tab is visible
 const LAST_SYNC_KEY = 'octagon_admin_last_sync';
 
 interface DataSyncContextType {
@@ -36,6 +43,11 @@ const DataSyncContext = createContext<DataSyncContextType>({
 export function DataSyncProvider({ children }: { children: React.ReactNode }) {
   const [syncVersion, setSyncVersion] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Route-reactive: recomputed on every navigation so the same provider instance
+  // serves both public and admin routes correctly.
+  const location = useLocation();
+  const isAdminPath = location.pathname.startsWith('/admin');
 
   // ── Admin sync: Supabase → localStorage ────────────────────────────────────
   const runAdminSync = useCallback(async (skipThrottle = false) => {
@@ -80,9 +92,6 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const isAdminPath =
-    typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
-
   const triggerSync = useCallback(() => {
     if (isAdminPath) {
       runAdminSync(true);
@@ -93,44 +102,50 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAdminPath, runAdminSync, runR2Sync]);
 
+  // ── Initial load + polling (route-aware) ───────────────────────────────────
   useEffect(() => {
     if (isAdminPath) {
-      // Poll every 5 minutes so open sessions see new articles without a reload.
-      // Egress optimization: Only poll if the tab is active/visible.
+      // Poll so open admin sessions see new articles without a reload.
+      // Egress optimization: only poll while the tab is visible.
       const poll = setInterval(() => {
         if (document.visibilityState === 'visible') {
           runAdminSync(false);
         }
-      }, 5 * 60 * 1000);
-      return () => clearInterval(poll);
-    } else {
-      // Public pages: sync from R2 (zero Supabase egress)
-      if (isR2ArticlesConfigured()) {
-        runR2Sync();
-      } else {
-        // Fallback to Supabase sync if R2 is not configured/available
-        console.log('[DataSync] Falling back to Supabase sync (R2 unavailable)');
-        runAdminSync(false);
-      }
-
-      // Poll every 10 minutes
-      const poll = setInterval(() => {
-        if (document.visibilityState === 'visible') {
-          clearR2Cache();
-          clearR2ArticleCache();
-          runR2Sync();
-        }
-      }, 10 * 60 * 1000);
-
+      }, ADMIN_POLL_MS);
       return () => clearInterval(poll);
     }
 
-    // When a CMS article is saved, re-sync to show the new article immediately
+    // Public pages: sync from R2 (zero Supabase egress) with a Supabase fallback.
+    if (isR2ArticlesConfigured()) {
+      runR2Sync();
+    } else {
+      console.log('[DataSync] Falling back to Supabase sync (R2 unavailable)');
+      runAdminSync(false);
+    }
+
+    const poll = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      if (isR2ArticlesConfigured()) {
+        clearR2Cache();
+        clearR2ArticleCache();
+        runR2Sync();
+      } else {
+        runAdminSync(false);
+      }
+    }, PUBLIC_POLL_MS);
+    return () => clearInterval(poll);
+  }, [isAdminPath, runAdminSync, runR2Sync]);
+
+  // ── Cross-tab / post-save refresh listeners ────────────────────────────────
+  // (Kept in its own effect so it always attaches — the previous version placed
+  // this after an early `return` in the polling effect, so it was dead code and
+  // published articles never refreshed live.)
+  useEffect(() => {
     const handleArticleSaved = () => {
       if (isAdminPath) {
         runAdminSync(true);
       } else {
-        // Small delay so /api/sync-r2 has time to finish uploading to R2
+        // Small delay so /api/sync-r2 has time to finish uploading to R2.
         setTimeout(() => {
           clearR2Cache();
           clearR2ArticleCache();

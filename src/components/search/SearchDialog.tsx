@@ -7,7 +7,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { getArticles } from "@/data/seedData";
+import { getAllPublicArticles } from "@/lib/publicDataService";
+import { useDataSync } from "@/contexts/DataSyncContext";
 import { Search, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,17 +21,22 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const navigate = useNavigate();
+  const { syncVersion } = useDataSync();
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase().trim();
-    return getArticles().filter(
+    return getAllPublicArticles().filter(
       (a) =>
         a.headline.toLowerCase().includes(q) ||
         a.dek?.toLowerCase().includes(q) ||
-        a.section.toLowerCase().includes(q)
+        a.section.toLowerCase().includes(q) ||
+        a.author?.name?.toLowerCase().includes(q) ||
+        a.tags?.some((t) => t.toLowerCase().includes(q))
     );
-  }, [query]).slice(0, 8);
+    // syncVersion in deps so results refresh when live R2 data loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, syncVersion]).slice(0, 8);
 
   useEffect(() => {
     setSelectedIndex(0);
