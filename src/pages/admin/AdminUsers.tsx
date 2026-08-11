@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -19,10 +19,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  getUsersList, createUser, updateUser, deleteUser,
-  type AdminUser, type UserRole,
+  type UserRole,
   ROLE_LABELS, ROLE_COLORS, getRoleLevel,
 } from '@/lib/adminUserService';
+import {
+  listStaff, createStaff, updateStaff, resetStaffPassword, deleteStaff,
+  type StaffMember,
+} from '@/lib/staffService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { cn } from '@/lib/utils';
 
@@ -68,20 +71,37 @@ function timeAgo(iso?: string): string {
 
 export default function AdminUsers() {
   const { currentUser, refreshUser } = useAdminAuth();
-  const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery]           = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
-  const [editingUser, setEditingUser]   = useState<AdminUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StaffMember | null>(null);
+  const [editingUser, setEditingUser]   = useState<StaffMember | null>(null);
   const [form, setForm]                 = useState<UserForm>(emptyForm);
   const [newPassword, setNewPassword]   = useState('');
-  const [passwordTarget, setPasswordTarget] = useState<AdminUser | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<StaffMember | null>(null);
   const [errors, setErrors] = useState<Partial<UserForm>>({});
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const allUsers = useMemo(() => getUsersList(), [refreshKey]);
+  // Staff now live in Supabase and are managed through /api/staff, so this is
+  // loaded from the server rather than read synchronously from localStorage.
+  const [allUsers, setAllUsers] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      setAllUsers(await listStaff());
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Could not load staff.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const filtered = useMemo(() => {
     let list = [...allUsers];
@@ -103,8 +123,6 @@ export default function AdminUsers() {
     return list;
   }, [allUsers, query, roleFilter]);
 
-  const refresh = () => setRefreshKey(k => k + 1);
-
   const openCreate = () => {
     setEditingUser(null);
     setForm(emptyForm);
@@ -112,7 +130,7 @@ export default function AdminUsers() {
     setDialogOpen(true);
   };
 
-  const openEdit = (user: AdminUser) => {
+  const openEdit = (user: StaffMember) => {
     setEditingUser(user);
     setForm({
       username: user.username, password: '',
@@ -131,7 +149,8 @@ export default function AdminUsers() {
     if (!form.username.trim())    errs.username = 'Username is required.';
     if (!form.email.trim())       errs.email = 'Email is required.';
     if (!editingUser && !form.password.trim()) errs.password = 'Password is required.';
-    if (form.password && form.password.length < 8) errs.password = 'Password must be at least 8 characters.';
+    // The server enforces 10+; match it here so the error appears before saving.
+    if (form.password && form.password.length < 10) errs.password = 'Password must be at least 10 characters.';
     // Check duplicate username
     const existing = allUsers.find(u => u.username.toLowerCase() === form.username.toLowerCase() && u.id !== editingUser?.id);
     if (existing) errs.username = 'Username already taken.';
@@ -139,70 +158,88 @@ export default function AdminUsers() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(form.displayName)}&size=200&background=random`;
-    if (editingUser) {
-      updateUser(editingUser.id, {
-        username: form.username.trim(),
-        displayName: form.displayName.trim(),
-        email: form.email.trim(),
-        role: form.role,
-        section: form.section || undefined,
-        bio: form.bio || undefined,
-        phone: form.phone || undefined,
-        graduationYear: form.graduationYear || undefined,
-        ...(form.password ? { password: form.password } : {}),
-      });
-      // If editing self, refresh auth context
-      if (editingUser.id === currentUser?.id) refreshUser();
-      toast.success('Staff member updated');
-    } else {
-      createUser({
-        username: form.username.trim(),
-        password: form.password,
-        displayName: form.displayName.trim(),
-        email: form.email.trim(),
-        role: form.role,
-        section: form.section || undefined,
-        bio: form.bio || undefined,
-        phone: form.phone || undefined,
-        graduationYear: form.graduationYear || undefined,
-        avatar,
-      });
-      toast.success(`${form.displayName} added to staff`);
+    setSaving(true);
+    try {
+      const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(form.displayName)}&size=200&background=random`;
+      if (editingUser) {
+        await updateStaff(editingUser.id, {
+          username: form.username.trim(),
+          displayName: form.displayName.trim(),
+          email: form.email.trim(),
+          role: form.role,
+          section: form.section || undefined,
+          bio: form.bio || undefined,
+          phone: form.phone || undefined,
+          graduationYear: form.graduationYear || undefined,
+        });
+        if (form.password) await resetStaffPassword(editingUser.id, form.password);
+        if (editingUser.id === currentUser?.id) refreshUser();
+        toast.success('Staff member updated');
+      } else {
+        await createStaff({
+          username: form.username.trim(),
+          password: form.password,
+          displayName: form.displayName.trim(),
+          email: form.email.trim(),
+          role: form.role,
+          section: form.section || undefined,
+          bio: form.bio || undefined,
+          phone: form.phone || undefined,
+          graduationYear: form.graduationYear || undefined,
+          avatar,
+        });
+        toast.success(`${form.displayName} can now sign in with their email and password`);
+      }
+      setDialogOpen(false);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save this staff member.');
+    } finally {
+      setSaving(false);
     }
-    setDialogOpen(false);
-    refresh();
   };
 
-  const handleToggleActive = (user: AdminUser) => {
+  const handleToggleActive = async (user: StaffMember) => {
     if (user.id === currentUser?.id) { toast.error("You can't deactivate yourself."); return; }
-    updateUser(user.id, { active: !user.active });
-    toast.success(user.active ? `${user.displayName} deactivated` : `${user.displayName} reactivated`);
-    refresh();
+    try {
+      await updateStaff(user.id, { active: !user.active });
+      toast.success(user.active ? `${user.displayName} can no longer sign in` : `${user.displayName} reactivated`);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update this account.');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
     if (deleteTarget.id === currentUser?.id) { toast.error("You can't delete your own account."); return; }
-    deleteUser(deleteTarget.id);
-    toast.success(`${deleteTarget.displayName} removed from staff`);
-    setDeleteTarget(null);
-    refresh();
+    try {
+      await deleteStaff(deleteTarget.id);
+      toast.success(`${deleteTarget.displayName} removed from staff`);
+      setDeleteTarget(null);
+      await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not remove this staff member.');
+    }
   };
 
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
     if (!passwordTarget || !newPassword.trim()) return;
-    if (newPassword.length < 8) { toast.error('Password must be at least 8 characters.'); return; }
-    updateUser(passwordTarget.id, { password: newPassword });
-    toast.success(`Password updated for ${passwordTarget.displayName}`);
-    setPasswordDialogOpen(false);
-    setNewPassword('');
-    setPasswordTarget(null);
+    if (newPassword.length < 10) { toast.error('Password must be at least 10 characters.'); return; }
+    try {
+      await resetStaffPassword(passwordTarget.id, newPassword);
+      toast.success(`New password set for ${passwordTarget.displayName}`);
+      setPasswordDialogOpen(false);
+      setNewPassword('');
+      setPasswordTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not reset the password.');
+    }
   };
 
-  const canEditUser = (user: AdminUser) => {
+  const canEditUser = (user: StaffMember) => {
     if (!currentUser) return false;
     if (currentUser.id === user.id) return true; // can edit self
     return getRoleLevel(currentUser.role) > getRoleLevel(user.role);
@@ -360,7 +397,26 @@ export default function AdminUsers() {
               </div>
             </div>
           ))}
-          {filtered.length === 0 && (
+          {/* Staff come from the server now, so the list has real loading and
+              failure states — an empty table shouldn't look like "no staff"
+              when it actually means "still loading" or "request failed". */}
+          {loading && (
+            <div className="px-6 py-16 text-center">
+              <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
+              <p className="text-sm text-slate-400">Loading staff…</p>
+            </div>
+          )}
+
+          {!loading && loadError && (
+            <div className="px-6 py-12 text-center">
+              <p className="text-sm font-medium text-red-600">{loadError}</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => void refresh()}>
+                Try again
+              </Button>
+            </div>
+          )}
+
+          {!loading && !loadError && filtered.length === 0 && (
             <div className="px-6 py-16 text-center">
               <p className="text-sm text-slate-400">
                 {query || roleFilter !== 'all' ? 'No staff match your filters.' : 'No staff added yet.'}
@@ -477,7 +533,9 @@ export default function AdminUsers() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>{editingUser ? 'Update' : 'Add to Staff'}</Button>
+            <Button onClick={() => void handleSave()} disabled={saving}>
+              {saving ? 'Saving…' : editingUser ? 'Update' : 'Add to Staff'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

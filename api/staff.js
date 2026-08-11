@@ -90,7 +90,9 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const { data, error } = await db
       .from('admin_users')
-      .select('id, username, display_name, email, role, section, active, last_login, created_at')
+      .select(
+        'id, username, display_name, email, role, section, bio, phone, graduation_year, avatar, active, last_login, created_at'
+      )
       .order('created_at', { ascending: true });
 
     if (error) return res.status(500).json({ error: error.message });
@@ -101,8 +103,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { action, id, email, password, displayName, username, role, section, active } =
-    req.body || {};
+  const {
+    action, id, email, password, displayName, username, role, section, active,
+    bio, phone, graduationYear, avatar,
+  } = req.body || {};
 
   if (!canManage(caller)) {
     return res
@@ -143,6 +147,10 @@ export default async function handler(req, res) {
       email: String(email).trim().toLowerCase(),
       role,
       section: section || null,
+      bio: bio || null,
+      phone: phone || null,
+      graduation_year: graduationYear || null,
+      avatar: avatar || null,
       active: true,
       email_verified: true,
       approved_by: caller.display_name || caller.id,
@@ -176,7 +184,13 @@ export default async function handler(req, res) {
   if (action === 'update') {
     const patch = { updated_at: new Date().toISOString() };
     if (displayName !== undefined) patch.display_name = String(displayName).trim();
+    if (username !== undefined) patch.username = String(username).trim();
+    if (email !== undefined) patch.email = String(email).trim().toLowerCase();
     if (section !== undefined) patch.section = section || null;
+    if (bio !== undefined) patch.bio = bio || null;
+    if (phone !== undefined) patch.phone = phone || null;
+    if (graduationYear !== undefined) patch.graduation_year = graduationYear || null;
+    if (avatar !== undefined) patch.avatar = avatar || null;
     if (role !== undefined) {
       if (!ROLE_LEVEL[role]) return res.status(400).json({ error: 'Unknown role.' });
       if (isSelf) return res.status(403).json({ error: "You can't change your own role." });
