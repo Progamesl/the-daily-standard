@@ -238,11 +238,13 @@ export function Masthead() {
         </nav>
       </header>
 
-      {/* Mobile Navigation Menu */}
+      {/*
+        Mobile Navigation Menu.
+        z must beat the masthead, which is z-index:100 (.masthead-sticky).
+        At z-50 the header painted over the top of this panel, hiding the
+        "Sections" heading, the close button and the first links.
+      */}
       {mobileMenuOpen && (
-        {/* z must beat the masthead, which is z-index:100 (.masthead-sticky).
-            At z-50 the header painted over the top of this panel, hiding the
-            "Sections" heading, the close button and the first links. */}
         <div className="lg:hidden fixed inset-0 z-[120] bg-background overflow-y-auto overscroll-contain">
           {/* Extra bottom room so the last item clears the phone browser's
               floating toolbar, which overlays the viewport. */}
