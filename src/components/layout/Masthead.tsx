@@ -240,8 +240,16 @@ export function Masthead() {
 
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-background overflow-y-auto overscroll-contain">
-          <div className="container-newspaper py-4 pb-safe">
+        {/* z must beat the masthead, which is z-index:100 (.masthead-sticky).
+            At z-50 the header painted over the top of this panel, hiding the
+            "Sections" heading, the close button and the first links. */}
+        <div className="lg:hidden fixed inset-0 z-[120] bg-background overflow-y-auto overscroll-contain">
+          {/* Extra bottom room so the last item clears the phone browser's
+              floating toolbar, which overlays the viewport. */}
+          <div
+            className="container-newspaper py-4"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 6rem)' }}
+          >
             <div className="flex items-center justify-between mb-8">
               <h2 className="font-serif text-2xl font-bold">Sections</h2>
               <button
