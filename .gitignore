@@ -27,3 +27,6 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+# one-off migration report
+image-rehost-report.json

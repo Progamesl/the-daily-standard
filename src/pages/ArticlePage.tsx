@@ -15,6 +15,7 @@ import {
   getPublicArticlesBySection,
 } from "@/lib/publicDataService";
 import { getImageOrNull } from "@/lib/imageHelpers";
+import { SmartImage } from "@/components/ui/SmartImage";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { useDataSync } from "@/contexts/DataSyncContext";
 import { trackArticleView } from "@/lib/analyticsService";
@@ -251,14 +252,18 @@ export default function ArticlePage() {
         {heroImage && (
           <figure className="flow-container mb-8 md:mb-12">
             <div className="max-w-4xl mx-auto">
-              <img
-                src={heroImage}
-                alt={article.imageCaption || article.headline}
-                className="w-full aspect-[16/9] sm:aspect-[2.35/1] object-cover rounded-lg sm:rounded-xl shadow-lg bg-slate-100"
-                loading="eager"
-                referrerPolicy="no-referrer"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              />
+              {/* Wrapper is the sized frame; SmartImage fills it only if the
+                  photo is actually large enough, otherwise it sits at its true
+                  size over a blurred copy instead of being stretched. */}
+              <div className="relative w-full aspect-[16/9] sm:aspect-[2.35/1] overflow-hidden rounded-lg sm:rounded-xl shadow-lg bg-slate-900">
+                <SmartImage
+                  src={heroImage}
+                  alt={article.imageCaption || article.headline}
+                  loading="eager"
+                  minWidthForCover={1100}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
               {article.imageCaption && (
                 <figcaption className="text-sm text-muted-foreground mt-3 max-w-3xl mx-auto">{article.imageCaption}</figcaption>
               )}

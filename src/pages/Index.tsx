@@ -18,6 +18,7 @@ import {
   getLongReadPublicArticles,
 } from "@/lib/publicDataService";
 import { getImageOrNull, enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
+import { SmartImage } from "@/components/ui/SmartImage";
 import { useDataSync } from "@/contexts/DataSyncContext";
 
 /** Only keep articles that have a real image (not null/empty/placeholder). */
@@ -108,11 +109,14 @@ const Index = () => {
                   mobile a portrait-ish frame and save the cinematic ratio for
                   wide screens, where it has the height to work. */}
               <div className="relative w-full aspect-[4/3] sm:aspect-[16/9] lg:aspect-[2.35/1] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                <img
+                {/* Never upscale: a sub-1200px archive image stretched across a
+                    full-bleed hero is a 2-4x blow-up and looks broken. */}
+                <SmartImage
                   src={imgSrc(leadArticle)}
                   alt={leadArticle.headline}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2800ms] ease-out group-hover:scale-[1.06]"
                   loading="eager"
+                  minWidthForCover={1400}
+                  className="transition-transform duration-[2800ms] ease-out group-hover:scale-[1.06]"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
                 {/* Gradient overlays for text readability - balanced to preserve image visibility */}
