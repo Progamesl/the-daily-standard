@@ -103,7 +103,11 @@ const Index = () => {
         {leadArticle && (
           <section className="w-full relative overflow-hidden" aria-label="Hero">
             <Link to={`/article/${leadArticle.slug}`} className="block group cursor-pointer">
-              <div className="relative w-full aspect-[21/9] sm:aspect-[2.35/1] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+              {/* 21:9 on a phone is a ~177px letterbox: object-cover crops the
+                  photo to a slice and the headline alone nearly fills it. Give
+                  mobile a portrait-ish frame and save the cinematic ratio for
+                  wide screens, where it has the height to work. */}
+              <div className="relative w-full aspect-[4/3] sm:aspect-[16/9] lg:aspect-[2.35/1] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
                 <img
                   src={imgSrc(leadArticle)}
                   alt={leadArticle.headline}
@@ -126,7 +130,10 @@ const Index = () => {
                       <h1 className="font-serif text-2xl sm:text-3xl md:text-5xl lg:text-[3.25rem] xl:text-[3.75rem] font-bold leading-[1.1] mb-3 sm:mb-4 text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] tracking-tight">
                         {leadArticle.headline}
                       </h1>
-                      <p className="font-serif text-sm sm:text-lg md:text-xl lg:text-2xl text-white mb-3 sm:mb-5 line-clamp-2 leading-relaxed max-w-3xl font-normal hidden xs:block drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
+                      {/* Was `hidden xs:block` — `xs` is not a breakpoint in
+                          tailwind.config.ts, so Tailwind never emitted the
+                          variant and this summary was invisible at every size. */}
+                      <p className="font-serif text-sm sm:text-lg md:text-xl lg:text-2xl text-white mb-3 sm:mb-5 line-clamp-2 leading-relaxed max-w-3xl font-normal drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
                         {leadArticle.dek}
                       </p>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm md:text-base text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)]">
