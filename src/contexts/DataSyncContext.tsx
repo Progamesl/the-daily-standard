@@ -18,7 +18,11 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { syncArticlesFromSupabase } from '@/lib/adminDataService';
+import {
+  syncArticlesFromSupabase,
+  syncAuthorsFromSupabase,
+  syncSiteSettingsFromSupabase,
+} from '@/lib/adminDataService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { getArticleListFromR2, isR2ArticlesConfigured, clearR2Cache } from '@/lib/r2Articles';
 import { setR2ArticleCache, clearR2ArticleCache } from '@/lib/publicDataService';
@@ -60,7 +64,14 @@ export function DataSyncProvider({ children }: { children: React.ReactNode }) {
 
     setIsSyncing(true);
     try {
-      const synced = await syncArticlesFromSupabase();
+      // Authors and site settings are pulled alongside articles: they used to
+      // be localStorage-only, so an edit made on one machine was invisible
+      // everywhere else. Failures here are non-fatal.
+      const [synced] = await Promise.all([
+        syncArticlesFromSupabase(),
+        syncAuthorsFromSupabase().catch(() => false),
+        syncSiteSettingsFromSupabase().catch(() => false),
+      ]);
       if (synced) {
         if (typeof sessionStorage !== 'undefined') {
           sessionStorage.setItem(LAST_SYNC_KEY, String(Date.now()));

@@ -871,7 +871,49 @@ export function saveAdminAuthor(author: AdminAuthor): AdminAuthor {
   const authors = getAdminAuthorsMap();
   authors[author.id] = author;
   setStorage(AUTHORS_KEY, authors);
+
+  // Persist to Supabase too, or the edit would live only in this browser and
+  // nobody else — readers included — would ever see it. Written in the
+  // background so the UI stays responsive; localStorage above is the immediate
+  // local copy.
+  void (async () => {
+    try {
+      const { saveAuthorToSupabase } = await import('./supabaseDataService');
+      await saveAuthorToSupabase(author);
+    } catch (err) {
+      console.warn('Author saved locally but not to the server:', err);
+    }
+  })();
+
   return author;
+}
+
+/**
+ * Pull authors from Supabase into the local cache, so a browser that didn't
+ * make an edit still sees it. Mirrors syncArticlesFromSupabase.
+ */
+export async function syncAuthorsFromSupabase(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const { getAuthorsFromSupabase } = await import('./supabaseDataService');
+    const { isSupabaseConfigured } = await import('./supabaseClient');
+    if (!isSupabaseConfigured()) return false;
+
+    const remote = await getAuthorsFromSupabase();
+    if (!remote || Object.keys(remote).length === 0) return false;
+
+    // Server wins; keep local-only authors that haven't been pushed yet.
+    const local = getStorage<Record<string, AdminAuthor>>(AUTHORS_KEY, {});
+    const merged = { ...remote };
+    Object.keys(local).forEach(id => {
+      if (!merged[id]) merged[id] = local[id];
+    });
+    setStorage(AUTHORS_KEY, merged);
+    return true;
+  } catch (err) {
+    console.warn('Could not sync authors from the server:', err);
+    return false;
+  }
 }
 
 export function createAdminAuthor(data: Omit<AdminAuthor, 'id'>): AdminAuthor {
@@ -913,6 +955,16 @@ export function deleteAdminAuthor(id: string): void {
     deleted.push(id);
     setStorage(DELETED_AUTHORS_KEY, deleted);
   }
+
+  // Remove it on the server as well, or the next sync would restore it.
+  void (async () => {
+    try {
+      const { deleteAuthorFromSupabase } = await import('./supabaseDataService');
+      await deleteAuthorFromSupabase(id);
+    } catch (err) {
+      console.warn('Author removed locally but not on the server:', err);
+    }
+  })();
 }
 
 export function getDeletedAuthorIds(): string[] {
@@ -1215,6 +1267,9 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   primaryColor: '#1e293b',
 };
 
+/** Single row in the site_settings table holding the whole settings object. */
+const SETTINGS_ROW_KEY = 'site';
+
 export function getSiteSettings(): SiteSettings {
   return { ...DEFAULT_SETTINGS, ...getStorage<Partial<SiteSettings>>(SETTINGS_KEY, {}) };
 }
@@ -1223,7 +1278,49 @@ export function saveSiteSettings(settings: Partial<SiteSettings>): SiteSettings 
   const current = getSiteSettings();
   const updated = { ...current, ...settings };
   setStorage(SETTINGS_KEY, updated);
+
+  // Settings used to be localStorage-only, so changing the site name, tagline
+  // or announcement banner only changed it for the person who typed it.
+  void (async () => {
+    try {
+      const { getSupabaseClient } = await import('./supabaseClient');
+      const client = getSupabaseClient();
+      if (!client) return;
+      await client
+        .from('site_settings')
+        .upsert(
+          { key: SETTINGS_ROW_KEY, value: updated, updated_at: new Date().toISOString() },
+          { onConflict: 'key' }
+        );
+    } catch (err) {
+      console.warn('Settings saved locally but not to the server:', err);
+    }
+  })();
+
   return updated;
+}
+
+/** Pull site settings from Supabase so every browser shows the same values. */
+export async function syncSiteSettingsFromSupabase(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  try {
+    const { getSupabaseClient } = await import('./supabaseClient');
+    const client = getSupabaseClient();
+    if (!client) return false;
+
+    const { data, error } = await client
+      .from('site_settings')
+      .select('value')
+      .eq('key', SETTINGS_ROW_KEY)
+      .maybeSingle();
+
+    if (error || !data?.value) return false;
+    setStorage(SETTINGS_KEY, { ...DEFAULT_SETTINGS, ...(data.value as Partial<SiteSettings>) });
+    return true;
+  } catch (err) {
+    console.warn('Could not sync settings from the server:', err);
+    return false;
+  }
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
