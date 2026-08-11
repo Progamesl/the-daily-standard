@@ -357,7 +357,13 @@ export default function AdminStoryEditor() {
         setDirty(false);
         setLastSaved(new Date());
         setArticle(saved);
-        if (!silent) toast.success('Saved successfully!');
+        // The work is on the server now, so the local recovery copy is stale.
+        try { localStorage.removeItem(`octagon_editor_recovery_${id}`); } catch { /* non-fatal */ }
+        if (!silent) {
+          toast.success(
+            status === 'published' ? 'Saved — readers can see this now.' : 'Saved as a draft.'
+          );
+        }
         logActivity('article_saved', `"${built.headline}" updated`, userId, id);
       }
     } catch (err) {
@@ -400,14 +406,51 @@ export default function AdminStoryEditor() {
     setRestoreTarget(null);
   };
 
-  // Autosave
+  // Is this story currently visible to readers?
+  const isLive = form.status === 'published';
+
+  // Local recovery copy, used only while editing a LIVE story (where we refuse
+  // to autosave to the server). Nothing is lost if the tab closes.
+  const recoveryKey = id ? `octagon_editor_recovery_${id}` : null;
+
+  const clearRecovery = useCallback(() => {
+    if (!recoveryKey) return;
+    try { localStorage.removeItem(recoveryKey); } catch { /* non-fatal */ }
+  }, [recoveryKey]);
+
+  /**
+   * Autosave.
+   *
+   * This used to call doSave(form.status) — so editing a PUBLISHED story
+   * re-published it every 5 seconds, pushing half-finished edits to readers and
+   * firing a full site re-sync each time. A live story is now never written to
+   * the server automatically; the editor decides when readers see the change.
+   */
   useEffect(() => {
-    if (!dirty || !loaded) return;
+    if (!dirty || !loaded || !form.headline.trim()) return;
+
     const timer = setTimeout(() => {
-      if (form.headline.trim()) doSave(form.status, true);
+      if (isLive) {
+        if (!recoveryKey) return;
+        try {
+          localStorage.setItem(recoveryKey, JSON.stringify({ form, at: Date.now() }));
+        } catch { /* quota — non-fatal */ }
+      } else {
+        doSave(form.status, true);
+      }
     }, AUTOSAVE_DELAY);
+
     return () => clearTimeout(timer);
-  }, [form, dirty, loaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, dirty, loaded, isLive, recoveryKey]);
+
+  // Warn before losing unsaved changes to a live story.
+  useEffect(() => {
+    if (!dirty || !isLive) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, isLive]);
 
   const noteTypeColors: Record<InternalNote['type'], string> = {
     note: 'bg-slate-100 text-slate-700',
@@ -446,7 +489,18 @@ export default function AdminStoryEditor() {
             </Link>
             <span className="text-slate-300">|</span>
             <span className="text-sm font-medium text-slate-700">{isNew ? 'New Story' : 'Edit Story'}</span>
-            {dirty && <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Unsaved changes</span>}
+            {dirty && (
+              <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                {isLive
+                  ? 'Unsaved — readers still see the old version'
+                  : 'Unsaved changes'}
+              </span>
+            )}
+            {isLive && !dirty && (
+              <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                Live on the site
+              </span>
+            )}
             {lastSaved && !dirty && (
               <span className="text-xs text-slate-400 flex items-center gap-1">
                 <Clock className="h-3 w-3" />Saved {lastSaved.toLocaleTimeString()}
@@ -470,21 +524,47 @@ export default function AdminStoryEditor() {
                 if (match) updateField('authorId', match.id);
               }
             }} />
+            {/* Preview: wait for the save to finish rather than racing it on a
+                150ms timer, which could open a stale or not-yet-existing slug. */}
             <Button variant="ghost" size="sm" className="gap-1.5 text-slate-500" disabled={!form.headline.trim() || saving}
-              onClick={() => {
+              onClick={async () => {
+                await doSave(form.status, true);
                 const slug = form.slug || generateSlug(form.headline);
-                doSave(form.status, true);
-                setTimeout(() => window.open(`/article/${slug}?preview=1`, '_blank'), 150);
+                window.open(`/article/${slug}?preview=1`, '_blank');
               }}>
               <Eye className="h-4 w-4" />Preview
             </Button>
-            <Button variant="outline" size="sm" onClick={() => doSave('draft')} disabled={saving || !form.headline.trim()} className="gap-1.5">
+
+            {/* This button used to always save as 'draft', so clicking "Save"
+                on a live story silently unpublished it and pulled it off the
+                site. Saving now preserves the story's current state. */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => doSave(isLive ? 'published' : 'draft')}
+              disabled={saving || !form.headline.trim()}
+              className="gap-1.5"
+            >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save
+              {isLive ? 'Save changes' : 'Save draft'}
             </Button>
-            <Button size="sm" onClick={() => doSave('published')} disabled={saving || !form.headline.trim()} className="gap-1.5">
-              <Send className="h-4 w-4" />Publish
-            </Button>
+
+            {isLive ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => doSave('draft')}
+                disabled={saving}
+                className="gap-1.5 text-amber-700 border-amber-200 hover:bg-amber-50"
+                title="Remove this story from the public site and keep it as a draft"
+              >
+                Unpublish
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => doSave('published')} disabled={saving || !form.headline.trim()} className="gap-1.5">
+                <Send className="h-4 w-4" />Publish
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -562,6 +642,88 @@ export default function AdminStoryEditor() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Publish date and slug were part of the saved article all along
+                  but had no inputs, so nobody could set the date a story is
+                  dated, or fix an ugly auto-generated URL. */}
+              <div>
+                <Label htmlFor="publishedAt" className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 block">
+                  Story date
+                </Label>
+                <Input
+                  id="publishedAt"
+                  type="datetime-local"
+                  value={form.publishedAt}
+                  onChange={(e) => updateField('publishedAt', e.target.value)}
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Shown on the story and used to order the homepage.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="slug" className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 block">
+                  Web address
+                </Label>
+                <Input
+                  id="slug"
+                  value={form.slug}
+                  placeholder={generateSlug(form.headline) || 'auto-generated-from-headline'}
+                  onChange={(e) => updateField('slug', e.target.value)}
+                />
+                <p className="mt-1 truncate text-xs text-slate-400">
+                  /article/{form.slug || generateSlug(form.headline) || '…'}
+                </p>
+              </div>
+            </div>
+
+            {/* Search & share text. The fields existed in the data model and
+                were saved, but were never rendered — so every story shipped
+                with whatever the site defaults were. */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <button
+                type="button"
+                onClick={() => setShowSEO(v => !v)}
+                className="flex w-full items-center justify-between text-left"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Search &amp; social preview
+                </span>
+                <span className="text-xs text-slate-400">{showSEO ? 'Hide' : 'Edit'}</span>
+              </button>
+
+              {showSEO && (
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <Label htmlFor="metaTitle" className="text-xs text-slate-500 mb-1.5 block">
+                      Title in Google / when shared
+                    </Label>
+                    <Input
+                      id="metaTitle"
+                      value={form.metaTitle}
+                      placeholder={form.headline || 'Defaults to the headline'}
+                      maxLength={70}
+                      onChange={(e) => updateField('metaTitle', e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-slate-400">{form.metaTitle.length}/70 — longer titles get cut off.</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="metaDescription" className="text-xs text-slate-500 mb-1.5 block">
+                      Short description
+                    </Label>
+                    <Textarea
+                      id="metaDescription"
+                      value={form.metaDescription}
+                      placeholder={form.dek || 'Defaults to the summary line'}
+                      maxLength={160}
+                      rows={3}
+                      onChange={(e) => updateField('metaDescription', e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-slate-400">{form.metaDescription.length}/160</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="bg-violet-50 rounded-xl border border-violet-200 p-5 space-y-4">
