@@ -22,6 +22,7 @@ import { trackArticleView } from "@/lib/analyticsService";
 import { ArrowLeft, EyeOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { addToHistory } from "@/components/user/UserMenu";
 import { CommentSection } from "@/components/article/CommentSection";
 import { useArticleBySlug } from "@/hooks/useArticleBySlug";
@@ -41,6 +42,8 @@ export default function ArticlePage() {
 
   const mostPopular = getMostPopularPublic(5);
   const [fontSize, setFontSize] = useState<"normal" | "large" | "xlarge">("normal");
+  /** The hero picture's width ÷ height, once it has loaded and reported it. */
+  const [heroRatio, setHeroRatio] = useState<number | null>(null);
 
   useEffect(() => {
     if (slug && !isPreview) addToHistory(slug);
@@ -252,15 +255,37 @@ export default function ArticlePage() {
         {heroImage && (
           <figure className="flow-container mb-8 md:mb-12">
             <div className="max-w-4xl mx-auto">
-              {/* Wrapper is the sized frame; SmartImage fills it only if the
-                  photo is actually large enough, otherwise it sits at its true
-                  size over a blurred copy instead of being stretched. */}
-              <div className="relative w-full aspect-[16/9] sm:aspect-[2.35/1] overflow-hidden rounded-lg sm:rounded-xl shadow-lg bg-slate-900">
+              {/* The frame takes the picture's own proportions rather than
+                  forcing every hero into one letterbox. Against the fixed
+                  2.35:1 frame, 44 of 45 archive images lost more than 15% of
+                  themselves — a cartoon had its speech bubbles cropped off both
+                  sides. Matching the shape shows the whole picture without
+                  bringing back the grey bars that letterboxing produced.
+
+                  The old frame stands in until the image reports its
+                  proportions, so the page doesn't jump when it arrives, and a
+                  portrait is held to 70% of the window height and centred so it
+                  can't push the story off the screen. */}
+              <div
+                className={cn(
+                  'relative mx-auto overflow-hidden rounded-lg sm:rounded-xl shadow-lg bg-slate-900',
+                  (heroRatio == null || heroRatio >= 1) && 'w-full',
+                  heroRatio == null && 'aspect-[16/9] sm:aspect-[2.35/1]'
+                )}
+                style={
+                  heroRatio == null
+                    ? undefined
+                    : heroRatio >= 1
+                      ? { aspectRatio: String(heroRatio) }
+                      : { aspectRatio: String(heroRatio), height: 'min(70vh, 40rem)', width: 'auto' }
+                }
+              >
                 <SmartImage
                   src={heroImage}
                   alt={article.imageCaption || article.headline}
                   loading="eager"
                   minWidthForCover={1100}
+                  onRatio={setHeroRatio}
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>

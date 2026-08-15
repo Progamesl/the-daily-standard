@@ -12,6 +12,8 @@ interface Props {
   minWidthForCover?: number;
   loading?: 'eager' | 'lazy';
   onError?: React.ReactEventHandler<HTMLImageElement>;
+  /** Reports the picture's own width ÷ height once known, so a frame can match it. */
+  onRatio?: (ratio: number) => void;
 }
 
 /**
@@ -35,6 +37,7 @@ export function SmartImage({
   minWidthForCover = 900,
   loading = 'lazy',
   onError,
+  onRatio,
 }: Props) {
   const [isLowRes, setIsLowRes] = useState(false);
 
@@ -45,7 +48,9 @@ export function SmartImage({
       loading={loading}
       onLoad={(e) => {
         const w = e.currentTarget.naturalWidth;
+        const h = e.currentTarget.naturalHeight;
         if (w && w < minWidthForCover) setIsLowRes(true);
+        if (w && h) onRatio?.(w / h);
       }}
       onError={onError}
       className={cn(
