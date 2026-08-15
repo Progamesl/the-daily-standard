@@ -5,9 +5,31 @@
 
 export const SITE_PLACEHOLDER = '/placeholder.svg';
 
+/**
+ * Hosts that used to serve our pictures and no longer do.
+ *
+ * The old WordPress site is gone: every file under www.scdsoctagon.com and
+ * octagon.scdsstudent.org now returns 404, and the i0/i1/i2.wp.com links are
+ * Jetpack proxies of those same missing files. 233 images across the archive
+ * still point at them, all on stories from 2020 and 2021. Counting those as
+ * illustrated puts an empty frame on the card and lets them outrank stories
+ * that do have a picture, so they count as having no image — which is true.
+ *
+ * Nothing is deleted: the URLs stay in the database in case the old site
+ * returns or the files are recovered from somewhere else.
+ */
+const DEAD_IMAGE_HOSTS = [
+  'scdsoctagon.com/wp-content',
+  'octagon.scdsstudent.org',
+  'i0.wp.com',
+  'i1.wp.com',
+  'i2.wp.com',
+];
+
 function isBadUrl(url: string): boolean {
   if (!url || typeof url !== 'string' || url.length < 10) return true;
   const u = url.toLowerCase();
+  if (DEAD_IMAGE_HOSTS.some((h) => u.includes(h))) return true;
   return (
     u.includes('placeholder') ||
     u.includes('unsplash.com') ||
