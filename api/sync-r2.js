@@ -64,6 +64,8 @@ function rowToPublic(row) {
     featured: row.featured ?? false,
     priority: row.priority ?? 'normal',
     isCinematic: row.is_cinematic ?? row.isCinematic ?? false,
+    // Narration recorded ahead of time, if this story has any.
+    audioUrl: row.audio_url ?? row.audioUrl ?? '',
   };
 }
 
@@ -84,7 +86,7 @@ export default async function handler(req, res) {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { data, error } = await supabase
       .from('articles')
-      .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority,is_cinematic')
+      .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority,is_cinematic,audio_url')
       .eq('status', 'published');
 
     if (error) throw error;

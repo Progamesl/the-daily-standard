@@ -241,6 +241,7 @@ export default function ArticlePage() {
               slug={article.slug}
               headline={article.headline}
               dek={article.dek}
+              audioUrl={article.audioUrl}
               bodyText={article.body.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()}
               shareUrl={`/article/${article.slug}`}
               shareTitle={article.headline}

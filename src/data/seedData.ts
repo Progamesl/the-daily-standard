@@ -37,6 +37,8 @@ export interface Article {
   readingTime: number;
   tags: string[];
   isCinematic?: boolean;
+  /** Narration recorded ahead of time, if this story has any. */
+  audioUrl?: string;
 }
 
 export interface Section {
@@ -112,6 +114,7 @@ function _allArticles(): Article[] {
       readingTime: a.readingTime,
       tags: a.tags,
       isCinematic: a.isCinematic,
+      audioUrl: (a as { audioUrl?: string }).audioUrl,
     });
   }
 

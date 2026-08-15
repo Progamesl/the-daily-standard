@@ -37,6 +37,7 @@ interface ArticleReadingToolbarProps {
   headline: string;
   dek: string;
   bodyText: string;
+  audioUrl?: string;
   shareUrl: string;
   shareTitle: string;
   shareDescription?: string;
@@ -49,6 +50,7 @@ export function ArticleReadingToolbar({
   headline,
   dek,
   bodyText,
+  audioUrl,
   shareUrl,
   shareTitle,
   shareDescription,
@@ -95,7 +97,7 @@ export function ArticleReadingToolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 py-3 border-t border-border">
-      <ListenButton title={headline} text={bodyText} className="shrink-0" />
+      <ListenButton title={headline} text={bodyText} audioUrl={audioUrl} className="shrink-0" />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

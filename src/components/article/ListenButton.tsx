@@ -5,6 +5,15 @@ import { Button } from "@/components/ui/button";
 interface ListenButtonProps {
   title: string;
   text: string;
+  /**
+   * A recording of the story, made ahead of time.
+   *
+   * When one exists it is played instead of the device's speech: every reader
+   * hears the same voice, phones get lock-screen controls, and the reader can
+   * scrub. Stories without one fall back to speech synthesis, so nothing breaks
+   * while the archive is still being narrated.
+   */
+  audioUrl?: string;
   className?: string;
 }
 
@@ -66,29 +75,35 @@ function chunk(text: string, limit = 200): string[] {
   return out.filter(Boolean);
 }
 
-export function ListenButton({ title, text, className }: ListenButtonProps) {
+export function ListenButton({ title, text, audioUrl, className }: ListenButtonProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [voice, setVoice] = useState<SpeechSynthesisVoice | null>(null);
   const cancelled = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fullText = [title, text].filter(Boolean).join(". ");
-  const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window && fullText.length > 0;
+  const recorded = Boolean(audioUrl);
+  const canSpeak = recorded
+    || (typeof window !== "undefined" && "speechSynthesis" in window && fullText.length > 0);
 
   // getVoices() is empty until the list arrives, which on Chrome is after an
   // event rather than on first call.
   useEffect(() => {
-    if (!canSpeak) return;
+    // Guard on the API itself, not on canSpeak — that is now also true for a
+    // story with a recording, which may be playing in a browser that has no
+    // speech synthesis at all.
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const load = () => setVoice(pickVoice(window.speechSynthesis.getVoices()));
     load();
     window.speechSynthesis.addEventListener("voiceschanged", load);
     return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
-  }, [canSpeak]);
+  }, []);
 
   const stop = useCallback(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
     cancelled.current = true;
-    window.speechSynthesis.cancel();
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+    if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     setIsPlaying(false);
     setIsPaused(false);
   }, []);
@@ -96,6 +111,23 @@ export function ListenButton({ title, text, className }: ListenButtonProps) {
   const speak = useCallback(() => {
     if (!canSpeak) return;
     cancelled.current = false;
+
+    // A recording, where there is one. If it fails to load — a missing file, a
+    // reader offline — fall through to the device's own speech rather than
+    // leaving the button dead.
+    if (audioUrl) {
+      const el = audioRef.current ?? new Audio(audioUrl);
+      audioRef.current = el;
+      el.onended = () => { setIsPlaying(false); setIsPaused(false); };
+      el.onerror = () => { audioRef.current = null; setIsPlaying(false); };
+      el.play().then(() => { setIsPlaying(true); setIsPaused(false); }).catch(() => {
+        audioRef.current = null;
+        setIsPlaying(false);
+      });
+      return;
+    }
+
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
 
     const pieces = chunk(fullText);
@@ -114,9 +146,14 @@ export function ListenButton({ title, text, className }: ListenButtonProps) {
     });
     setIsPlaying(true);
     setIsPaused(false);
-  }, [canSpeak, fullText, voice]);
+  }, [canSpeak, fullText, voice, audioUrl]);
 
   const togglePause = useCallback(() => {
+    if (audioRef.current) {
+      if (isPaused) { void audioRef.current.play(); setIsPaused(false); }
+      else { audioRef.current.pause(); setIsPaused(true); }
+      return;
+    }
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     if (isPaused) { window.speechSynthesis.resume(); setIsPaused(false); }
     else { window.speechSynthesis.pause(); setIsPaused(true); }
@@ -124,7 +161,11 @@ export function ListenButton({ title, text, className }: ListenButtonProps) {
 
   // Leaving the article should stop the audio; speech otherwise keeps playing
   // over whatever the reader opens next.
-  useEffect(() => () => { cancelled.current = true; window.speechSynthesis?.cancel(); }, []);
+  useEffect(() => () => {
+    cancelled.current = true;
+    audioRef.current?.pause();
+    window.speechSynthesis?.cancel();
+  }, []);
 
   if (!canSpeak) return null;
 
