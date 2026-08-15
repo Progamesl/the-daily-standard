@@ -38,7 +38,6 @@ const Index = () => {
 
   const featured = getFeaturedPublicArticle();
   const latest = getLatestPublicArticles(1)[0];
-  const latestTwelve = getLatestPublicArticles(12);
   const breakingNews = getBreakingPublicNews(3);
   const editorsPicksRaw = getEditorsPicksPublic(5);
   const mostPopular = getMostPopularPublic(10);
@@ -56,19 +55,26 @@ const Index = () => {
     return result;
   }
 
+  // The prominent slots draw from a wide pool rather than the most recent
+  // twelve. A story with no artwork still belongs on the site, but leading with
+  // one leaves a hole where the picture should be — and when most of the newest
+  // stories lack images, a twelve-deep pool runs out and the front page falls
+  // back to whatever is left instead of the best recent story that has a photo.
+  const recentPool = getLatestPublicArticles(48);
+
   // Hero: pick lead from latest articles that have images
-  const leadPool = withImages([featured, latest, ...latestTwelve].filter(Boolean) as Article[]);
+  const leadPool = withImages([featured, latest, ...recentPool].filter(Boolean) as Article[]);
   const [leadArticle] = take(leadPool, 1);
 
   // Secondary hero: 2 cards
-  const secondaryHeroPool = withImages(latestTwelve);
+  const secondaryHeroPool = withImages(recentPool);
   const secondaryHero = take(secondaryHeroPool, 2);
 
   // Editors' picks: up to 5
   const editorsPicks = take(withImages(editorsPicksRaw), 5);
 
   // Today's mix: up to 6
-  const mixPool = withImages(latestTwelve);
+  const mixPool = withImages(recentPool);
   const mixStories = take(mixPool, 6);
 
   // Section pools — all pre-filtered for images, matching the 5 real Octagon sections
