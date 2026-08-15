@@ -39,7 +39,11 @@ const Index = () => {
   const featured = getFeaturedPublicArticle();
   const latest = getLatestPublicArticles(1)[0];
   const breakingNews = getBreakingPublicNews(3);
-  const editorsPicksRaw = getEditorsPicksPublic(5);
+  // Ask for far more candidates than each rail shows. Every rail draws from the
+  // same recent stories and no story may appear twice on the page, so a rail
+  // that asks for exactly five finds them already taken by the hero above it —
+  // Editors' Picks was rendering a single card for that reason.
+  const editorsPicksRaw = getEditorsPicksPublic(40);
   const mostPopular = getMostPopularPublic(10);
 
   // Global dedup tracker — no story appears more than once on the homepage
