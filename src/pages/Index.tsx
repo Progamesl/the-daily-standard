@@ -66,8 +66,21 @@ const Index = () => {
   // back to whatever is left instead of the best recent story that has a photo.
   const recentPool = getLatestPublicArticles(48);
 
-  // Hero: pick lead from latest articles that have images
-  const leadPool = withImages([featured, latest, ...recentPool].filter(Boolean) as Article[]);
+  // Hero: the front page leads on reporting, not on a review.
+  //
+  // "BULLY Review" over a photograph of a metal grate is not a front page. A
+  // review is service journalism — it belongs in Arts, and it reads as filler
+  // in the biggest slot on the site. So reviews sort to the back of the lead
+  // pool and only take the top spot when nothing else is available. An editor
+  // who wants one leading can still say so with Featured on Homepage, which is
+  // checked before any of this.
+  const isReview = (a: Article) =>
+    /\breviews?\b/i.test(a.headline) || /^(top|best) \d+/i.test(a.headline);
+  const leadCandidates = withImages([featured, latest, ...recentPool].filter(Boolean) as Article[]);
+  const leadPool = [
+    ...leadCandidates.filter((a) => !isReview(a)),
+    ...leadCandidates.filter(isReview),
+  ];
   const [leadArticle] = take(leadPool, 1);
 
   // Secondary hero: 2 cards
