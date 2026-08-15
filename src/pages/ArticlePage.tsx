@@ -14,7 +14,7 @@ import {
   getMostPopularPublic,
   getPublicArticlesBySection,
 } from "@/lib/publicDataService";
-import { getImageOrNull } from "@/lib/imageHelpers";
+import { getImageOrNull, picturesFirst } from "@/lib/imageHelpers";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { useDataSync } from "@/contexts/DataSyncContext";
@@ -129,9 +129,9 @@ export default function ArticlePage() {
     );
   }
 
-  const relatedArticles = getPublicArticlesBySection(article.section)
-    .filter((a) => a.id !== article.id)
-    .slice(0, 6);
+  const relatedArticles = picturesFirst(
+    getPublicArticlesBySection(article.section).filter((a) => a.id !== article.id),
+  ).slice(0, 6);
 
   const heroImage = getImageOrNull(article.image, article.images);
   const section = getSectionBySlug(article.section);

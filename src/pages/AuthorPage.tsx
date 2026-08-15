@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { getPublicAuthorById, getAllPublicArticles } from "@/lib/publicDataService";
 import { useDataSync } from "@/contexts/DataSyncContext";
+import { picturesFirst } from "@/lib/imageHelpers";
 import { ArrowLeft, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -14,7 +15,9 @@ export default function AuthorPage() {
   const { syncVersion } = useDataSync();
   const { id } = useParams<{ id: string }>();
   const author = id ? getPublicAuthorById(id) : undefined;
-  const authorArticles = getAllPublicArticles().filter((a) => a.author.id === id);
+  // Illustrated stories first here too, so a writer's page opens with their
+  // work as it was published rather than a column of bare headlines.
+  const authorArticles = picturesFirst(getAllPublicArticles().filter((a) => a.author.id === id));
 
   if (!author) {
     return (

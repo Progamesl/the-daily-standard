@@ -43,6 +43,26 @@ function isBadUrl(url: string): boolean {
   );
 }
 
+/**
+ * Order a list so illustrated stories come first, each group still newest-first.
+ *
+ * A story without a picture belongs on the site, but not at the top of a
+ * section: it renders as a bare headline in a grid built around images, and it
+ * pushes an illustrated story below the fold. Filtering them out entirely would
+ * hide real journalism, so they move to the back of the list instead.
+ *
+ * Both groups keep their date order, so within the pictures and within the
+ * remainder the newest still leads.
+ */
+export function picturesFirst<T extends { image?: string; images?: string[] }>(list: T[]): T[] {
+  const withPicture: T[] = [];
+  const without: T[] = [];
+  for (const a of list) {
+    (getImageOrNull(a.image, a.images) != null ? withPicture : without).push(a);
+  }
+  return [...withPicture, ...without];
+}
+
 export function isOwnPublication(url: string): boolean {
   if (!url || typeof url !== 'string') return false;
   const u = url.toLowerCase();
