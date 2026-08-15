@@ -36,40 +36,45 @@ export function Masthead() {
   const { temp, weatherCode, loading, error } = useSacramentoWeather();
 
   useEffect(() => {
-    // Hysteresis thresholds — wide gap prevents rapid back-and-forth flipping
-    // when the user is scrolling right at the boundary.
-    const SCROLL_DOWN_THRESHOLD = 120;  // condense when scrolling past this
-    const SCROLL_UP_THRESHOLD   =  60;  // expand  when scrolling back above this
+    // The masthead sits in normal flow, so collapsing it removes about 110px of
+    // page height. The browser's scroll anchoring then shifts scrollY to keep
+    // the content steady — which drops you back under the expand threshold, so
+    // it expands, which pushes you back over the collapse threshold. That loop
+    // is what made the header jitter violently while scrolling.
+    //
+    // Three things break it: the gap between the thresholds is now larger than
+    // the height the header loses, scroll anchoring is disabled for the page
+    // (see index.css), and state changes are ignored until the 300ms transition
+    // has finished so the animation itself can't feed back in.
+    const CONDENSE_AT = 260;
+    const EXPAND_AT = 90;
+    const SETTLE_MS = 380;
 
     let rafId: number | null = null;
-    let lastScrolled = false;
-    let ticking = false;
+    let condensed = false;
+    let lockedUntil = 0;
 
-    const handleScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
+    const evaluate = () => {
+      rafId = null;
+      if (performance.now() < lockedUntil) return;
+
+      const y = window.scrollY;
+      const next = condensed ? y > EXPAND_AT : y > CONDENSE_AT;
+      if (next !== condensed) {
+        condensed = next;
+        lockedUntil = performance.now() + SETTLE_MS;
+        setIsScrolled(next);
       }
-      
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        ticking = false;
-        const y = window.scrollY;
-        const next = lastScrolled
-          ? y > SCROLL_UP_THRESHOLD    // already condensed → stay condensed until below 60
-          : y > SCROLL_DOWN_THRESHOLD; // not condensed   → condense once past 120
-        if (next !== lastScrolled) {
-          lastScrolled = next;
-          setIsScrolled(next);
-        }
-      });
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const handleScroll = () => {
+      if (rafId === null) rafId = requestAnimationFrame(evaluate);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // set the correct state on load / restored scroll position
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener('scroll', handleScroll);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);

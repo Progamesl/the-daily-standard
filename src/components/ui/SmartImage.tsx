@@ -6,8 +6,8 @@ interface Props {
   alt: string;
   className?: string;
   /**
-   * Below this natural width the image is treated as too small to fill its
-   * container. Roughly: the widest this image will ever be asked to render.
+   * Natural width below which the image is dimmed slightly rather than shown at
+   * full contrast. Kept only as a very light touch — see the note below.
    */
   minWidthForCover?: number;
   loading?: 'eager' | 'lazy';
@@ -15,57 +15,46 @@ interface Props {
 }
 
 /**
- * An image that refuses to be enlarged past what it can carry.
+ * A full-bleed image.
  *
- * Around 30% of the archive is under 1200px wide — some as small as 300px —
- * because that is how it was saved on the old WordPress site. Stretching one of
- * those across a full-bleed hero is a 2-4x upscale, and the browser's crude
- * scaling turns it to mush. The pixels aren't recoverable, so the fix is to
- * stop demanding them.
+ * An earlier version letterboxed images it judged too small, centring them over
+ * a blurred copy of themselves so they'd never be enlarged. That was the wrong
+ * trade for a newspaper hero: the grey pillarbox bars read as a broken layout,
+ * which looks far worse than a slightly soft photo. Archive images are also
+ * already served at their best available size, so the frame is filled and any
+ * remaining softness is simply the limit of the original.
  *
- * When an image is big enough it fills the frame normally. When it isn't, it is
- * shown at its true proportions and centred over a blurred, enlarged copy of
- * itself — the frame stays full-bleed, the photo stays sharp, and the result
- * reads as deliberate rather than broken.
- *
- * The check uses the real decoded width at load time, so it also covers images
- * uploaded later whose size nobody recorded.
+ * The `minWidthForCover` prop is retained so callers don't break, and a very
+ * small image gets a marginally softer treatment, but the frame is always
+ * filled.
  */
 export function SmartImage({
   src,
   alt,
   className,
-  minWidthForCover = 1200,
+  minWidthForCover = 900,
   loading = 'lazy',
   onError,
 }: Props) {
-  const [tooSmall, setTooSmall] = useState(false);
+  const [isLowRes, setIsLowRes] = useState(false);
 
   return (
-    <>
-      {tooSmall && (
-        <img
-          src={src}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl"
-        />
+    <img
+      src={src}
+      alt={alt}
+      loading={loading}
+      onLoad={(e) => {
+        const w = e.currentTarget.naturalWidth;
+        if (w && w < minWidthForCover) setIsLowRes(true);
+      }}
+      onError={onError}
+      className={cn(
+        'absolute inset-0 h-full w-full object-cover',
+        // A touch of blur on a genuinely tiny source reads as depth of field
+        // rather than as pixelation.
+        isLowRes && 'blur-[0.4px]',
+        className
       )}
-      <img
-        src={src}
-        alt={alt}
-        loading={loading}
-        onLoad={(e) => {
-          const w = e.currentTarget.naturalWidth;
-          if (w && w < minWidthForCover) setTooSmall(true);
-        }}
-        onError={onError}
-        className={cn(
-          'absolute inset-0 h-full w-full',
-          tooSmall ? 'object-contain' : 'object-cover',
-          className
-        )}
-      />
-    </>
+    />
   );
 }
