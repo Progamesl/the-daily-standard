@@ -42,10 +42,15 @@ export function Masthead() {
     // it expands, which pushes you back over the collapse threshold. That loop
     // is what made the header jitter violently while scrolling.
     //
-    // Three things break it: the gap between the thresholds is now larger than
-    // the height the header loses, scroll anchoring is disabled for the page
-    // (see index.css), and state changes are ignored until the 300ms transition
-    // has finished so the animation itself can't feed back in.
+    // The fix is to make the gap between the thresholds wider than the height
+    // the header can lose, so a scroll-anchoring correction can never carry the
+    // reader back across the other threshold: the header loses ~109px on
+    // desktop and ~76px on mobile against a 170px gap. A short settle period
+    // after each change stops the 300ms transition feeding back in as well.
+    //
+    // Deliberately NOT disabling scroll anchoring globally to achieve this —
+    // that would stop the browser holding your place when images load further
+    // up the page, trading a header bug for a scrolling one.
     const CONDENSE_AT = 260;
     const EXPAND_AT = 90;
     const SETTLE_MS = 380;

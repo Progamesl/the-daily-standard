@@ -165,10 +165,6 @@
     text-rendering: optimizeLegibility;
     overflow-x: hidden;
     -webkit-text-size-adjust: 100%;
-    /* The sticky masthead changes its own height as it condenses. With scroll
-       anchoring enabled the browser shifts scrollY to compensate, which flips
-       the header back across its threshold and makes it judder rapidly. */
-    overflow-anchor: none;
   }
   
   body {
