@@ -15,6 +15,7 @@ import {
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDataSync } from "@/contexts/DataSyncContext";
+import { getImageOrNull } from "@/lib/imageHelpers";
 
 export default function SectionPage() {
   // Subscribe to Supabase sync — re-renders automatically when fresh data arrives
@@ -44,7 +45,13 @@ export default function SectionPage() {
     );
   }
 
-  const [featured, ...rest] = articles;
+  // Lead with the newest story that actually has a picture. Taking whatever is
+  // newest puts a bare headline in the biggest slot on the page while a story
+  // with a photograph sits underneath it. Everything else keeps its date order,
+  // so nothing is buried — only the lead is chosen on more than recency.
+  const leadIndex = articles.findIndex((a) => getImageOrNull(a.image, a.images) != null);
+  const featured = articles[leadIndex >= 0 ? leadIndex : 0];
+  const rest = articles.filter((_, i) => i !== (leadIndex >= 0 ? leadIndex : 0));
 
   const breadcrumbItems = [
     { label: "Home", href: "/" },
