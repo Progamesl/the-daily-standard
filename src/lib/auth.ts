@@ -198,6 +198,22 @@ export async function getCurrentUser(): Promise<{
   return { user, profile };
 }
 
+/**
+ * The session already stored in this browser, without asking the server.
+ *
+ * Deciding whether to show the admin or the sign-in page must not depend on a
+ * network round trip. getUser() calls the auth server every time, so on a slow
+ * or flaky connection the admin sat on "Loading your newsroom…" waiting for it;
+ * getSession() reads what is already on the machine and returns immediately.
+ * The token is still verified by the database on the very next query.
+ */
+export async function getStoredSession(): Promise<Session | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getSession();
+  if (error) return null;
+  return data.session ?? null;
+}
+
 export function onAuthStateChange(
   callback: (event: AuthChangeEvent, session: Session | null) => void
 ): { unsubscribe: () => void } {
@@ -237,6 +253,22 @@ export function useAuth(): UseAuthReturn {
   const configured = isSupabaseConfigured();
 
   // ── Initial session check ──────────────────────────────────────────────────
+  //
+  // This is the gate the whole admin waits behind, so its one hard rule is that
+  // it must always open. Two separate faults used to leave it shut forever,
+  // showing "Loading your newsroom…" until the tab was closed:
+  //
+  //  1. The profile was fetched with `await` INSIDE the onAuthStateChange
+  //     callback. The auth library holds its initialisation lock while it
+  //     dispatches that callback, and a database query needs the same lock to
+  //     attach the session — so the callback waited on itself. It only bites
+  //     when a session already exists, which is exactly why a private window
+  //     worked and a normal one hung: a private window has nothing stored, so
+  //     the callback returns early and never makes the query.
+  //
+  //  2. loading was only cleared in .then(). No .catch(), no .finally(), no
+  //     timeout — so the moment anything above stalled or threw, the spinner
+  //     was permanent.
   useEffect(() => {
     if (!configured) {
       setLoading(false);
@@ -244,33 +276,87 @@ export function useAuth(): UseAuthReturn {
     }
 
     let cancelled = false;
+    let settled = false;
 
-    getCurrentUser().then(({ user: u, profile: p }) => {
-      if (cancelled) return;
-      setUser(u);
-      setProfile(p);
+    const open = () => {
+      if (cancelled || settled) return;
+      settled = true;
       setLoading(false);
-    });
+    };
 
-    // Listen for auth state changes (e.g. token refresh, sign-out in another tab)
-    const { unsubscribe } = onAuthStateChange(async (event, session) => {
+    // Whatever else happens, stop saying "loading" and let people see either the
+    // newsroom or the sign-in page. A wrong answer they can act on beats a
+    // spinner they cannot.
+    const watchdog = setTimeout(() => {
+      if (!cancelled && !settled) {
+        console.warn('Auth took too long to settle; showing the sign-in page.');
+        open();
+      }
+    }, 8000);
+
+    getStoredSession()
+      .then(async session => {
+        if (cancelled) return;
+        if (!session?.user) {
+          setUser(null);
+          setProfile(null);
+          return;
+        }
+        setUser(session.user);
+        const p = await fetchAdminProfile(session.user);
+        if (!cancelled) setProfile(p);
+      })
+      .catch(err => {
+        console.error('Could not restore your session:', err);
+        if (!cancelled) {
+          setUser(null);
+          setProfile(null);
+        }
+      })
+      .finally(() => {
+        clearTimeout(watchdog);
+        open();
+      });
+
+    // Later changes: signing in, signing out, or a sign-out in another tab.
+    const { unsubscribe } = onAuthStateChange((event, session) => {
       if (cancelled) return;
+
+      // INITIAL_SESSION is the event the block above already handles.
+      if (event === 'INITIAL_SESSION') return;
 
       if (event === 'SIGNED_OUT' || !session?.user) {
         setUser(null);
         setProfile(null);
+        open();
         return;
       }
 
       setUser(session.user);
 
-      // Refresh admin profile
-      const p = await fetchAdminProfile(session.user);
-      if (!cancelled) setProfile(p);
+      // A refreshed token is the same person; only re-read the profile when
+      // the identity actually changed.
+      if (event !== 'SIGNED_IN' && event !== 'USER_UPDATED') return;
+
+      // Deferred out of the callback on purpose — see the note above. Anything
+      // awaiting Supabase in here deadlocks against the lock this callback is
+      // holding, and setTimeout is what gets us out from under it.
+      setTimeout(async () => {
+        if (cancelled) return;
+        try {
+          const p = await fetchAdminProfile(session.user);
+          if (!cancelled) setProfile(p);
+        } catch (err) {
+          console.error('Could not read your staff account:', err);
+        } finally {
+          open();
+        }
+      }, 0);
     });
 
     return () => {
       cancelled = true;
+      clearTimeout(watchdog);
       unsubscribe();
     };
   }, [configured]);

@@ -93,27 +93,42 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | und
 let _client: SupabaseClient<Database> | null = null;
 
 /**
- * Run the operation without a cross-tab lock.
+ * Serialise auth work within this tab, and only within this tab.
  *
- * By default the auth library takes a Web Locks lock around anything that
- * touches the session, so two tabs cannot refresh the token at the same moment.
- * When one tab does steal the lock, whichever request was waiting rejects with
+ * The default is a Web Locks lock shared across every tab on the site, so two
+ * tabs cannot refresh the token at the same moment. The cost is that when one
+ * tab takes the lock from another, whatever was waiting rejects with
  * `AbortError: Lock broken by another request with the 'steal' option` — and
- * because every database query attaches the session, that abort surfaces as the
+ * since every database query attaches the session, that abort surfaces as the
  * query failing. In the admin it came out as "Failed to fetch admin profile",
- * which drops a signed-in editor back to the login page. Anyone working with
- * the site open in one tab and the admin in another hit it constantly.
+ * which reads as "you are not staff" and drops a signed-in editor back to the
+ * login page. Anyone with the site open in one tab and the admin in another hit
+ * it constantly.
  *
- * Losing the lock means two tabs can occasionally refresh the same token
- * together. The server accepts that — a refresh token stays valid for a short
- * window after use, precisely so this is survivable — and an occasional
- * duplicate refresh is a far better failure than being signed out mid-sentence.
+ * This keeps a lock — auth operations in this tab still run one at a time, so
+ * nothing sees a half-updated session — but it is a plain promise chain, which
+ * cannot be stolen and therefore cannot abort. What is given up is coordination
+ * *between* tabs: two tabs may occasionally refresh the same token together.
+ * The server is built for that; a refresh token stays valid for a short window
+ * after use precisely so it survives. An occasional duplicate refresh is a much
+ * better failure than being signed out mid-sentence.
  */
-const noCrossTabLock = async <R>(
+let authQueue: Promise<unknown> = Promise.resolve();
+
+const inTabLock = <R>(
   _name: string,
   _acquireTimeout: number,
   fn: () => Promise<R>,
-): Promise<R> => fn();
+): Promise<R> => {
+  // Run after whatever is queued, whether that succeeded or failed — one
+  // rejected operation must not wedge every later one.
+  const result = authQueue.then(fn, fn);
+  authQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+};
 
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   try {
@@ -122,7 +137,7 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        lock: noCrossTabLock,
+        lock: inTabLock,
       },
     });
   } catch (err) {
