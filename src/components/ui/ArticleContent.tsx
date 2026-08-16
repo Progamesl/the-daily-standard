@@ -1,4 +1,5 @@
 import { useEffect, useRef, useMemo } from "react";
+import { sanitizeArticleHtml } from "@/lib/sanitizeHtml";
 
 interface ArticleContentProps {
   html: string;
@@ -25,10 +26,16 @@ export function ArticleContent({ html, className = "" }: ArticleContentProps) {
     fontSizeStyle.lineHeight = 1.8;
   }
 
-  // Clean and enhance the HTML once before rendering
+  // Clean and enhance the HTML once before rendering.
+  //
+  // Sanitising comes first and everything below it is presentation. This is put
+  // straight into the page with dangerouslySetInnerHTML, so a <script> in a
+  // story body would run for every reader — and story bodies come from staff,
+  // from a WordPress export, and from pasted Google Docs.
   const cleaned = useMemo(() => {
-    let result = (html || "").trim();
-    
+    let result = sanitizeArticleHtml(html || "").trim();
+
+
     // Normalize HTML to prevent flickering when background data is slightly different
     result = result
       .replace(/&nbsp;/g, " ") // Normalize non-breaking spaces

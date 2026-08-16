@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { Article, formatDate } from '@/data/seedData';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, User } from 'lucide-react';
+import { sanitizeArticleHtml } from '@/lib/sanitizeHtml';
 
 interface CinematicArticleProps {
   article: Article;
@@ -115,7 +116,7 @@ export function CinematicArticle({ article }: CinematicArticleProps) {
               prose-blockquote:border-violet-500 prose-blockquote:bg-white/5 prose-blockquote:p-6 prose-blockquote:rounded-xl prose-blockquote:text-slate-200 prose-blockquote:italic
               selection:bg-violet-500/30 selection:text-white"
             style={{ fontFamily: "'Inter', sans-serif" }}
-            dangerouslySetInnerHTML={{ __html: article.body }}
+            dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(article.body) }}
           />
 
           {/* Tags */}

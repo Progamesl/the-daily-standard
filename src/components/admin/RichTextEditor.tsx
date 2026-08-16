@@ -5,6 +5,7 @@ import {
   Minus, Undo2, Redo2, Eye, Code2, RemoveFormatting, Type, Wand2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { sanitizeArticleHtml } from '@/lib/sanitizeHtml';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import {
@@ -565,7 +566,14 @@ export function RichTextEditor({
                      prose-blockquote:border-l-slate-300 prose-blockquote:text-slate-600
                      prose-a:text-blue-600 prose-a:underline
                      prose-img:rounded-lg prose-img:my-4"
-          dangerouslySetInnerHTML={{ __html: value || '<p class="text-slate-400 italic">Nothing to preview yet.</p>' }}
+          // Sanitised for the same reason the reader's page is: an editor
+          // opening a submitted story to review it must not be the way a
+          // script in that story gets to run.
+          dangerouslySetInnerHTML={{
+            __html: value
+              ? sanitizeArticleHtml(value)
+              : '<p class="text-slate-400 italic">Nothing to preview yet.</p>',
+          }}
         />
       )}
 
