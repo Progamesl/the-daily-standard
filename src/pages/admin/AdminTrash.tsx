@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  getTrashedArticles, restoreTrashedArticle, permanentlyDeleteTrashedArticle,
+  fetchTrashedArticles, restoreTrashedArticle, permanentlyDeleteTrashedArticle,
   clearTrash, type TrashedArticle,
 } from '@/lib/adminDataService';
 import { logActivity } from '@/lib/adminUserService';
@@ -42,8 +42,19 @@ export default function AdminTrash() {
   const [deleteTarget, setDeleteTarget]   = useState<TrashedArticle | null>(null);
   const [clearOpen, setClearOpen]        = useState(false);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const trash = useMemo(() => getTrashedArticles(), [refreshKey]);
+  // The trash lives on the server, so this shows what everyone has deleted,
+  // not just what was deleted in this browser.
+  const [trash, setTrash] = useState<TrashedArticle[]>([]);
+  const [loadingTrash, setLoadingTrash] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingTrash(true);
+    fetchTrashedArticles()
+      .then(items => { if (!cancelled) setTrash(items); })
+      .finally(() => { if (!cancelled) setLoadingTrash(false); });
+    return () => { cancelled = true; };
+  }, [refreshKey]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return trash;
@@ -151,7 +162,14 @@ export default function AdminTrash() {
       )}
 
       {/* Empty State */}
-      {trash.length === 0 && (
+      {loadingTrash && (
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-xl border border-slate-200">
+          <RotateCcw className="h-6 w-6 text-slate-300 mb-3 animate-spin" />
+          <p className="text-sm text-slate-400">Loading the trash…</p>
+        </div>
+      )}
+
+      {!loadingTrash && trash.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-xl border border-slate-200">
           <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
             <Trash2 className="h-8 w-8 text-slate-400" />

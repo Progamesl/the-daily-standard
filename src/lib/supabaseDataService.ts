@@ -33,9 +33,21 @@ async function initSupabase() {
   return getSupabaseClient();
 }
 
-// List-only: minimal columns for table/search (saves significant egress)
+// List-only: minimal columns for table/search (saves significant egress).
+//
+// `image` and `deadline` are here because several admin screens have to answer
+// questions about a story without opening it — whether it has a picture (one
+// without can never lead a section) and whether it is overdue. Both were
+// missing, so every story loaded from the server looked like it had no picture
+// and no deadline. The body is still deliberately absent; it is fetched per
+// story when one is opened.
 const ARTICLES_LIST_COLUMNS =
-  'id, slug, headline, section, author_id, author_name, published_at, updated_at, status, priority, featured, assigned_to_id';
+  'id, slug, headline, dek, image, section, author_id, author_name, published_at, updated_at, status, priority, featured, assigned_to_id, deadline';
+
+/** A full row, notes and all — the Trash page needs who deleted it and why. */
+export function rowToAdminArticleForTrash(row: unknown): AdminArticle {
+  return rowToAdminArticle(row, true);
+}
 
 function rowToAdminArticle(row: any, includeBody = false): AdminArticle {
   return {

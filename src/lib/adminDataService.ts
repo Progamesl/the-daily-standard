@@ -802,31 +802,50 @@ function readTrashNote(article: AdminArticle): { previousStatus: WorkflowStatus;
 }
 
 /**
- * Everything currently in the trash, for the whole newsroom.
+ * Everything in the trash, for the whole newsroom.
  *
- * Reads the same article store as everything else and picks out the stories
- * marked as trashed, so an editor sees what a colleague deleted from another
- * computer. Anything left in the old browser-local trash from before this
- * change is folded in too, so nothing already there is stranded.
+ * Queries the trashed rows directly rather than reading the shared article
+ * cache: that cache is loaded with a short column list which leaves out
+ * internal_notes, and the note recording who deleted a story, when and why
+ * lives in there. Without it the Trash page could only say "Unknown".
+ *
+ * Anything left in the old browser-local trash from before deletion became a
+ * server-side thing is folded in, so nothing already there is stranded.
  */
-export function getTrashedArticles(): TrashedArticle[] {
-  const server: TrashedArticle[] = Object.values(getAdminArticlesMap())
-    .filter(a => a.status === TRASH_STATUS)
-    .map(article => {
-      const note = readTrashNote(article);
-      return {
-        article,
-        deletedAt: note?.at ?? article.updatedAt ?? new Date().toISOString(),
-        deletedById: note?.byId ?? 'unknown',
-        deletedByName: note?.byName ?? 'Unknown',
-        reason: note?.reason || undefined,
-      };
-    });
+export async function fetchTrashedArticles(): Promise<TrashedArticle[]> {
+  const entries: TrashedArticle[] = [];
 
-  const seen = new Set(server.map(t => t.article.id));
+  if (typeof window !== 'undefined') {
+    try {
+      const { supabase } = await import('./supabaseClient');
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('articles')
+          .select('*')
+          .eq('status', TRASH_STATUS)
+          .order('updated_at', { ascending: false });
+        if (!error && data) {
+          const { rowToAdminArticleForTrash } = await import('./supabaseDataService');
+          for (const row of data as unknown as Record<string, unknown>[]) {
+            const article = rowToAdminArticleForTrash(row);
+            const note = readTrashNote(article);
+            entries.push({
+              article,
+              deletedAt: note?.at ?? article.updatedAt ?? new Date().toISOString(),
+              deletedById: note?.byId ?? 'unknown',
+              deletedByName: note?.byName ?? 'Unknown',
+              reason: note?.reason || undefined,
+            });
+          }
+        }
+      }
+    } catch { /* fall through to the local copy */ }
+  }
+
+  const seen = new Set(entries.map(t => t.article.id));
   const legacy = getStorage<TrashedArticle[]>(TRASH_KEY, []).filter(t => !seen.has(t.article.id));
 
-  return [...server, ...legacy].sort(
+  return [...entries, ...legacy].sort(
     (a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime(),
   );
 }
@@ -843,7 +862,7 @@ export async function restoreTrashedArticle(
   restoredById?: string,
   restoredByName?: string,
 ): Promise<AdminArticle | undefined> {
-  const entry = getTrashedArticles().find(t => t.article.id === trashId);
+  const entry = (await fetchTrashedArticles()).find(t => t.article.id === trashId);
   if (!entry) return undefined;
 
   const note = readTrashNote(entry.article);
