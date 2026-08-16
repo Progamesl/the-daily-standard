@@ -31,6 +31,7 @@ try {
 const {
   VITE_SUPABASE_URL: SUPABASE_URL,
   VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
+  SUPABASE_SERVICE_ROLE_KEY,
   R2_ACCESS_KEY_ID,
   R2_SECRET_ACCESS_KEY,
   R2_BUCKET = 'octagon-images',
@@ -104,12 +105,25 @@ export default async function handler(req, res) {
     //
     // Any slug that has a row in the database whose status is not 'published'
     // has been deliberately taken off the site, so the seed copy is skipped.
-    const { data: withheldRows, error: withheldError } = await supabase
-      .from('articles')
-      .select('slug,status')
-      .neq('status', 'published');
-    if (withheldError) throw withheldError;
-    const withheld = new Set((withheldRows || []).map(r => r.slug).filter(Boolean));
+    //
+    // This has to run with the service-role key. Everything else here uses the
+    // anonymous key, which row-level security restricts to published rows —
+    // exactly the rows this query is trying to exclude — so with the anon key
+    // it silently returns nothing and the withholding never happens.
+    const withheld = new Set();
+    if (SUPABASE_SERVICE_ROLE_KEY) {
+      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: withheldRows, error: withheldError } = await admin
+        .from('articles')
+        .select('slug')
+        .neq('status', 'published');
+      if (withheldError) throw withheldError;
+      for (const r of withheldRows || []) if (r.slug) withheld.add(r.slug);
+    } else {
+      console.warn('[sync-r2] No SUPABASE_SERVICE_ROLE_KEY — cannot withhold seed stories that were taken down.');
+    }
 
     // 2. Load seed articles from octagonData.json (WordPress export / historical articles)
     const seedArticles = (octagonData.articles || [])
