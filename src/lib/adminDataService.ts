@@ -751,6 +751,12 @@ export async function deleteAdminArticle(
     createdAt: new Date().toISOString(),
   };
 
+  // saveAdminArticle rebuilds the public site whenever a live story stops being
+  // live, which covers the takedown. Its result is captured here rather than
+  // running a second rebuild, because each one re-uploads every story in the
+  // paper and a bulk delete would otherwise do that twice per story.
+  let publish: PublishResult | null = null;
+
   await saveAdminArticle(
     {
       ...article,
@@ -760,15 +766,14 @@ export async function deleteAdminArticle(
     deletedById,
     deletedByName,
     reason ? `Moved to trash: ${reason}` : 'Moved to trash',
+    { onPublish: r => { publish = r; } },
   );
 
-  // saveAdminArticle rebuilds the public site whenever a live story stops being
-  // live, so a published story is already off the site by this point.
-  if (wasPublished) {
-    const result = await publishToReaders();
-    if (!result.ok) {
-      throw new Error(`The story was moved to the trash, but the public site could not be updated, so it may still be visible. ${result.reason}`);
-    }
+  if (wasPublished && publish && !(publish as PublishResult).ok) {
+    throw new Error(
+      'The story was moved to the trash, but the public site could not be updated, so it may still be visible. ' +
+      (publish as PublishResult).reason,
+    );
   }
 }
 

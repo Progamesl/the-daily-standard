@@ -93,9 +93,27 @@ export default async function handler(req, res) {
 
     const supabaseArticles = (data || []).map(rowToPublic);
 
+    // 1b. Slugs the newsroom has taken down.
+    //
+    // Most of the archive exists only in octagonData.json, and the seed layer
+    // below adds all of it unconditionally. So unpublishing or deleting one of
+    // those historical stories did nothing at all — it reappeared on the next
+    // sync, straight out of the file. That matters: student papers get asked to
+    // take old stories down about real people, and the CMS reported success
+    // while the story stayed up.
+    //
+    // Any slug that has a row in the database whose status is not 'published'
+    // has been deliberately taken off the site, so the seed copy is skipped.
+    const { data: withheldRows, error: withheldError } = await supabase
+      .from('articles')
+      .select('slug,status')
+      .neq('status', 'published');
+    if (withheldError) throw withheldError;
+    const withheld = new Set((withheldRows || []).map(r => r.slug).filter(Boolean));
+
     // 2. Load seed articles from octagonData.json (WordPress export / historical articles)
     const seedArticles = (octagonData.articles || [])
-      .filter(a => a.slug)
+      .filter(a => a.slug && !withheld.has(a.slug))
       .map(rowToPublic);
 
     // 3. Merge: Supabase overrides seed for same slug, but preserve body if new one is empty
@@ -194,6 +212,7 @@ export default async function handler(req, res) {
       total: list.length,
       supabase: supabaseArticles.length,
       seed: seedArticles.length,
+      withheld: withheld.size,
       removed: stale.length,
       keys: {
         list: 'articles/articles.json',
