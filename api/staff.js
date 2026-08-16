@@ -96,6 +96,42 @@ export default async function handler(req, res) {
       .order('created_at', { ascending: true });
 
     if (error) return res.status(500).json({ error: error.message });
+
+    // When the security page asks, add what only the server can see.
+    //
+    // admin_users.last_login is never written by anything, so it is always
+    // null. The real answer is auth.users.last_sign_in_at, which Supabase
+    // maintains itself and which no browser is allowed to read. Without it
+    // there is no way to tell a working account from one a student stopped
+    // using when they graduated — which is the main way a school newspaper
+    // ends up with doors it forgot about.
+    if (req.query?.withSignIns === '1') {
+      try {
+        const seen = new Map();
+        for (let page = 1; page <= 25; page++) {
+          const { data: batch, error: authErr } = await db.auth.admin.listUsers({ page, perPage: 200 });
+          if (authErr) break;
+          const users = batch?.users || [];
+          for (const u of users) {
+            seen.set((u.email || '').toLowerCase(), {
+              lastSignInAt: u.last_sign_in_at || null,
+              signedUpAt: u.created_at || null,
+              emailConfirmedAt: u.email_confirmed_at || null,
+              bannedUntil: u.banned_until || null,
+            });
+          }
+          if (users.length < 200) break;
+        }
+        const merged = (data || []).map(s => ({
+          ...s,
+          ...(seen.get((s.email || '').toLowerCase()) || {}),
+        }));
+        return res.status(200).json({ staff: merged, callerRole: caller.role });
+      } catch {
+        // Fall through to the plain list rather than failing the whole page.
+      }
+    }
+
     return res.status(200).json({ staff: data || [], callerRole: caller.role });
   }
 
@@ -208,8 +244,33 @@ export default async function handler(req, res) {
 
     const { error } = await db.from('admin_users').update(patch).eq('id', id);
     if (error) return res.status(400).json({ error: error.message });
+
+    // Turning an account off has to stop at the front door, not in our own code.
+    //
+    // Marking active=false is only checked after Supabase has already handed
+    // out a token, and it does nothing to a session the person already has —
+    // so somebody signed in on a school computer stayed signed in. Banning the
+    // auth user refuses the token outright and drops their existing session
+    // when it next refreshes.
+    if (active !== undefined) {
+      await db.auth.admin
+        .updateUserById(id, { ban_duration: active ? 'none' : '876000h' })
+        .catch(() => {});
+    }
+
     return res.status(200).json({ ok: true });
   }
+
+  // There is deliberately no "sign out everywhere" action.
+  //
+  // The obvious implementation — ban the auth user for a moment, then unban —
+  // stops them getting a NEW token but leaves the access token they already
+  // hold working until it expires, which can be the best part of an hour. A
+  // button labelled "sign them out" that leaves somebody signed in for another
+  // fifty minutes is the kind of reassurance this admin had far too much of.
+  //
+  // Changing the password is the reliable way to get somebody off a device
+  // they still have, and that is what the Security page offers instead.
 
   // ── Reset password ────────────────────────────────────────────────────────
   if (action === 'reset') {

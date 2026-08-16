@@ -25,8 +25,16 @@ export interface StaffMember {
   graduationYear?: string;
   avatar?: string;
   active: boolean;
+  /** When they really last signed in, from the auth record. */
   lastLogin?: string;
   createdAt?: string;
+  /** When the login itself was created, as opposed to the staff row. */
+  signedUpAt?: string;
+  emailConfirmedAt?: string;
+  /** Set while the account is barred at the auth layer. */
+  bannedUntil?: string;
+  /** False unless the caller used listStaffWithSignIns. */
+  hasSignInData?: boolean;
 }
 
 export interface StaffInput {
@@ -54,9 +62,9 @@ async function authHeaders(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 }
 
-async function call(method: 'GET' | 'POST', body?: unknown) {
+async function call(method: 'GET' | 'POST', body?: unknown, query = '') {
   const headers = await authHeaders();
-  const res = await fetch('/api/staff', {
+  const res = await fetch(`/api/staff${query}`, {
     method,
     headers,
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -90,8 +98,15 @@ function fromRow(row: Record<string, unknown>): StaffMember {
     graduationYear: (row.graduation_year as string) ?? undefined,
     avatar: (row.avatar as string) ?? undefined,
     active: row.active !== false,
-    lastLogin: (row.last_login as string) ?? undefined,
+    // admin_users.last_login is never written by anything, so prefer the real
+    // one Supabase keeps. See listStaffWithSignIns.
+    lastLogin: (row.lastSignInAt as string) ?? (row.last_login as string) ?? undefined,
     createdAt: (row.created_at as string) ?? undefined,
+    signedUpAt: (row.signedUpAt as string) ?? undefined,
+    emailConfirmedAt: (row.emailConfirmedAt as string) ?? undefined,
+    bannedUntil: (row.bannedUntil as string) ?? undefined,
+    // A sign-in record is only meaningful when we actually asked for one.
+    hasSignInData: row.lastSignInAt !== undefined || row.signedUpAt !== undefined,
   };
 }
 
@@ -100,6 +115,24 @@ export async function listStaff(): Promise<StaffMember[]> {
   const rows = Array.isArray(json.staff) ? (json.staff as Record<string, unknown>[]) : [];
   return rows.map(fromRow);
 }
+
+/**
+ * The roster plus when each person actually last signed in.
+ *
+ * Only the server can read that — it lives on the auth user, not in a table any
+ * browser is allowed to touch — so it costs an extra lookup and is asked for
+ * only by the security page, which needs it to tell a working account from one
+ * a student stopped using when they graduated.
+ */
+export async function listStaffWithSignIns(): Promise<StaffMember[]> {
+  const json = await call('GET', undefined, '?withSignIns=1');
+  const rows = Array.isArray(json.staff) ? (json.staff as Record<string, unknown>[]) : [];
+  return rows.map(fromRow);
+}
+
+// There is no "sign out everywhere" here on purpose — see the note in
+// api/staff.js. Changing the password is what actually gets somebody off a
+// device they are still holding.
 
 export async function createStaff(input: StaffInput): Promise<void> {
   await call('POST', { action: 'create', ...input });
