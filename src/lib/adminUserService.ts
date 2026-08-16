@@ -489,194 +489,18 @@ function checkIPAttempts(ip: string): boolean {
   return true; // Allowed
 }
 
-// ─── Simple Authentication with Fake Email Verification ─────────────────────
-export function initiateLogin(username: string, password: string): { 
-  success: boolean; 
-  error: string | null; 
-  locked: boolean;
-  requiresEmailVerification: boolean;
-  userId?: string;
-} {
-  ensureDefaultAdmin();
-  const ip = getClientIP();
-  const userAgent = getUserAgent();
-  
-  // Check IP block
-  if (isIPBlocked(ip)) {
-    saveLoginAttempt({
-      id: `attempt_${Date.now()}`,
-      username,
-      ip,
-      userAgent,
-      success: false,
-      timestamp: new Date().toISOString(),
-    });
-    return { 
-      success: false, 
-      error: 'Access denied. Too many failed attempts from this location.', 
-      locked: false,
-      requiresEmailVerification: false,
-    };
-  }
-  
-  // Check IP attempt rate
-  if (!checkIPAttempts(ip)) {
-    return { 
-      success: false, 
-      error: 'Access denied. Too many failed attempts from this location.', 
-      locked: false,
-      requiresEmailVerification: false,
-    };
-  }
-  
-  const user = loadUsers().find(
-    u => u.username.toLowerCase() === username.toLowerCase() && u.active
-  );
-  
-  if (!user) {
-    // Don't reveal if username exists - security best practice
-    saveLoginAttempt({
-      id: `attempt_${Date.now()}`,
-      username,
-      ip,
-      userAgent,
-      success: false,
-      timestamp: new Date().toISOString(),
-    });
-    return { 
-      success: false, 
-      error: 'Invalid username or password.', 
-      locked: false,
-      requiresEmailVerification: false,
-    };
-  }
-  
-  // Check account lockout
-  if (checkAccountLockout(user)) {
-    saveLoginAttempt({
-      id: `attempt_${Date.now()}`,
-      username,
-      ip,
-      userAgent,
-      success: false,
-      timestamp: new Date().toISOString(),
-      userId: user.id,
-    });
-    const lockUntil = new Date(user.lockedUntil!).toLocaleString();
-    return { 
-      success: false, 
-      error: `Account locked until ${lockUntil}. Too many failed login attempts.`, 
-      locked: true,
-      requiresEmailVerification: false,
-    };
-  }
-  
-  // Verify password
-  const passwordCorrect = user.passwordHash === simpleHash(password);
-  
-  if (!passwordCorrect) {
-    incrementFailedAttempts(user, ip);
-    saveLoginAttempt({
-      id: `attempt_${Date.now()}`,
-      username,
-      ip,
-      userAgent,
-      success: false,
-      timestamp: new Date().toISOString(),
-      userId: user.id,
-    });
-    
-    // Check if we should block IP
-    const recentFailures = getLoginAttempts().filter(
-      a => a.ip === ip && !a.success && new Date(a.timestamp).getTime() > Date.now() - 60000
-    );
-    if (recentFailures.length >= 5) {
-      blockIP(ip);
-    }
-    
-    return { 
-      success: false, 
-      error: 'Invalid username or password.', 
-      locked: false,
-      requiresEmailVerification: false,
-    };
-  }
-  
-  // Password correct! Always require "email verification" (fake security)
-  // Store pending login for verification
-  localStorage.setItem('pending_login', JSON.stringify({
-    userId: user.id,
-    ip,
-    userAgent,
-    timestamp: Date.now(),
-  }));
-  
-  return { 
-    success: false, 
-    error: 'Email verification required. Please check your email for a verification code.', 
-    locked: false,
-    requiresEmailVerification: true,
-    userId: user.id,
-  };
-}
-
-/**
- * @deprecated Retired. Sign-in goes through Supabase Auth (src/lib/auth.ts).
- *
- * This used to compare against a single hardcoded constant shared by every
- * user and shipped in the public bundle, presented as "email verification"
- * even though no email was ever sent. The constant is gone and this path is
- * permanently closed; it is kept only so any stale reference fails safely.
- */
-export function verifyCode(_userId: string, _code: string): {
-  success: boolean;
-  error: string | null;
-  user?: AdminUser;
-} {
-  return {
-    success: false,
-    error: 'This sign-in method has been retired. Please sign in with your email and password.',
-  };
-}
-
-/**
- * @deprecated Retired alongside verifyCode(). Sign-in is Supabase Auth now.
- * Kept exported only so any stale import fails safely rather than at build time.
- */
-export function loginUser(username: string, password: string): { user: AdminUser | null; error: string | null; locked: boolean } {
-  const result = initiateLogin(username, password);
-  
-  if (!result.success) {
-    return { user: null, error: result.error, locked: result.locked };
-  }
-  
-  // If login requires email verification, return error (user needs to verify code)
-  if (result.requiresEmailVerification) {
-    return { user: null, error: result.error || 'Email verification required.', locked: false };
-  }
-  
-  const user = result.userId ? getUser(result.userId) : null;
-  return { user: user || null, error: null, locked: false };
-}
-
-export function logoutUser(): void {
-  const session = getCurrentUser();
-  if (session) logActivity('logout', `${session.displayName} signed out`, session.id);
-  localStorage.removeItem(SESSION_KEY);
-}
-
-export function getCurrentUser(): AdminUser | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const { userId, expiry } = JSON.parse(raw);
-    if (expiry < Date.now()) {
-      localStorage.removeItem(SESSION_KEY);
-      return null;
-    }
-    return getUser(userId) ?? null;
-  } catch { return null; }
-}
+// ─── Retired sign-in code ─────────────────────────────────────────────────────
+//
+// initiateLogin / verifyCode / loginUser / logoutUser / getCurrentUser used to
+// live here: a second, weaker sign-in path over localStorage, with a pretend
+// email-verification step. Nothing has called any of it since sign-in moved to
+// Supabase Auth (src/lib/auth.ts), and it had rotted to the point of calling a
+// function that no longer exists.
+//
+// It is gone rather than left lying about. A spare authentication system in an
+// auth file is the kind of thing somebody wires back up by accident, and this
+// one also fed the Security page its (empty, unwritable) lists of alerts,
+// blocked addresses and locked accounts.
 
 // ─── Permissions ──────────────────────────────────────────────────────────────
 export type Permission =
@@ -811,18 +635,15 @@ export function getActivityLog(): ActivityLogEntry[] {
 }
 
 /**
- * Erase the activity trail for everyone.
+ * Drop this browser's offline copy of the log.
  *
- * This only emptied the current browser before, so pressing it looked like it
- * worked and the entries came straight back on the next visit from another
- * computer. It clears the server now, which is also why it asks first.
+ * There is no way to erase the shared log, deliberately: the database grants
+ * staff SELECT and INSERT on activity_log and nothing else, so a delete would
+ * quietly affect no rows. A record of who published and who deleted what is
+ * worth more when nobody can rewrite it.
  */
-export async function clearActivityLog(): Promise<void> {
+export function clearLocalActivityLog(): void {
   localStorage.removeItem(ACTIVITY_KEY);
-  const { supabase } = await import('./supabaseClient');
-  if (!supabase) return;
-  const { error } = await supabase.from('activity_log').delete().neq('id', '');
-  if (error) throw new Error(error.message);
 }
 
 // ─── Security Functions ───────────────────────────────────────────────────────

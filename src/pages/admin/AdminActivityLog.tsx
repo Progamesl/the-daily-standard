@@ -5,17 +5,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   Search, Activity, Trash2, RefreshCw, LogIn, LogOut, FileText, User,
   Send, EyeOff, RotateCcw,
 } from 'lucide-react';
-import { fetchActivityLog, clearActivityLog, type ActivityLogEntry } from '@/lib/adminUserService';
-import { useAdminAuth } from '@/contexts/AdminAuthContext';
-import { canDo } from '@/lib/adminUserService';
-import { toast } from 'sonner';
+import { fetchActivityLog, type ActivityLogEntry } from '@/lib/adminUserService';
 import { cn } from '@/lib/utils';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -72,13 +65,9 @@ function timeAgo(iso: string): string {
 }
 
 export default function AdminActivityLog() {
-  const { currentUser } = useAdminAuth();
   const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery]           = useState('');
   const [actionFilter, setActionFilter] = useState('all');
-  const [clearOpen, setClearOpen]   = useState(false);
-
-  const canClear = currentUser && canDo(currentUser, 'manage_settings');
 
   // The log lives on the server now, so this is what everyone did, not just
   // what happened in this browser.
@@ -108,16 +97,6 @@ export default function AdminActivityLog() {
     return list;
   }, [logs, query, actionFilter]);
 
-  const handleClear = async () => {
-    try {
-      await clearActivityLog();
-      toast.success('Activity log cleared');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not clear the activity log.');
-    }
-    setClearOpen(false);
-    setRefreshKey(k => k + 1);
-  };
 
   // Group logs by date
   const grouped = useMemo(() => {
@@ -142,19 +121,20 @@ export default function AdminActivityLog() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Activity Log</h1>
-          <p className="text-sm text-slate-500 mt-1">{logs.length} recorded events</p>
+          <p className="text-sm text-slate-500 mt-1">
+            What everyone has done, across the whole newsroom · {logs.length} events
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-1.5"
             onClick={() => setRefreshKey(k => k + 1)}>
             <RefreshCw className="h-4 w-4" />Refresh
           </Button>
-          {canClear && (
-            <Button variant="outline" size="sm" onClick={() => setClearOpen(true)}
-              className="gap-1.5 text-red-500 border-red-200 hover:bg-red-50">
-              <Trash2 className="h-4 w-4" />Clear Log
-            </Button>
-          )}
+          {/* There was a "Clear Log" button here. It only ever emptied the
+              current browser, and now that the log lives on the server the
+              database refuses the delete outright — so it would have reported
+              success and changed nothing. A record of who published and who
+              deleted what is also worth more when nobody can erase it. */}
         </div>
       </div>
 
@@ -251,23 +231,6 @@ export default function AdminActivityLog() {
         )}
       </div>
 
-      {/* Clear Confirmation */}
-      <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear Activity Log?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete all {logs.length} log entries. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleClear} className="bg-red-600 hover:bg-red-700">
-              Clear All Logs
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
