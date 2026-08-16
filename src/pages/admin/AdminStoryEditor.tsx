@@ -26,11 +26,13 @@ import {
   type InternalNote,
   type ArticleRevision,
   type WorkflowStatus,
-  WORKFLOW_LABELS
+  WORKFLOW_LABELS,
+  SELECTABLE_STATUSES,
 } from '@/lib/adminDataService';
 import { getArticleByIdFromSupabase } from '@/lib/supabaseDataService';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { ROLE_LABELS, logActivity } from '@/lib/adminUserService';
+import type { StaffMember } from '@/lib/staffService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { authors as jsonAuthors, sections } from '@/data/seedData';
 import { cn } from '@/lib/utils';
@@ -84,7 +86,7 @@ export default function AdminStoryEditor() {
 
   const [allAuthors, setAllAuthors] = useState<AdminAuthor[]>([]);
   const [allTags, setAllTags]       = useState<string[]>([]);
-  const [staffUsers, setStaffUsers] = useState<any[]>([]);
+  const [staffUsers, setStaffUsers] = useState<StaffMember[]>([]);
 
   // Local Helpers to avoid circular dependency
   const countWords = (html: string) => {
@@ -167,7 +169,6 @@ export default function AdminStoryEditor() {
     async function init() {
       try {
         const adminData = await import('@/lib/adminDataService');
-        const { getUsersList } = await import('@/lib/adminUserService');
 
         // 1. Authors
         const byId = new Map<string, AdminAuthor>();
@@ -191,8 +192,20 @@ export default function AdminStoryEditor() {
         // 2. Tags
         setAllTags(adminData.getAllAdminTags());
 
-        // 3. Staff
-        setStaffUsers(getUsersList().filter(u => u.active));
+        // 3. Staff — the real accounts from the server.
+        //
+        // This used to read a localStorage user list that nothing has written
+        // to since staff moved to Supabase, so the list was empty on every
+        // computer and no story could be assigned to anybody.
+        try {
+          const { listStaff } = await import('@/lib/staffService');
+          const staff = await listStaff();
+          setStaffUsers(staff.filter(u => u.active));
+        } catch {
+          // Signed-in-but-offline, or a permissions problem. The rest of the
+          // editor still works; only the assignment dropdown is empty.
+          setStaffUsers([]);
+        }
 
         // 4. Load Article or PDF Prefill
         if (id) {
@@ -749,8 +762,10 @@ export default function AdminStoryEditor() {
                 <Select value={form.status} onValueChange={(v) => updateField('status', v as WorkflowStatus)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Object.entries(WORKFLOW_LABELS).map(([val, lab]) => (
-                      <SelectItem key={val} value={val}>{lab}</SelectItem>
+                    {/* "In the trash" is deliberately absent — a story gets
+                        there by being deleted, not by being picked. */}
+                    {SELECTABLE_STATUSES.map(val => (
+                      <SelectItem key={val} value={val}>{WORKFLOW_LABELS[val]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -19,7 +19,23 @@ export type WorkflowStatus =
   | 'in_review'   // Editor is reviewing
   | 'approved'    // Approved, ready to go live
   | 'published'   // Live on site
-  | 'archived';   // Taken off the site
+  | 'archived'    // Taken off the site
+  | 'deleted';    // In the trash — see TRASH_STATUS
+
+/**
+ * Deleting a story marks it with this status instead of destroying the row.
+ *
+ * The database delete used to be permanent, and the only copy of a deleted
+ * story was a snapshot in the deleting person's own browser. Another editor
+ * could not restore it, and clearing that browser lost it for good. Keeping the
+ * row means the trash is the same trash for everyone, and restoring is one
+ * click from any computer. It also keeps the story off the public site for
+ * free: /api/sync-r2 only ever reads rows whose status is 'published'.
+ *
+ * It is not a status anyone can pick — you get here through Delete, and leave
+ * through Restore.
+ */
+export const TRASH_STATUS = 'deleted' as const;
 
 export const WORKFLOW_LABELS: Record<WorkflowStatus, string> = {
   pitch:      'Pitch',
@@ -30,7 +46,12 @@ export const WORKFLOW_LABELS: Record<WorkflowStatus, string> = {
   approved:   'Approved',
   published:  'Published',
   archived:   'Archived',
+  deleted:    'In the trash',
 };
+
+/** The statuses an editor may choose. Trash is reached by deleting, not picking. */
+export const SELECTABLE_STATUSES = (Object.keys(WORKFLOW_LABELS) as WorkflowStatus[])
+  .filter(s => s !== TRASH_STATUS);
 
 export const WORKFLOW_COLORS: Record<WorkflowStatus, string> = {
   pitch:      'bg-slate-100 text-slate-600',
@@ -41,6 +62,7 @@ export const WORKFLOW_COLORS: Record<WorkflowStatus, string> = {
   approved:   'bg-teal-100 text-teal-700',
   published:  'bg-green-100 text-green-700',
   archived:   'bg-slate-100 text-slate-500',
+  deleted:    'bg-red-100 text-red-700',
 };
 
 export type ArticlePriority = 'low' | 'normal' | 'high' | 'breaking';
@@ -466,8 +488,15 @@ export function getAdminArticlesMap(): Record<string, AdminArticle> {
   return localArticles;
 }
 
+/**
+ * Every story the newsroom is working on.
+ *
+ * Trashed stories are excluded — they still exist as rows so the Trash page can
+ * show and restore them, but they must not appear in Stories, counts, or the
+ * dashboard as though they were live work.
+ */
 export function getAdminArticlesList(): AdminArticle[] {
-  return Object.values(getAdminArticlesMap());
+  return Object.values(getAdminArticlesMap()).filter(a => a.status !== TRASH_STATUS);
 }
 
 /**
@@ -688,117 +717,196 @@ export async function deleteAdminArticle(
   // Only a story readers can currently see needs the public site rebuilding.
   const wasPublished = article?.status === 'published';
 
-  if (article) {
-    // Move to trash with full snapshot
-    const trash: TrashedArticle[] = getStorage<TrashedArticle[]>(TRASH_KEY, []);
-    trash.unshift({
-      article,
-      deletedAt: new Date().toISOString(),
-      deletedById: deletedById ?? 'unknown',
-      deletedByName: deletedByName ?? 'Unknown',
-      reason,
-    });
-    // Keep last 100 trashed articles
-    setStorage(TRASH_KEY, trash.slice(0, 100));
-    
-    // Remove from active articles (if it was in admin articles)
-    if (articles[id]) {
-      delete articles[id];
-      setStorage(ARTICLES_KEY, articles);
+  if (!article) {
+    // Nothing to delete — but a seed article can still be suppressed locally.
+    const deletedIds = getDeletedArticleIds();
+    if (!deletedIds.includes(String(id))) {
+      deletedIds.push(String(id));
+      setStorage(DELETED_KEY, deletedIds);
     }
+    return;
   }
 
-  // Always add to deleted list (works for both admin and seed articles)
-  const deleted = getDeletedArticleIds();
-  if (!deleted.includes(String(id))) {
-    deleted.push(String(id));
-    setStorage(DELETED_KEY, deleted);
-  }
-
-  // Delete from the database, then take the story down for readers.
+  // Move the story to the trash rather than destroying it.
   //
-  // Both steps used to be skipped or fired-and-forgotten: the delete floated off
-  // in an unawaited promise and nothing rebuilt R2, so a "deleted" story stayed
-  // on the public site — visible on the homepage until the next unrelated
-  // publish, and readable at its own URL indefinitely. Deletion has to be the
-  // one operation an editor can trust, so failures now reach the caller.
-  if (typeof window !== 'undefined') {
-    const { isSupabaseConfigured } = await import('./supabaseClient');
-    if (isSupabaseConfigured()) {
-      const { deleteArticleFromSupabase } = await import('./supabaseDataService');
-      const success = await deleteArticleFromSupabase(id);
-      if (!success) {
-        throw new Error('The story was not deleted from the database, so it is still on the site. Nothing was changed — try again.');
-      }
-      supabaseArticlesCache = null;
-      supabaseArticlesCacheTime = 0;
-      try { localStorage.removeItem(LIST_FETCH_TIME_KEY); } catch { /* non-fatal */ }
-    }
+  // The row used to be hard-deleted from the database, with the only surviving
+  // copy a snapshot in the deleting person's own browser. Another editor could
+  // not see it in Trash, could not restore it, and could not find out why it
+  // went — and if that browser was ever cleared, a story the newsroom had
+  // worked on was gone for good. Keeping the row, marked, means the trash is
+  // the same trash for everybody.
+  //
+  // The delete note carries the status to restore to, so a published story
+  // comes back as a draft rather than silently reappearing on the site.
+  const trashNote: InternalNote = {
+    id: `trash_${Date.now()}`,
+    authorId: deletedById ?? 'unknown',
+    authorName: deletedByName ?? 'Unknown',
+    content: JSON.stringify({
+      kind: 'trash',
+      previousStatus: article.status,
+      reason: reason ?? '',
+    }),
+    type: 'note',
+    createdAt: new Date().toISOString(),
+  };
 
-    // A story only really disappears once R2 is rebuilt without it.
-    if (wasPublished) {
-      const result = await publishToReaders();
-      if (!result.ok) {
-        throw new Error(`The story was deleted, but the public site could not be updated, so it may still be visible. ${result.reason}`);
-      }
+  await saveAdminArticle(
+    {
+      ...article,
+      status: TRASH_STATUS,
+      internalNotes: [trashNote, ...(article.internalNotes ?? [])],
+    },
+    deletedById,
+    deletedByName,
+    reason ? `Moved to trash: ${reason}` : 'Moved to trash',
+  );
+
+  // saveAdminArticle rebuilds the public site whenever a live story stops being
+  // live, so a published story is already off the site by this point.
+  if (wasPublished) {
+    const result = await publishToReaders();
+    if (!result.ok) {
+      throw new Error(`The story was moved to the trash, but the public site could not be updated, so it may still be visible. ${result.reason}`);
     }
   }
 }
 
-export function getTrashedArticles(): TrashedArticle[] {
-  return getStorage<TrashedArticle[]>(TRASH_KEY, []);
+/** The delete note written by deleteAdminArticle, if this story is in the trash. */
+function readTrashNote(article: AdminArticle): { previousStatus: WorkflowStatus; reason: string; at: string; byId: string; byName: string } | null {
+  const note = (article.internalNotes ?? []).find(n => {
+    try {
+      return JSON.parse(n.content)?.kind === 'trash';
+    } catch {
+      return false;
+    }
+  });
+  if (!note) return null;
+  try {
+    const parsed = JSON.parse(note.content);
+    return {
+      previousStatus: (parsed.previousStatus as WorkflowStatus) ?? 'draft',
+      reason: parsed.reason ?? '',
+      at: note.createdAt,
+      byId: note.authorId,
+      byName: note.authorName,
+    };
+  } catch {
+    return null;
+  }
 }
 
-export async function restoreTrashedArticle(trashId: string): Promise<AdminArticle | undefined> {
-  const trash = getTrashedArticles();
-  const idx = trash.findIndex(t => t.article.id === trashId);
-  if (idx === -1) return undefined;
-  
-  const trashed = trash[idx];
-  const restored = await saveAdminArticle(trashed.article, undefined, undefined, 'Restored from trash');
-  
-  // Remove from trash
-  trash.splice(idx, 1);
-  setStorage(TRASH_KEY, trash);
-  
-  // Remove from deleted list
+/**
+ * Everything currently in the trash, for the whole newsroom.
+ *
+ * Reads the same article store as everything else and picks out the stories
+ * marked as trashed, so an editor sees what a colleague deleted from another
+ * computer. Anything left in the old browser-local trash from before this
+ * change is folded in too, so nothing already there is stranded.
+ */
+export function getTrashedArticles(): TrashedArticle[] {
+  const server: TrashedArticle[] = Object.values(getAdminArticlesMap())
+    .filter(a => a.status === TRASH_STATUS)
+    .map(article => {
+      const note = readTrashNote(article);
+      return {
+        article,
+        deletedAt: note?.at ?? article.updatedAt ?? new Date().toISOString(),
+        deletedById: note?.byId ?? 'unknown',
+        deletedByName: note?.byName ?? 'Unknown',
+        reason: note?.reason || undefined,
+      };
+    });
+
+  const seen = new Set(server.map(t => t.article.id));
+  const legacy = getStorage<TrashedArticle[]>(TRASH_KEY, []).filter(t => !seen.has(t.article.id));
+
+  return [...server, ...legacy].sort(
+    (a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime(),
+  );
+}
+
+/**
+ * Take a story back out of the trash.
+ *
+ * It comes back as a draft unless it was something other than published when it
+ * was deleted — restoring must never put a story back on the public site by
+ * itself. Someone presses Publish for that.
+ */
+export async function restoreTrashedArticle(
+  trashId: string,
+  restoredById?: string,
+  restoredByName?: string,
+): Promise<AdminArticle | undefined> {
+  const entry = getTrashedArticles().find(t => t.article.id === trashId);
+  if (!entry) return undefined;
+
+  const note = readTrashNote(entry.article);
+  const previous = note?.previousStatus ?? 'draft';
+
+  const restored = await saveAdminArticle(
+    {
+      ...entry.article,
+      status: previous === 'published' ? 'draft' : previous,
+      internalNotes: (entry.article.internalNotes ?? []).filter(n => {
+        try { return JSON.parse(n.content)?.kind !== 'trash'; } catch { return true; }
+      }),
+    },
+    restoredById,
+    restoredByName,
+    'Restored from trash',
+  );
+
+  // Clear the leftovers from the old browser-local trash, if this was one.
+  const legacy = getStorage<TrashedArticle[]>(TRASH_KEY, []);
+  const idx = legacy.findIndex(t => t.article.id === trashId);
+  if (idx > -1) {
+    legacy.splice(idx, 1);
+    setStorage(TRASH_KEY, legacy);
+  }
   const deleted = getDeletedArticleIds();
   const delIdx = deleted.indexOf(trashId);
   if (delIdx > -1) {
     deleted.splice(delIdx, 1);
     setStorage(DELETED_KEY, deleted);
   }
-  
+
   return restored;
 }
 
-export function permanentlyDeleteTrashedArticle(trashId: string): void {
-  const trash = getTrashedArticles();
-  const idx = trash.findIndex(t => t.article.id === trashId);
-  if (idx > -1) {
-    trash.splice(idx, 1);
-    setStorage(TRASH_KEY, trash);
+/**
+ * Destroy a story for good. There is nothing after this.
+ *
+ * The database delete used to float off in an unawaited promise, so "Delete
+ * forever" reported success whether or not anything happened. It is awaited
+ * now and throws if the row survives.
+ */
+export async function permanentlyDeleteTrashedArticle(trashId: string): Promise<void> {
+  if (typeof window !== 'undefined') {
+    const { isSupabaseConfigured } = await import('./supabaseClient');
+    if (isSupabaseConfigured()) {
+      const { deleteArticleFromSupabase } = await import('./supabaseDataService');
+      const success = await deleteArticleFromSupabase(trashId);
+      if (!success) {
+        throw new Error('The story could not be deleted from the database. Nothing was changed — try again.');
+      }
+      supabaseArticlesCache = null;
+      supabaseArticlesCacheTime = 0;
+      try { localStorage.removeItem(LIST_FETCH_TIME_KEY); } catch { /* non-fatal */ }
+    }
   }
 
-  // Also permanently delete from Supabase if configured (async, non-blocking)
-  if (typeof window !== 'undefined') {
-    import('./supabaseDataService').then(({ deleteArticleFromSupabase }) => {
-      import('./supabaseClient').then(({ isSupabaseConfigured }) => {
-        if (isSupabaseConfigured()) {
-          deleteArticleFromSupabase(trashId).then(success => {
-            if (success) {
-              console.log('✅ Article permanently deleted from Supabase:', trashId);
-            } else {
-              console.warn('⚠️ Failed to permanently delete article from Supabase:', trashId);
-            }
-          }).catch(err => {
-            console.error('❌ Error permanently deleting from Supabase:', err);
-          });
-        }
-      }).catch(() => {});
-    }).catch(() => {
-      // Supabase not available
-    });
+  const articles = getAdminArticlesMap();
+  if (articles[trashId]) {
+    delete articles[trashId];
+    setStorage(ARTICLES_KEY, articles);
+  }
+
+  const legacy = getStorage<TrashedArticle[]>(TRASH_KEY, []);
+  const idx = legacy.findIndex(t => t.article.id === trashId);
+  if (idx > -1) {
+    legacy.splice(idx, 1);
+    setStorage(TRASH_KEY, legacy);
   }
 }
 

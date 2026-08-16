@@ -57,31 +57,60 @@ export default function AdminTrash() {
 
   const refresh = () => setRefreshKey(k => k + 1);
 
+  const [busy, setBusy] = useState(false);
+
   const handleRestore = async () => {
     if (!restoreTarget) return;
-    const restored = await restoreTrashedArticle(restoreTarget.article.id);
-    if (restored) {
-      toast.success(`"${restored.headline}" restored`);
+    setBusy(true);
+    try {
+      const restored = await restoreTrashedArticle(
+        restoreTarget.article.id, currentUser?.id, currentUser?.displayName,
+      );
+      if (!restored) throw new Error('That story is no longer in the trash.');
+      toast.success(`"${restored.headline}" is back in Stories, as a draft.`);
       setRestoreTarget(null);
       refresh();
-    } else {
-      toast.error('Failed to restore article');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not restore the story.');
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handlePermanentDelete = () => {
+  const handlePermanentDelete = async () => {
     if (!deleteTarget) return;
-    permanentlyDeleteTrashedArticle(deleteTarget.article.id);
-    toast.success('Article permanently deleted');
-    setDeleteTarget(null);
-    refresh();
+    setBusy(true);
+    try {
+      await permanentlyDeleteTrashedArticle(deleteTarget.article.id);
+      toast.success('Story deleted for good');
+      setDeleteTarget(null);
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete the story.');
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleClearAll = () => {
+  // Empties the trash for everyone, one story at a time, reporting what failed
+  // rather than claiming success for the whole lot.
+  const handleClearAll = async () => {
+    setBusy(true);
+    const failed: string[] = [];
+    for (const t of trash) {
+      try {
+        await permanentlyDeleteTrashedArticle(t.article.id);
+      } catch {
+        failed.push(t.article.headline);
+      }
+    }
     clearTrash();
-    toast.success('Trash cleared');
+    setBusy(false);
     setClearOpen(false);
     refresh();
+    const done = trash.length - failed.length;
+    if (done) toast.success(`${done} ${done === 1 ? 'story' : 'stories'} deleted for good`);
+    if (failed.length) toast.error(`Could not delete ${failed.length}: ${failed.slice(0, 3).join(', ')}`);
   };
 
   return (
@@ -180,55 +209,65 @@ export default function AdminTrash() {
       )}
 
       {/* Restore Confirmation */}
-      <AlertDialog open={!!restoreTarget} onOpenChange={() => setRestoreTarget(null)}>
+      <AlertDialog open={!!restoreTarget} onOpenChange={o => { if (!o && !busy) setRestoreTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restore Article</AlertDialogTitle>
+            <AlertDialogTitle>Put this story back?</AlertDialogTitle>
             <AlertDialogDescription>
-              Restore &ldquo;{restoreTarget?.article.headline}&rdquo;? It will be moved back to your stories list.
+              &ldquo;{restoreTarget?.article.headline}&rdquo; returns to Stories as a draft. It does not go back
+              on the public site until somebody publishes it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRestore}>Restore</AlertDialogAction>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={busy} onClick={e => { e.preventDefault(); handleRestore(); }}>
+              {busy ? 'Restoring…' : 'Restore'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Permanent Delete Confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={o => { if (!o && !busy) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Permanently Delete</AlertDialogTitle>
+            <AlertDialogTitle>Delete this story for good?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you absolutely sure? This will permanently delete &ldquo;{deleteTarget?.article.headline}&rdquo;.
-              This cannot be undone.
+              &ldquo;{deleteTarget?.article.headline}&rdquo; and everything in it — the text, the pictures it
+              points at, its history — will be gone. There is nothing after this and no way to get it back.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePermanentDelete}
-              className="bg-red-600 hover:bg-red-700">
-              Delete Forever
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={e => { e.preventDefault(); handlePermanentDelete(); }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {busy ? 'Deleting…' : 'Delete forever'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Clear All Confirmation */}
-      <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
+      <AlertDialog open={clearOpen} onOpenChange={o => { if (!busy) setClearOpen(o); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Clear All Trash</AlertDialogTitle>
+            <AlertDialogTitle>Empty the trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete all {trash.length} articles in trash. This cannot be undone.
+              All {trash.length} {trash.length === 1 ? 'story' : 'stories'} in here will be gone for good, for
+              everyone — not just on this computer. There is no way to get them back.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleClearAll}
-              className="bg-red-600 hover:bg-red-700">
-              Clear All Trash
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={e => { e.preventDefault(); handleClearAll(); }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {busy ? 'Emptying…' : `Delete all ${trash.length} for good`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
