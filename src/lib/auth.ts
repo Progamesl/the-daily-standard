@@ -54,20 +54,34 @@ export interface AdminProfile {
 async function fetchAdminProfile(authUser: User): Promise<AdminProfile | null> {
   if (!supabase) return null;
 
+  const columns = 'id, username, display_name, email, role, section, bio, avatar, active';
+
   // Try matching by id first (id in admin_users should equal the auth user id)
   let { data, error } = await supabase
-    .from('admin_users')
-    .select('id, username, display_name, email, role, section, bio, avatar, active')
-    .eq('id', authUser.id)
-    .maybeSingle();
+    .from('admin_users').select(columns).eq('id', authUser.id).maybeSingle();
 
   // Fallback: match by email
   if (!data && !error && authUser.email) {
     ({ data, error } = await supabase
-      .from('admin_users')
-      .select('id, username, display_name, email, role, section, bio, avatar, active')
-      .eq('email', authUser.email)
-      .maybeSingle());
+      .from('admin_users').select(columns).eq('email', authUser.email).maybeSingle());
+  }
+
+  // One retry on a transient failure.
+  //
+  // Returning null here means "this person is not staff", and the callers act
+  // on that by signing them out. A dropped connection or a lock contention
+  // inside the auth library therefore threw editors back to the login page
+  // mid-edit. A genuine "no such row" comes back as no data and no error, and
+  // is not retried.
+  if (error) {
+    console.warn('Could not read the staff account, retrying:', error.message);
+    await new Promise(r => setTimeout(r, 350));
+    ({ data, error } = await supabase
+      .from('admin_users').select(columns).eq('id', authUser.id).maybeSingle());
+    if (!data && !error && authUser.email) {
+      ({ data, error } = await supabase
+        .from('admin_users').select(columns).eq('email', authUser.email).maybeSingle());
+    }
   }
 
   if (error) {

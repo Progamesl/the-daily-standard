@@ -92,9 +92,39 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | und
 // ─── Singleton client ────────────────────────────────────────────────────────
 let _client: SupabaseClient<Database> | null = null;
 
+/**
+ * Run the operation without a cross-tab lock.
+ *
+ * By default the auth library takes a Web Locks lock around anything that
+ * touches the session, so two tabs cannot refresh the token at the same moment.
+ * When one tab does steal the lock, whichever request was waiting rejects with
+ * `AbortError: Lock broken by another request with the 'steal' option` — and
+ * because every database query attaches the session, that abort surfaces as the
+ * query failing. In the admin it came out as "Failed to fetch admin profile",
+ * which drops a signed-in editor back to the login page. Anyone working with
+ * the site open in one tab and the admin in another hit it constantly.
+ *
+ * Losing the lock means two tabs can occasionally refresh the same token
+ * together. The server accepts that — a refresh token stays valid for a short
+ * window after use, precisely so this is survivable — and an occasional
+ * duplicate refresh is a far better failure than being signed out mid-sentence.
+ */
+const noCrossTabLock = async <R>(
+  _name: string,
+  _acquireTimeout: number,
+  fn: () => Promise<R>,
+): Promise<R> => fn();
+
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   try {
-    _client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+    _client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        lock: noCrossTabLock,
+      },
+    });
   } catch (err) {
     // A malformed VITE_SUPABASE_URL must not crash the whole app — degrade to
     // localStorage/R2 instead of throwing at import time.
