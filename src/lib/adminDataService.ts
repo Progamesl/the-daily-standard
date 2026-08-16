@@ -486,6 +486,45 @@ export function getAdminArticleBySlug(slug: string): AdminArticle | undefined {
 }
 
 /**
+ * Rebuild what readers see, and say whether it worked.
+ *
+ * The public site is served from R2, not from the database, so a story is only
+ * really published — or really taken down — once this has run. It used to be
+ * fired and forgotten, which meant a failure showed up nowhere except the
+ * browser console: the editor was told the story was live when it wasn't.
+ *
+ * Every caller awaits this and reports the outcome. `npm run dev` has no
+ * serverless functions, so a 404 there means "not deployed", not "broken" —
+ * worth saying plainly rather than showing a scary error.
+ */
+export interface PublishResult {
+  ok: boolean;
+  /** Stories now live on the public site. */
+  total?: number;
+  /** Stories taken down by this run. */
+  removed?: number;
+  /** Plain-English explanation, present only when ok is false. */
+  reason?: string;
+}
+
+export async function publishToReaders(): Promise<PublishResult> {
+  try {
+    const res = await fetch('/api/sync-r2', { method: 'POST' });
+    if (res.status === 404) {
+      return { ok: false, reason: 'The publishing service is not running. On a local dev server this is expected — it works on the live site.' };
+    }
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.ok) {
+      return { ok: false, reason: data?.error || `The publishing service returned ${res.status}.` };
+    }
+    console.log(`Published to readers: ${data.total} stories live, ${data.removed ?? 0} taken down`);
+    return { ok: true, total: data.total, removed: data.removed ?? 0 };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : 'Could not reach the publishing service.' };
+  }
+}
+
+/**
  * HEADLESS CMS: Save article to Supabase (single source of truth)
  * This function is now async and waits for Supabase confirmation.
  */
@@ -494,7 +533,7 @@ export async function saveAdminArticle(
   savedById?: string,
   savedByName?: string,
   revisionNote?: string,
-  options?: { upsertBy?: 'id' | 'slug' }
+  options?: { upsertBy?: 'id' | 'slug'; onPublish?: (result: PublishResult) => void }
 ): Promise<AdminArticle> {
   const articles = getAdminArticlesMap();
   const existing = articles[article.id];
@@ -535,16 +574,16 @@ export async function saveAdminArticle(
         supabaseArticlesCache = null;
         supabaseArticlesCacheTime = 0;
         try { localStorage.removeItem(LIST_FETCH_TIME_KEY); } catch { /* non-fatal */ }
-        // Trigger R2 sync so public site gets fresh data instantly (only for published articles)
-        if (saved.status === 'published') {
-          fetch('/api/sync-r2', { method: 'POST' })
-            .then(r => r.json())
-            .then(data => {
-              if (data?.ok) {
-                console.log(`✅ R2 sync complete: ${data.total} articles published`);
-              }
-            })
-            .catch(err => console.error('❌ R2 sync fetch failed:', err));
+        // Push the change out to readers.
+        //
+        // This used to run only when the saved status was 'published', so
+        // unpublishing never reached the public site — the story stayed on the
+        // homepage and at its own URL until somebody happened to publish
+        // something else. Taking a story down is precisely when this has to
+        // work, so it now also runs when a story that WAS live stops being so.
+        const wasLive = existing?.status === 'published';
+        if (saved.status === 'published' || wasLive) {
+          options?.onPublish?.(await publishToReaders());
         }
         // 3. UPDATE LOCAL CACHE IMMEDIATELY (Prevents race conditions in list view)
         try {
@@ -590,7 +629,8 @@ export async function saveAdminArticle(
 export async function createAdminArticle(
   data: Omit<AdminArticle, 'id' | 'updatedAt' | 'wordCount' | 'revisions'>,
   savedById?: string,
-  savedByName?: string
+  savedByName?: string,
+  options?: { onPublish?: (result: PublishResult) => void }
 ): Promise<AdminArticle> {
   const article: AdminArticle = {
     ...data,
@@ -598,15 +638,15 @@ export async function createAdminArticle(
     revisions: [],
     wordCount: countWords(data.body),
   };
-  return saveAdminArticle(article, savedById, savedByName, 'Initial creation');
+  return saveAdminArticle(article, savedById, savedByName, 'Initial creation', options);
 }
 
-export function deleteAdminArticle(
+export async function deleteAdminArticle(
   id: string,
   deletedById?: string,
   deletedByName?: string,
   reason?: string
-): void {
+): Promise<void> {
   const articles = getAdminArticlesMap();
   let article = articles[id];
   
@@ -645,6 +685,9 @@ export function deleteAdminArticle(
     }
   }
   
+  // Only a story readers can currently see needs the public site rebuilding.
+  const wasPublished = article?.status === 'published';
+
   if (article) {
     // Move to trash with full snapshot
     const trash: TrashedArticle[] = getStorage<TrashedArticle[]>(TRASH_KEY, []);
@@ -672,25 +715,33 @@ export function deleteAdminArticle(
     setStorage(DELETED_KEY, deleted);
   }
 
-  // Also delete from Supabase if configured (async, non-blocking)
+  // Delete from the database, then take the story down for readers.
+  //
+  // Both steps used to be skipped or fired-and-forgotten: the delete floated off
+  // in an unawaited promise and nothing rebuilt R2, so a "deleted" story stayed
+  // on the public site — visible on the homepage until the next unrelated
+  // publish, and readable at its own URL indefinitely. Deletion has to be the
+  // one operation an editor can trust, so failures now reach the caller.
   if (typeof window !== 'undefined') {
-    import('./supabaseDataService').then(({ deleteArticleFromSupabase }) => {
-      import('./supabaseClient').then(({ isSupabaseConfigured }) => {
-        if (isSupabaseConfigured()) {
-          deleteArticleFromSupabase(id).then(success => {
-            if (success) {
-              console.log('✅ Article deleted from Supabase:', id);
-            } else {
-              console.warn('⚠️ Failed to delete article from Supabase:', id);
-            }
-          }).catch(err => {
-            console.error('❌ Error deleting from Supabase:', err);
-          });
-        }
-      }).catch(() => {});
-    }).catch(() => {
-      // Supabase not available
-    });
+    const { isSupabaseConfigured } = await import('./supabaseClient');
+    if (isSupabaseConfigured()) {
+      const { deleteArticleFromSupabase } = await import('./supabaseDataService');
+      const success = await deleteArticleFromSupabase(id);
+      if (!success) {
+        throw new Error('The story was not deleted from the database, so it is still on the site. Nothing was changed — try again.');
+      }
+      supabaseArticlesCache = null;
+      supabaseArticlesCacheTime = 0;
+      try { localStorage.removeItem(LIST_FETCH_TIME_KEY); } catch { /* non-fatal */ }
+    }
+
+    // A story only really disappears once R2 is rebuilt without it.
+    if (wasPublished) {
+      const result = await publishToReaders();
+      if (!result.ok) {
+        throw new Error(`The story was deleted, but the public site could not be updated, so it may still be visible. ${result.reason}`);
+      }
+    }
   }
 }
 

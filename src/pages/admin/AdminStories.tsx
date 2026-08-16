@@ -166,29 +166,55 @@ export default function AdminStories() {
   // ── Actions ────────────────────────────────────────────────────────────────
   const refresh = () => { setRefreshKey(k => k + 1); setSelected(new Set()); };
 
-  const handleDelete = () => {
+  // Deleting now waits for the database and the public site, so the editor is
+  // told the truth rather than a hopeful "moved to trash" that fired before
+  // anything had actually happened.
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    deleteAdminArticle(
-      deleteTarget.id,
-      currentUser?.id,
-      currentUser?.displayName,
-      'Deleted from stories list'
-    );
-    toast.success('Story moved to trash');
-    setDeleteTarget(null);
-    refresh();
+    setDeleting(true);
+    try {
+      await deleteAdminArticle(
+        deleteTarget.id,
+        currentUser?.id,
+        currentUser?.displayName,
+        'Deleted from stories list'
+      );
+      toast.success(
+        deleteTarget.status === 'published'
+          ? 'Story taken off the site and moved to trash'
+          : 'Story moved to trash'
+      );
+      setDeleteTarget(null);
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete the story.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  const handleBulkDelete = () => {
-    selectedList.forEach(a => deleteAdminArticle(
-      a.id,
-      currentUser?.id,
-      currentUser?.displayName,
-      'Bulk deleted from stories list'
-    ));
-    toast.success(`${selectedList.length} stories moved to trash`);
+  const handleBulkDelete = async () => {
+    setDeleting(true);
+    // Sequential, not Promise.all: each delete rebuilds the public site, and
+    // firing twenty of those at once means twenty racing rebuilds where the
+    // last one to finish wins — which may be one that still contains a story
+    // deleted after it started reading.
+    const failed: string[] = [];
+    for (const a of selectedList) {
+      try {
+        await deleteAdminArticle(a.id, currentUser?.id, currentUser?.displayName, 'Bulk deleted from stories list');
+      } catch {
+        failed.push(a.headline || a.slug || a.id);
+      }
+    }
+    setDeleting(false);
     setBulkDeleteOpen(false);
     refresh();
+    const done = selectedList.length - failed.length;
+    if (done) toast.success(`${done} ${done === 1 ? 'story' : 'stories'} moved to trash`);
+    if (failed.length) toast.error(`Could not delete: ${failed.slice(0, 3).join(', ')}${failed.length > 3 ? ` and ${failed.length - 3} more` : ''}`);
   };
 
   const handleDuplicate = async (article: AdminArticle) => {
@@ -521,34 +547,47 @@ export default function AdminStories() {
       )}
 
       {/* Delete Single */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={o => { if (!o && !deleting) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Story</AlertDialogTitle>
+            <AlertDialogTitle>Delete this story?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &ldquo;{deleteTarget?.headline}&rdquo;? This cannot be undone.
+              &ldquo;{deleteTarget?.headline}&rdquo; moves to Trash, where you can restore it.
+              {deleteTarget?.status === 'published' && ' It comes off the public site straight away.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={e => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Bulk Delete */}
-      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={o => { if (!deleting) setBulkDeleteOpen(o); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedList.length} Stories</AlertDialogTitle>
+            <AlertDialogTitle>Delete {selectedList.length} {selectedList.length === 1 ? 'story' : 'stories'}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {selectedList.length} selected stories. This cannot be undone.
+              They move to Trash, where you can restore them.
+              {selectedList.some(a => a.status === 'published') &&
+                ` ${selectedList.filter(a => a.status === 'published').length} of them are live and will come off the public site.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600 hover:bg-red-700">
-              Delete {selectedList.length} Stories
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={e => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Deleting…' : `Delete ${selectedList.length}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

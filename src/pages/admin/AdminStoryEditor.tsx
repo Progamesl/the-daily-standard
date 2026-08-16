@@ -336,39 +336,74 @@ export default function AdminStoryEditor() {
     };
   };
 
+  /**
+   * Say what actually happened, in words a non-technical editor can act on.
+   *
+   * The three cases are genuinely different and used to collapse into one
+   * cheerful "Saved": the story is live, the story is saved but not live, or
+   * the story was saved and the push to the public site failed — which is the
+   * one an editor must not miss, because everything on screen still looks fine.
+   */
+  const reportSave = (
+    status: WorkflowStatus,
+    publish: import('@/lib/adminDataService').PublishResult | null,
+  ) => {
+    if (publish && !publish.ok) {
+      toast.error('Saved, but the public site was not updated', {
+        description: publish.reason,
+        duration: 12000,
+      });
+      return;
+    }
+    if (status === 'published') {
+      toast.success('Published — readers can see this now.');
+    } else if (publish?.ok) {
+      toast.success(`Saved as ${WORKFLOW_LABELS[status] ?? status} — it is off the public site now.`);
+    } else {
+      toast.success(`Saved as ${WORKFLOW_LABELS[status] ?? status}.`);
+    }
+  };
+
   const doSave = async (status: WorkflowStatus, silent = false) => {
     setSaving(true);
+    // Saving the row and updating the public site are two separate things, and
+    // the second one used to fail in silence — the editor was told readers could
+    // see the story when the push had never landed. Whatever comes back here is
+    // what the editor gets told.
+    let publish: import('@/lib/adminDataService').PublishResult | null = null;
+    const onPublish = (r: import('@/lib/adminDataService').PublishResult) => { publish = r; };
     try {
       const adminData = await import('@/lib/adminDataService');
       const built = buildArticle(status);
       const userId   = currentUser?.id;
       const userName = currentUser?.displayName;
 
+      // Publish and Unpublish set the status directly. Without this the
+      // dropdown kept showing the old value after the button was pressed, so a
+      // live story sat there labelled "Draft" and the next Save put it back.
+      if (status !== form.status) setForm(prev => ({ ...prev, status }));
+
       if (isNew || !id) {
-        const created = await adminData.createAdminArticle(built, userId, userName);
+        const created = await adminData.createAdminArticle(built, userId, userName, { onPublish });
         setDirty(false);
         setLastSaved(new Date());
         setArticle(created);
-        if (!silent) toast.success('Story created!');
         navigate(`/admin/stories/edit/${created.id}`, { replace: true });
         logActivity('article_created', `"${built.headline}" created`, userId, created.id);
+        if (!silent) reportSave(status, publish);
       } else {
-        const saved = await adminData.saveAdminArticle({ ...built, id }, userId, userName);
+        const saved = await adminData.saveAdminArticle({ ...built, id }, userId, userName, undefined, { onPublish });
         setDirty(false);
         setLastSaved(new Date());
         setArticle(saved);
         // The work is on the server now, so the local recovery copy is stale.
         try { localStorage.removeItem(`octagon_editor_recovery_${id}`); } catch { /* non-fatal */ }
-        if (!silent) {
-          toast.success(
-            status === 'published' ? 'Saved — readers can see this now.' : 'Saved as a draft.'
-          );
-        }
         logActivity('article_saved', `"${built.headline}" updated`, userId, id);
+        if (!silent) reportSave(status, publish);
       }
     } catch (err) {
       console.error(err);
-      if (!silent) toast.error('Failed to save.');
+      if (!silent) toast.error(err instanceof Error ? err.message : 'Failed to save.');
     } finally {
       setSaving(false);
     }
@@ -535,18 +570,21 @@ export default function AdminStoryEditor() {
               <Eye className="h-4 w-4" />Preview
             </Button>
 
-            {/* This button used to always save as 'draft', so clicking "Save"
-                on a live story silently unpublished it and pulled it off the
-                site. Saving now preserves the story's current state. */}
+            {/* Save writes whatever the Status dropdown says. It used to force
+                'published' or 'draft', so a reporter who set their story to
+                Submitted and clicked Save had it quietly filed back to Draft —
+                the editor never saw it in the queue and the work looked
+                ignored. Eight statuses in the dropdown means eight statuses
+                this button can save. */}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => doSave(isLive ? 'published' : 'draft')}
+              onClick={() => doSave(form.status)}
               disabled={saving || !form.headline.trim()}
               className="gap-1.5"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {isLive ? 'Save changes' : 'Save draft'}
+              {isLive ? 'Save changes' : `Save as ${WORKFLOW_LABELS[form.status]}`}
             </Button>
 
             {isLive ? (

@@ -12,7 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -153,12 +153,48 @@ export default async function handler(req, res) {
     // Wait for all uploads to complete
     await Promise.all(uploads);
 
+    // C. Take down stories that are no longer published.
+    //
+    // Rewriting the list is not enough. Every article also lives at
+    // articles/content/{slug}.json, which the article page fetches directly by
+    // slug — so an unpublished or deleted story stayed readable at its own URL
+    // forever, to anyone holding the link or finding it through a search
+    // engine. Anything under that prefix that isn't in this run's published set
+    // is removed.
+    const shouldExist = new Set(
+      Object.values(bySlug).filter(a => a.slug).map(a => `articles/content/${a.slug}.json`),
+    );
+    const stale = [];
+    let token;
+    do {
+      const page = await s3.send(new ListObjectsV2Command({
+        Bucket: R2_BUCKET,
+        Prefix: 'articles/content/',
+        ContinuationToken: token,
+      }));
+      for (const obj of page.Contents || []) {
+        if (!shouldExist.has(obj.Key)) stale.push({ Key: obj.Key });
+      }
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+
+    for (let i = 0; i < stale.length; i += 1000) {
+      await s3.send(new DeleteObjectsCommand({
+        Bucket: R2_BUCKET,
+        Delete: { Objects: stale.slice(i, i + 1000), Quiet: true },
+      }));
+    }
+    if (stale.length) {
+      console.log(`[sync-r2] Took down ${stale.length} story file(s) no longer published.`);
+    }
+
     console.log(`[sync-r2] Synced ${list.length} articles to R2 as individual files.`);
     return res.status(200).json({
       ok: true,
       total: list.length,
       supabase: supabaseArticles.length,
       seed: seedArticles.length,
+      removed: stale.length,
       keys: {
         list: 'articles/articles.json',
         contentPrefix: 'articles/content/',
