@@ -317,45 +317,29 @@ export default function AdminSettings() {
           </div>
         </section>
 
-        {/* ── IMPORTANT: localStorage Warning ─────────────────────────────── */}
-        <section className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="text-sm font-bold text-red-900 mb-1">⚠️ CRITICAL: Data Storage Warning</h3>
-              <p className="text-xs text-red-700 leading-relaxed mb-3">
-                Your stories are stored in your browser's localStorage. This means:
-              </p>
-              <ul className="text-xs text-red-700 space-y-1 mb-3 list-disc list-inside">
-                <li>Data is <strong>only saved in THIS browser</strong> on THIS device</li>
-                <li>If you use a different browser or device, your stories won't be there</li>
-                <li>If you clear browser data, all stories will be deleted</li>
-                <li>Rebuilds don't affect localStorage, but switching browsers/devices will lose data</li>
-              </ul>
-              <p className="text-xs font-semibold text-red-900">
-                🔒 SOLUTION: Export your data regularly! Use the Export button below after every session.
-              </p>
-            </div>
-          </div>
-        </section>
-
         {/* ── Data Management ──────────────────────────────────────────────── */}
         <section className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="flex items-center gap-2 mb-5">
             <Database className="h-5 w-5 text-slate-500" />
-            <h2 className="text-base font-semibold text-slate-900">Data Management</h2>
+            <h2 className="text-base font-semibold text-slate-900">Where your work is kept</h2>
           </div>
 
           <div className="space-y-4">
-            {/* HEADLESS CMS Info */}
-            <div className="p-4 bg-green-50 rounded-xl border-2 border-green-200">
+            {/* This page used to carry two banners twenty lines apart that said
+                the opposite of each other: a red one insisting stories lived in
+                this browser and would be lost, and a green one saying they were
+                saved to the server. The red one was left over from before the
+                move to Supabase. Keeping it meant telling editors, in the
+                strongest possible terms, something untrue about their work. */}
+            <div className="p-4 bg-green-50 rounded-xl border border-green-200">
               <div className="flex items-start gap-3">
                 <Database className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-bold text-green-900">🚀 HEADLESS CMS Active</p>
-                  <p className="text-xs text-green-700 mt-1">
-                    Stories are automatically saved to Supabase (single source of truth) and appear instantly on all browsers and devices. 
-                    No manual file replacement or code syncing needed.
+                  <p className="text-sm font-semibold text-green-900">Stories are saved on the server</p>
+                  <p className="text-xs text-green-800 mt-1 leading-relaxed">
+                    Everything you write is stored centrally, not in this browser. Sign in from any computer
+                    and your stories are there. Clearing your browser does not delete anything, and published
+                    changes reach the public site straight away.
                   </p>
                 </div>
               </div>

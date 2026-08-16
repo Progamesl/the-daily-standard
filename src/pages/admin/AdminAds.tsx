@@ -69,6 +69,11 @@ export default function AdminAds() {
   const [actionLoading, setActionLoading] = useState<Set<string>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // The ads table has never existed on this database, so every save on this
+  // page failed and every list came back empty behind a generic "Failed to
+  // load ads". That is worth saying out loud rather than looking broken.
+  const [tableMissing, setTableMissing] = useState(false);
+
   const fetchAds = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
@@ -77,8 +82,16 @@ export default function AdminAds() {
         .from('ads')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      setAds((data as Ad[]) || []);
+      if (error) {
+        if (/could not find the table|does not exist|schema cache/i.test(error.message)) {
+          setTableMissing(true);
+          setAds([]);
+          return;
+        }
+        throw error;
+      }
+      setTableMissing(false);
+      setAds((data as unknown as Ad[]) || []);
     } catch {
       toast.error('Failed to load ads');
     } finally {
@@ -225,6 +238,22 @@ export default function AdminAds() {
       {loading ? (
         <div className="flex items-center justify-center py-20 text-slate-400">
           <RefreshCw className="h-5 w-5 animate-spin mr-2" />Loading…
+        </div>
+      ) : tableMissing ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
+          <h2 className="text-sm font-bold text-amber-900">Advertising is not set up yet</h2>
+          <p className="mt-2 text-sm text-amber-900">
+            The database has nowhere to keep ads, so nothing saved on this page would survive. This is a
+            one-time setup step and needs somebody with access to the Supabase dashboard.
+          </p>
+          <ol className="mt-3 space-y-1 text-sm text-amber-800 list-decimal list-inside">
+            <li>Open the Supabase project and go to the SQL editor.</li>
+            <li>
+              Paste in the contents of <code className="rounded bg-amber-100 px-1">supabase/05_create_ads.sql</code>{' '}
+              from the site&rsquo;s code and run it.
+            </li>
+            <li>Come back here and press Refresh.</li>
+          </ol>
         </div>
       ) : ads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">

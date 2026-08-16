@@ -3,12 +3,12 @@
  * Comprehensive analytics with real-time metrics, charts, and insights.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BarChart3, TrendingUp, Eye, Users, Clock, Share2, Bookmark,
   ArrowUpRight, ArrowDownRight, FileText, Award, Target,
-  Calendar, User, FolderOpen, Flame,
+  Calendar, User, FolderOpen, Flame, RefreshCw, AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,8 @@ import {
   getAllAuthorsPerformance,
   getAllSectionsPerformance,
   getTimeSeriesData,
+  loadServerAnalytics,
+  isShowingServerAnalytics,
   type ArticleEngagement,
 } from '@/lib/analyticsService';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -32,14 +34,35 @@ export default function AdminAnalytics() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
   const [activeTab, setActiveTab] = useState<'overview' | 'articles' | 'authors' | 'sections'>('overview');
 
-  const summary = useMemo(() => getAnalyticsSummary(), []);
-  const topArticles = useMemo(() => getTopArticles(10), []);
-  const authorsPerformance = useMemo(() => getAllAuthorsPerformance(), []);
-  const sectionsPerformance = useMemo(() => getAllSectionsPerformance(), []);
+  // These numbers used to come out of whatever the person looking at this page
+  // had personally read, because readership was recorded in each reader's own
+  // browser and read back from the editor's. The figures are pulled from the
+  // server first now; everything below aggregates the same way, over real rows.
+  const [loading, setLoading] = useState(true);
+  const [fromServer, setFromServer] = useState(false);
+  const [dataKey, setDataKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    loadServerAnalytics()
+      .then(ok => {
+        if (cancelled) return;
+        setFromServer(ok && isShowingServerAnalytics());
+        setDataKey(k => k + 1);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const summary = useMemo(() => getAnalyticsSummary(), [dataKey]);
+  const topArticles = useMemo(() => getTopArticles(10), [dataKey]);
+  const authorsPerformance = useMemo(() => getAllAuthorsPerformance(), [dataKey]);
+  const sectionsPerformance = useMemo(() => getAllSectionsPerformance(), [dataKey]);
   const timeSeries = useMemo(() => {
     const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 365;
     return getTimeSeriesData(days);
-  }, [timeRange]);
+  }, [timeRange, dataKey]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -59,8 +82,17 @@ export default function AdminAnalytics() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-slate-900">Analytics Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">Comprehensive insights into your content performance</p>
+          <h1 className="text-3xl font-serif font-bold text-slate-900">Analytics</h1>
+          <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
+            {loading ? (
+              <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Loading the paper&rsquo;s readership…</>
+            ) : fromServer ? (
+              <>What readers are actually reading, across the whole site.</>
+            ) : (
+              <><AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                Could not reach the server, so these are only this browser&rsquo;s figures.</>
+            )}
+          </p>
         </div>
         <Select value={timeRange} onValueChange={(v: '7d' | '30d' | '90d' | 'all') => setTimeRange(v)}>
           <SelectTrigger className="w-32">

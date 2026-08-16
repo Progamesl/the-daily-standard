@@ -5,7 +5,8 @@
  */
 
 import { getAdminArticlesList, type AdminArticle } from './adminDataService';
-import { getAllPublicArticles, type Article } from './publicDataService';
+import { getAllPublicArticles } from './publicDataService';
+import type { Article } from '@/data/seedData';
 
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
 const ANALYTICS_KEY = 'octagon_analytics_v2';
@@ -73,6 +74,34 @@ export interface AnalyticsSummary {
 }
 
 // ─── View Tracking ────────────────────────────────────────────────────────────
+//
+// Readership is recorded on the server. It used to be written to localStorage
+// and read back from localStorage — but the writing happened in the READER's
+// browser and the reading happened in an EDITOR's, two different computers in
+// every real case. So the analytics page could only ever show whatever the
+// person looking at it had personally read, and always looked like the paper
+// had almost no readers. The article_views and article_engagement tables were
+// there the whole time, empty.
+//
+// The reader's own copy is still kept: it costs nothing, it survives a dropped
+// connection, and it is what the reading-history features use.
+
+/** Fire-and-forget insert. A reader must never wait on, or see, our bookkeeping. */
+function recordOnServer(table: 'article_views' | 'article_engagement', row: Record<string, unknown>): void {
+  void (async () => {
+    try {
+      const { supabase } = await import('./supabaseClient');
+      if (!supabase) return;
+      await supabase.from(table).insert({
+        id: `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`,
+        ...row,
+      } as never);
+    } catch {
+      // Offline or blocked. The local copy below still has it.
+    }
+  })();
+}
+
 export function trackArticleView(
   articleId: string,
   slug: string,
@@ -83,22 +112,35 @@ export function trackArticleView(
   }
 ): void {
   if (typeof window === 'undefined') return;
-  
+
   // Check privacy opt-out
   if (localStorage.getItem('octagon_privacy_no_track') === '1') return;
-  
+
+  const timestamp = new Date().toISOString();
+  const referrer = options?.referrer || document.referrer || 'direct';
+
+  recordOnServer('article_views', {
+    article_id: articleId,
+    slug,
+    timestamp,
+    duration: options?.duration ?? null,
+    scroll_depth: options?.scrollDepth ?? null,
+    referrer,
+    user_agent: navigator.userAgent,
+  });
+
   try {
     const views: ArticleView[] = JSON.parse(localStorage.getItem(VIEWS_KEY) || '[]');
     views.push({
       articleId,
       slug,
-      timestamp: new Date().toISOString(),
+      timestamp,
       duration: options?.duration,
       scrollDepth: options?.scrollDepth,
-      referrer: options?.referrer || document.referrer || 'direct',
+      referrer,
       userAgent: navigator.userAgent,
     });
-    
+
     // Keep last 10,000 views
     localStorage.setItem(VIEWS_KEY, JSON.stringify(views.slice(-10000)));
     // Clear cache to force refresh
@@ -116,7 +158,15 @@ export function trackArticleEngagement(
 ): void {
   if (typeof window === 'undefined') return;
   if (localStorage.getItem('octagon_privacy_no_track') === '1') return;
-  
+
+  const timestamp = new Date().toISOString();
+  recordOnServer('article_engagement', {
+    article_id: articleId,
+    type,
+    timestamp,
+    data: data ?? {},
+  });
+
   try {
     const engagement: Array<{
       articleId: string;
@@ -124,14 +174,14 @@ export function trackArticleEngagement(
       timestamp: string;
       data?: Record<string, unknown>;
     }> = JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '[]');
-    
+
     engagement.push({
       articleId,
       type,
-      timestamp: new Date().toISOString(),
+      timestamp,
       data,
     });
-    
+
     localStorage.setItem(ENGAGEMENT_KEY, JSON.stringify(engagement.slice(-5000)));
     // Clear cache to force refresh
     engagementCache = null;
@@ -139,6 +189,61 @@ export function trackArticleEngagement(
   } catch {
     // Non-fatal
   }
+}
+
+// ─── Reading the real numbers ─────────────────────────────────────────────────
+
+/**
+ * Once this has run, every function below reports the paper's actual
+ * readership instead of the current browser's.
+ *
+ * All the aggregation is synchronous and shared, so rather than making a dozen
+ * functions async, this loads the server's rows into the same caches they
+ * already read from. Call it before rendering anything that shows numbers.
+ */
+let usingServerData = false;
+
+export async function loadServerAnalytics(): Promise<boolean> {
+  try {
+    const { supabase } = await import('./supabaseClient');
+    if (!supabase) return false;
+
+    const [viewsRes, engRes] = await Promise.all([
+      supabase.from('article_views').select('*').order('timestamp', { ascending: false }).limit(50000),
+      supabase.from('article_engagement').select('*').order('timestamp', { ascending: false }).limit(20000),
+    ]);
+    if (viewsRes.error || engRes.error) return false;
+
+    viewsCache = (viewsRes.data as unknown as Record<string, unknown>[]).map(r => ({
+      articleId: String(r.article_id ?? ''),
+      slug: String(r.slug ?? ''),
+      timestamp: String(r.timestamp ?? ''),
+      duration: r.duration == null ? undefined : Number(r.duration),
+      scrollDepth: r.scroll_depth == null ? undefined : Number(r.scroll_depth),
+      referrer: String(r.referrer ?? 'direct'),
+      userAgent: String(r.user_agent ?? ''),
+    }));
+    engagementCache = (engRes.data as unknown as Record<string, unknown>[]).map(r => ({
+      articleId: String(r.article_id ?? ''),
+      type: String(r.type ?? ''),
+      timestamp: String(r.timestamp ?? ''),
+    }));
+
+    // Hold these until the next explicit reload rather than letting the 5s TTL
+    // drop us back to this browser's own history mid-render.
+    viewsCacheTime = Number.MAX_SAFE_INTEGER;
+    engagementCacheTime = Number.MAX_SAFE_INTEGER;
+    engagementMapCache = null;
+    usingServerData = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether the numbers on screen are the paper's or just this browser's. */
+export function isShowingServerAnalytics(): boolean {
+  return usingServerData;
 }
 
 // ─── Caching for Performance ───────────────────────────────────────────────────
@@ -186,8 +291,11 @@ function getEngagement(): Array<{ articleId: string; type: string; timestamp: st
 
 export function clearAnalyticsCache(): void {
   viewsCache = null;
+  viewsCacheTime = 0;
   engagementCache = null;
+  engagementCacheTime = 0;
   engagementMapCache = null;
+  usingServerData = false;
 }
 
 export function getArticleEngagement(articleId: string): ArticleEngagement {
