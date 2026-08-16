@@ -3,29 +3,78 @@ import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import {
   LayoutDashboard, FileText, Users, LogOut, ExternalLink,
   ChevronLeft, ChevronRight, Newspaper, Settings, Activity,
-  UserCog, Trash2, BookOpen, BarChart3, Shield, Gamepad2, MessageSquare, MonitorPlay,
+  UserCog, Trash2, BookOpen, BarChart3, Shield, MessageSquare, MonitorPlay, Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
-import { ROLE_LABELS, ROLE_COLORS, canDo } from '@/lib/adminUserService';
+import { ROLE_LABELS, ROLE_COLORS, canDo, type UserRole } from '@/lib/adminUserService';
 
-const NAV_ITEMS = [
-  { label: 'Dashboard',  path: '/admin',          icon: LayoutDashboard, exact: true,  permission: null },
-  { label: 'Stories',    path: '/admin/stories',   icon: FileText,        exact: false, permission: null },
-  { label: 'Comments',   path: '/admin/comments',  icon: MessageSquare,   exact: true,  permission: null },
+/**
+ * The sidebar, and the single source of truth for who may open what.
+ *
+ * These permissions used to only hide links. The routes themselves were open,
+ * so a reporter who typed /admin/users or /admin/settings — or followed a
+ * bookmark from a former editor — walked straight into staff management. The
+ * same list now guards the routes; see RequirePermission below.
+ */
+export const NAV_ITEMS = [
+  { label: 'Dashboard',  path: '/admin',            icon: LayoutDashboard, exact: true,  permission: null },
+  { label: 'Stories',    path: '/admin/stories',    icon: FileText,        exact: false, permission: null },
+  { label: 'Comments',   path: '/admin/comments',   icon: MessageSquare,   exact: true,  permission: null },
   { label: 'Ads',        path: '/admin/ads',        icon: MonitorPlay,     exact: true,  permission: null },
-  { label: 'Analytics', path: '/admin/analytics', icon: BarChart3,       exact: true,  permission: null },
+  { label: 'Analytics',  path: '/admin/analytics',  icon: BarChart3,       exact: true,  permission: null },
   { label: 'PDF Import', path: '/admin/pdf-import', icon: BookOpen,        exact: true,  permission: null },
   { label: 'Security',   path: '/admin/security',   icon: Shield,          exact: true,  permission: 'super_admin_only' as const },
-  { label: 'Authors',    path: '/admin/authors',   icon: Users,           exact: true,  permission: null },
-  { label: 'Trash',      path: '/admin/trash',     icon: Trash2,          exact: true,  permission: null },
-  { label: 'Staff',      path: '/admin/users',     icon: UserCog,         exact: true,  permission: 'manage_users' as const },
-  { label: 'Activity',   path: '/admin/activity',  icon: Activity,        exact: true,  permission: 'view_activity' as const },
-  { label: 'Settings',   path: '/admin/settings',  icon: Settings,        exact: true,  permission: 'manage_settings' as const },
-  { label: 'Games',      path: '/games',           icon: Gamepad2,        exact: true,  permission: null },
+  { label: 'Authors',    path: '/admin/authors',    icon: Users,           exact: true,  permission: null },
+  { label: 'Trash',      path: '/admin/trash',      icon: Trash2,          exact: true,  permission: null },
+  { label: 'Staff',      path: '/admin/users',      icon: UserCog,         exact: true,  permission: 'manage_users' as const },
+  { label: 'Activity',   path: '/admin/activity',   icon: Activity,        exact: true,  permission: 'view_activity' as const },
+  { label: 'Settings',   path: '/admin/settings',   icon: Settings,        exact: true,  permission: 'manage_settings' as const },
 ];
+
+type NavPermission = (typeof NAV_ITEMS)[number]['permission'];
+
+export function mayOpen(
+  user: { role: UserRole } | null | undefined,
+  permission: NavPermission,
+): boolean {
+  if (!permission) return true;
+  if (!user) return false;
+  if (permission === 'super_admin_only') return user.role === 'super_admin';
+  return canDo(user, permission);
+}
+
+/**
+ * Gate a route on the same permission that decides whether its link is shown.
+ *
+ * Someone who reaches a page they may not use is sent back to the dashboard
+ * with an explanation rather than a blank screen — from the inside, a newsroom
+ * permission is a job description, not a security wall, and it should read that
+ * way.
+ */
+export function RequirePermission({ permission, children }: { permission: NavPermission; children: ReactNode }) {
+  const { currentUser } = useAdminAuth();
+  if (mayOpen(currentUser, permission)) return <>{children}</>;
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center p-8">
+      <div className="max-w-md text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+          <Lock className="h-5 w-5 text-slate-500" />
+        </div>
+        <h1 className="text-xl font-semibold text-slate-900">This part of the newsroom is not open to you</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Your account is a {currentUser ? ROLE_LABELS[currentUser.role] : 'signed-out user'}. Ask an
+          Editor-in-Chief if you need access to this page.
+        </p>
+        <Link to="/admin" className="mt-5 inline-block">
+          <Button variant="outline" size="sm">Back to the dashboard</Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminLayout() {
   const { isAuthenticated, loading, currentUser, logout } = useAdminAuth();
@@ -61,12 +110,7 @@ export default function AdminLayout() {
     .toUpperCase()
     .slice(0, 2) ?? '?';
 
-  const visibleNavItems = NAV_ITEMS.filter(item => {
-    if (item.permission === 'super_admin_only') {
-      return currentUser?.role === 'super_admin';
-    }
-    return !item.permission || (currentUser && canDo(currentUser, item.permission));
-  });
+  const visibleNavItems = NAV_ITEMS.filter(item => mayOpen(currentUser, item.permission));
 
   return (
     <div className="min-h-screen flex bg-slate-100">
@@ -118,21 +162,7 @@ export default function AdminLayout() {
                 </div>
               </div>
             )}
-            {/* Logout button in user section */}
-            <button
-              onClick={async () => {
-                await logout();
-                window.location.href = '/admin/login';
-              }}
-              title="Sign Out"
-              className={cn(
-                'mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-red-400 hover:bg-white/5 transition-colors w-full',
-                collapsed && 'justify-center'
-              )}
-            >
-              <LogOut className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>Sign Out</span>}
-            </button>
+            {/* Sign Out lives once, in the actions at the foot of the sidebar. */}
           </div>
         )}
 

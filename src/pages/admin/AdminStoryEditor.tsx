@@ -130,6 +130,10 @@ export default function AdminStoryEditor() {
   const [newNote, setNewNote]           = useState('');
   const [noteType, setNoteType]         = useState<InternalNote['type']>('note');
   const [restoreTarget, setRestoreTarget] = useState<ArticleRevision | null>(null);
+  // Unsaved work found on this computer from a previous visit. See the effect
+  // below — this used to be written and never read, so the whole safety net was
+  // decorative.
+  const [recovery, setRecovery] = useState<{ form: FormState; at: number } | null>(null);
 
   const applyArticleToForm = useCallback((a: AdminArticle) => {
     if (!a) return;
@@ -267,6 +271,38 @@ export default function AdminStoryEditor() {
     return () => { cancelled = true; };
   }, [id, loadingFull, applyArticleToForm]);
 
+  /**
+   * Offer back unsaved edits to a live story.
+   *
+   * Editing a published story deliberately does not autosave to the server —
+   * half-written sentences must not reach readers — so the work is kept on this
+   * computer instead. Nothing ever read it back, which meant a closed tab or a
+   * crashed browser lost the edits silently while a reassuring "recovery" copy
+   * sat in storage.
+   *
+   * It is offered, never applied automatically: someone else may have edited the
+   * story on the server since, and silently overwriting their work would be a
+   * worse failure than the one this fixes.
+   */
+  useEffect(() => {
+    if (!loaded || !id || !article) return;
+    try {
+      const raw = localStorage.getItem(`octagon_editor_recovery_${id}`);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { form: FormState; at: number };
+      if (!saved?.form?.headline || !saved.at) return;
+      // Older than what's on the server — the edits already made it. Drop it.
+      const serverTime = article.updatedAt ? new Date(article.updatedAt).getTime() : 0;
+      if (saved.at <= serverTime) {
+        localStorage.removeItem(`octagon_editor_recovery_${id}`);
+        return;
+      }
+      setRecovery(saved);
+    } catch {
+      // Corrupt entry — nothing to recover.
+    }
+  }, [loaded, id, article]);
+
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(prev => {
       setUndoStack(stack => [...stack, prev].slice(-50));
@@ -305,7 +341,7 @@ export default function AdminStoryEditor() {
   const readingTime = useMemo(() => calculateReadingTime(form.body), [form.body]);
   const wordCount   = useMemo(() => countWords(form.body), [form.body]);
 
-  const buildArticle = (status: WorkflowStatus): AdminArticle => {
+  const buildArticle = (status: WorkflowStatus, body = form.body): AdminArticle => {
     const author = allAuthors.find(a => a.id === form.authorId) ?? {
       id: form.authorId || 'unknown',
       name: 'Unknown Author', role: 'Student Journalist', bio: '',
@@ -315,7 +351,7 @@ export default function AdminStoryEditor() {
     return {
       id: id ?? '',
       slug: form.slug || generateSlug(form.headline),
-      headline: form.headline, dek: form.dek, body: stripBase64(form.body),
+      headline: form.headline, dek: form.dek, body: stripBase64(body),
       image: form.image, images: form.image ? [form.image] : [],
       imageCaption: form.imageCaption,
       section: form.section, author, readingTime, tags: form.tags, status,
@@ -374,7 +410,24 @@ export default function AdminStoryEditor() {
     const onPublish = (r: import('@/lib/adminDataService').PublishResult) => { publish = r; };
     try {
       const adminData = await import('@/lib/adminDataService');
-      const built = buildArticle(status);
+
+      // A picture pasted into the body arrives as several megabytes of base64
+      // inside the HTML. It used to have its src emptied on the way past, so
+      // the picture disappeared without a word. Upload it properly instead and
+      // point the tag at the uploaded copy.
+      const { uploadInlineImages } = await import('@/lib/inlineImages');
+      const inline = await uploadInlineImages(form.body);
+      if (inline.uploaded && inline.html !== form.body) {
+        setForm(prev => (prev.body === form.body ? { ...prev, body: inline.html } : prev));
+      }
+      if (inline.failed && !silent) {
+        toast.warning(
+          `${inline.failed} pasted ${inline.failed === 1 ? 'picture' : 'pictures'} could not be uploaded`,
+          { description: 'Add them with the image button instead, so they show up for readers.' },
+        );
+      }
+
+      const built = buildArticle(status, inline.html);
       const userId   = currentUser?.id;
       const userName = currentUser?.displayName;
 
@@ -606,6 +659,46 @@ export default function AdminStoryEditor() {
           </div>
         </div>
       </div>
+
+      {recovery && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-amber-900">
+              <strong>You have unsaved edits to this story</strong> from{' '}
+              {new Date(recovery.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}, kept on this
+              computer when the tab closed. Restoring replaces what is on screen — it does not touch the live site until you save.
+            </p>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-300 text-amber-900 hover:bg-amber-100"
+                onClick={() => {
+                  if (!id) return;
+                  try { localStorage.removeItem(`octagon_editor_recovery_${id}`); } catch { /* non-fatal */ }
+                  setRecovery(null);
+                  toast.success('Discarded the recovered edits');
+                }}
+              >
+                Discard
+              </Button>
+              <Button
+                size="sm"
+                className="bg-amber-600 hover:bg-amber-700"
+                onClick={() => {
+                  setUndoStack(stack => [...stack, form].slice(-50));
+                  setForm(recovery.form);
+                  setDirty(true);
+                  setRecovery(null);
+                  toast.success('Edits restored — save when you are happy with them');
+                }}
+              >
+                Restore my edits
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -24,7 +24,7 @@ import InteractiveNewsFeature from "./components/article/InteractiveNewsFeature"
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
 import { DataSyncProvider } from "./contexts/DataSyncContext";
 import AdminLogin from "./pages/admin/AdminLogin";
-import AdminLayout from "./pages/admin/AdminLayout";
+import AdminLayout, { RequirePermission } from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminStories from "./pages/admin/AdminStories";
 import AdminStoryEditor from "./pages/admin/AdminStoryEditor";
@@ -94,12 +94,15 @@ const App = () => (
               <Route path="stories/edit/:id" element={<AdminStoryEditor />} />
               <Route path="authors" element={<AdminAuthors />} />
               <Route path="trash" element={<AdminTrash />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="activity" element={<AdminActivityLog />} />
-              <Route path="settings" element={<AdminSettings />} />
+              {/* Hiding a link is not a permission. These pages are reachable
+                  by typing the URL or following an old bookmark, so each one
+                  checks the same permission its sidebar link does. */}
+              <Route path="users" element={<RequirePermission permission="manage_users"><AdminUsers /></RequirePermission>} />
+              <Route path="activity" element={<RequirePermission permission="view_activity"><AdminActivityLog /></RequirePermission>} />
+              <Route path="settings" element={<RequirePermission permission="manage_settings"><AdminSettings /></RequirePermission>} />
               <Route path="pdf-import" element={<AdminPdfImport />} />
               <Route path="analytics" element={<AdminAnalytics />} />
-              <Route path="security" element={<AdminSecurity />} />
+              <Route path="security" element={<RequirePermission permission="super_admin_only"><AdminSecurity /></RequirePermission>} />
               <Route path="comments" element={<AdminComments />} />
               <Route path="ads" element={<AdminAds />} />
             </Route>
