@@ -4,6 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Check, Trash2, Search, MessageSquare, Clock, RefreshCw } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 
 interface Comment {
@@ -25,6 +30,7 @@ export default function AdminComments() {
   const [filter, setFilter] = useState<FilterTab>('pending');
   const [query, setQuery] = useState('');
   const [actionLoading, setActionLoading] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Comment | null>(null);
 
   const fetchComments = useCallback(async () => {
     if (!supabase) return;
@@ -279,7 +285,7 @@ export default function AdminComments() {
                   variant="outline"
                   className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
                   disabled={actionLoading.has(comment.id)}
-                  onClick={() => remove(comment.id)}
+                  onClick={() => setDeleteTarget(comment)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />Delete
                 </Button>
@@ -288,6 +294,40 @@ export default function AdminComments() {
           ))}
         </div>
       )}
+
+      {/* Deleting a comment is permanent and there is no trash for comments, so
+          it asks first. It used to fire on a single click, next to Unapprove —
+          the two buttons sit side by side and the wrong one is easy to hit. */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={o => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this comment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              From {deleteTarget?.display_name || 'a reader'}. This is permanent — comments have no trash to
+              restore from. To just take it off the site, use Unapprove instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteTarget && (
+            <p className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm text-slate-700 max-h-32 overflow-y-auto">
+              {deleteTarget.content}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={e => {
+                e.preventDefault();
+                const target = deleteTarget;
+                setDeleteTarget(null);
+                if (target) remove(target.id);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

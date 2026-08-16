@@ -17,7 +17,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload';
 import {
   ArrowLeft, Save, Eye, Send, Loader2, Clock, MessageSquare,
   History, Trash2, AlertTriangle, ChevronDown, ChevronUp, Search,
-  Undo2, Redo2, Sparkles,
+  Undo2, Redo2, Sparkles, ClipboardList, ImageOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -808,6 +808,83 @@ export default function AdminStoryEditor() {
               </div>
             </div>
 
+            {/* Who is writing it, by when, and how urgently.
+                All four of these were saved with the story and used elsewhere
+                — Stories filters and sorts by them, and the Dashboard raises
+                overdue alerts from the deadline — but no screen ever let
+                anyone set them, so the whole assignment side of the newsroom
+                was decorative. */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-slate-400" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Assignment</span>
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-500 mb-1.5 block">Who is writing it</Label>
+                <Select
+                  value={form.assignedToId || 'unassigned'}
+                  onValueChange={(v) => updateField('assignedToId', v === 'unassigned' ? '' : v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Nobody yet" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Nobody yet</SelectItem>
+                    {staffUsers.map(u => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.displayName} — {ROLE_LABELS[u.role]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="deadline" className="text-xs text-slate-500 mb-1.5 block">Due by</Label>
+                <Input
+                  id="deadline"
+                  type="date"
+                  value={form.deadline}
+                  onChange={(e) => updateField('deadline', e.target.value)}
+                />
+                {form.deadline && form.status !== 'published' && (() => {
+                  const days = Math.ceil(
+                    (new Date(`${form.deadline}T23:59:59`).getTime() - Date.now()) / 86_400_000,
+                  );
+                  if (days < 0) return <p className="mt-1 text-xs font-medium text-red-600">Overdue by {-days} {-days === 1 ? 'day' : 'days'}.</p>;
+                  if (days === 0) return <p className="mt-1 text-xs font-medium text-amber-600">Due today.</p>;
+                  if (days <= 3) return <p className="mt-1 text-xs text-amber-600">Due in {days} {days === 1 ? 'day' : 'days'}.</p>;
+                  return <p className="mt-1 text-xs text-slate-400">Due in {days} days.</p>;
+                })()}
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-500 mb-1.5 block">Priority</Label>
+                <Select value={form.priority} onValueChange={(v) => updateField('priority', v as ArticlePriority)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low — no rush</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="high">High — needs attention</SelectItem>
+                    <SelectItem value="breaking">Breaking — drop everything</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="pitchSummary" className="text-xs text-slate-500 mb-1.5 block">
+                  What the story is about
+                </Label>
+                <Textarea
+                  id="pitchSummary"
+                  value={form.pitchSummary}
+                  placeholder="A sentence or two for the editors — the angle, who you're talking to, what you expect to find."
+                  rows={3}
+                  onChange={(e) => updateField('pitchSummary', e.target.value)}
+                />
+                <p className="mt-1 text-xs text-slate-400">Internal only. Readers never see this.</p>
+              </div>
+            </div>
+
             {/* Search & share text. The fields existed in the data model and
                 were saved, but were never rendered — so every story shipped
                 with whatever the site defaults were. */}
@@ -853,6 +930,21 @@ export default function AdminStoryEditor() {
                     />
                     <p className="mt-1 text-xs text-slate-400">{form.metaDescription.length}/160</p>
                   </div>
+
+                  <div>
+                    <Label htmlFor="ogImage" className="text-xs text-slate-500 mb-1.5 block">
+                      Picture shown when the link is shared
+                    </Label>
+                    <Input
+                      id="ogImage"
+                      value={form.ogImage}
+                      placeholder={form.image ? "Defaults to the story's picture" : 'Paste an image address'}
+                      onChange={(e) => updateField('ogImage', e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-slate-400">
+                      Only set this if the story's own picture looks wrong cropped to a wide banner.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -871,7 +963,32 @@ export default function AdminStoryEditor() {
               </div>
             </div>
 
+            {/* A story with no picture is not a broken story, but it can never
+                lead a section — the homepage and section fronts skip past it
+                to find one with art. Saying so here is the only place anyone
+                finds out in time to do something about it. */}
+            {!form.image.trim() && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex gap-2.5">
+                  <ImageOff className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                  <div className="text-sm text-amber-900">
+                    <p className="font-semibold">This story has no picture.</p>
+                    <p className="mt-1 text-amber-800">
+                      It can still be published, but it will never lead the homepage or its section, and it
+                      looks bare next to the stories around it.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <ImageUpload value={form.image} onChange={(url) => updateField('image', url)} caption={form.imageCaption} onCaptionChange={(v) => updateField('imageCaption', v)} />
+
+            {form.image.trim() && !form.imageCaption.trim() && (
+              <p className="-mt-3 text-xs text-slate-500">
+                No caption yet. Say what the picture shows and who took it.
+              </p>
+            )}
             
             <TagInput value={form.tags} onChange={(t) => updateField('tags', t)} suggestions={allTags} />
           </div>
