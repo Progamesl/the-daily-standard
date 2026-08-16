@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FileText, Users, TrendingUp, Clock, PenSquare, BarChart3,
-  AlertTriangle, CheckCircle2, Activity, Flame, Eye, ExternalLink,
+  AlertTriangle, CheckCircle2, Activity, Flame, Eye, ExternalLink, ImageOff,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import {
   type AdminArticle, type AdminAuthor,
   WORKFLOW_LABELS, WORKFLOW_COLORS,
 } from '@/lib/adminDataService';
-import { getActivityLog } from '@/lib/adminUserService';
+import { fetchActivityLog, type ActivityLogEntry } from '@/lib/adminUserService';
 import { articles as jsonArticles, authors as jsonAuthors } from '@/data/seedData';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { useDataSync } from '@/contexts/DataSyncContext';
@@ -70,7 +70,14 @@ export default function AdminDashboard() {
   const allArticles  = useMemo(mergeAllArticles, []);
   const allAuthors   = useMemo(mergeAllAuthors, []);
   const stats        = useMemo(() => getAdminStats(allArticles, allAuthors), [allArticles, allAuthors]);
-  const activityLog  = useMemo(() => getActivityLog().slice(0, 12), []);
+  // The whole newsroom's activity, not just this browser's — which is all the
+  // dashboard could show while the log was kept in localStorage.
+  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchActivityLog(12).then(entries => { if (!cancelled) setActivityLog(entries.slice(0, 12)); });
+    return () => { cancelled = true; };
+  }, []);
 
   const recentArticles = useMemo(() =>
       [...allArticles]
@@ -95,6 +102,22 @@ export default function AdminDashboard() {
 
   const breakingArticles = useMemo(() =>
     allArticles.filter(a => a.priority === 'breaking' && a.status !== 'archived'),
+    [allArticles]
+  );
+
+  /**
+   * Published stories with nothing to look at.
+   *
+   * The homepage and every section front skip past a story with no picture when
+   * choosing what to lead with, so these can never be the paper's face however
+   * good they are — and a run of them makes the site look bare. Surfacing them
+   * here is what lets the newsroom fix it, rather than somebody noticing months
+   * later that the front page looks wrong.
+   */
+  const needArt = useMemo(() =>
+    allArticles
+      .filter(a => a.status === 'published' && !a.image?.trim())
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()),
     [allArticles]
   );
 
@@ -152,6 +175,32 @@ export default function AdminDashboard() {
                 → {a.headline} — due {new Date(a.deadline!).toLocaleDateString()}
               </Link>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Published with no picture */}
+      {needArt.length > 0 && (
+        <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3">
+          <ImageOff className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-700">
+              {needArt.length} published {needArt.length === 1 ? 'story has' : 'stories have'} no picture
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              A story without one can never lead the homepage or its section, however good it is.
+            </p>
+            {needArt.slice(0, 3).map(a => (
+              <Link key={a.id} to={`/admin/stories/edit/${a.id}`}
+                className="block text-xs text-slate-600 hover:underline mt-1 truncate max-w-lg">
+                → {a.headline}
+              </Link>
+            ))}
+            {needArt.length > 3 && (
+              <Link to="/admin/stories" className="block text-xs text-slate-400 hover:underline mt-1">
+                and {needArt.length - 3} more
+              </Link>
+            )}
           </div>
         </div>
       )}
