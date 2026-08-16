@@ -200,48 +200,79 @@ export async function saveArticleToSupabase(article: AdminArticle, upsertBy: 'id
     console.warn('⚠️ Supabase client not initialized');
     return false;
   }
-  
+
   try {
     console.log('💾 Saving article to Supabase:', article.id, article.headline);
+
+    const row: Record<string, unknown> = {
+      id: article.id,
+      slug: article.slug,
+      headline: article.headline,
+      dek: article.dek,
+      body: article.body,
+      image: article.image,
+      images: article.images || [],
+      image_caption: article.imageCaption,
+      section: article.section,
+      author_id: article.author.id,
+      author_name: article.author.name,
+      published_at: article.publishedAt,
+      updated_at: new Date().toISOString(),
+      reading_time: article.readingTime,
+      tags: article.tags || [],
+      status: article.status,
+      priority: article.priority,
+      featured: article.featured || false,
+      assigned_to_id: article.assignedToId,
+      assigned_to_name: article.assignedToName,
+      assigned_by_id: article.assignedById,
+      reviewed_by_id: article.reviewedById,
+      deadline: article.deadline,
+      pitch_summary: article.pitchSummary,
+      meta_title: article.metaTitle,
+      meta_description: article.metaDescription,
+      og_image: article.ogImage,
+      canonical_url: article.canonicalUrl,
+      internal_notes: article.internalNotes || [],
+      revisions: article.revisions || [],
+      word_count: article.wordCount,
+      is_cinematic: article.isCinematic || false,
+    };
+
+    // Never let a partial copy of a story overwrite the whole story.
+    //
+    // Article lists are loaded with a short column set — no body, no gallery,
+    // no tags, no notes, no revision history — because the body is fetched
+    // separately when a story is actually opened. Anything that saves a
+    // list-loaded article therefore arrives here with all of that empty, and
+    // this is a full upsert of every column, so it would write the emptiness
+    // in. Moving a story to the trash would have erased its text, pictures,
+    // tags and history, and restoring it would have handed back a blank page.
+    //
+    // An empty body is the reliable tell, because no screen that has the body
+    // is missing the rest. In that case the stored row is read and anything
+    // this save did not carry is kept.
+    if (!article.body) {
+      const { data: stored } = await client
+        .from('articles').select('*').eq('id', article.id).maybeSingle();
+      const prev = stored as Record<string, unknown> | null;
+      if (prev) {
+        const isEmpty = (v: unknown) =>
+          v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+        for (const key of Object.keys(row)) {
+          // status and updated_at are what this save is actually changing.
+          if (key === 'status' || key === 'updated_at') continue;
+          if (isEmpty(row[key]) && !isEmpty(prev[key])) row[key] = prev[key];
+        }
+        console.warn('Filled in from the stored story — this save was a partial copy:', article.id);
+      }
+    }
+
     const { error } = await client
       .from('articles')
-      .upsert({
-        id: article.id,
-        slug: article.slug,
-        headline: article.headline,
-        dek: article.dek,
-        body: article.body,
-        image: article.image,
-        images: article.images || [],
-        image_caption: article.imageCaption,
-        section: article.section,
-        author_id: article.author.id,
-        author_name: article.author.name,
-        published_at: article.publishedAt,
-        updated_at: new Date().toISOString(),
-        reading_time: article.readingTime,
-        tags: article.tags || [],
-        status: article.status,
-        priority: article.priority,
-        featured: article.featured || false,
-        assigned_to_id: article.assignedToId,
-        assigned_to_name: article.assignedToName,
-        assigned_by_id: article.assignedById,
-        reviewed_by_id: article.reviewedById,
-        deadline: article.deadline,
-        pitch_summary: article.pitchSummary,
-        meta_title: article.metaTitle,
-        meta_description: article.metaDescription,
-        og_image: article.ogImage,
-        canonical_url: article.canonicalUrl,
-        internal_notes: article.internalNotes || [],
-        revisions: article.revisions || [],
-        word_count: article.wordCount,
-        is_cinematic: article.isCinematic || false,
-      }, {
-        onConflict: upsertBy,
-      });
-    
+      .upsert(row as never, { onConflict: upsertBy });
+
+
     if (error) {
       console.error('❌ Supabase error:', error);
       throw error;

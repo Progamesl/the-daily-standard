@@ -727,6 +727,24 @@ export async function deleteAdminArticle(
     return;
   }
 
+  // Work from the whole story, not the summary the list holds.
+  //
+  // Stories arrive from the list query without their body, gallery, tags,
+  // notes or history, and trashing one writes the row back. Loading the full
+  // version first means the trash keeps a complete story and restoring returns
+  // everything — including the internal notes, which the trash note is about to
+  // be added to.
+  if (!article.body && typeof window !== 'undefined') {
+    try {
+      const { isSupabaseConfigured } = await import('./supabaseClient');
+      if (isSupabaseConfigured()) {
+        const { getArticleByIdFromSupabase } = await import('./supabaseDataService');
+        const full = await getArticleByIdFromSupabase(id);
+        if (full) article = full;
+      }
+    } catch { /* fall back to what we have; the save has its own guard */ }
+  }
+
   // Move the story to the trash rather than destroying it.
   //
   // The row used to be hard-deleted from the database, with the only surviving
