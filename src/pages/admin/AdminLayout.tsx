@@ -27,7 +27,10 @@ export const NAV_ITEMS = [
   { label: 'Analytics',  path: '/admin/analytics',  icon: BarChart3,       exact: true,  permission: null },
   { label: 'PDF Import', path: '/admin/pdf-import', icon: BookOpen,        exact: true,  permission: null },
   { label: 'Security',   path: '/admin/security',   icon: Shield,          exact: true,  permission: 'super_admin_only' as const },
-  { label: 'Authors',    path: '/admin/authors',    icon: Users,           exact: true,  permission: null },
+  // Called "Staff" and not "Authors" because that is what people come here to
+  // edit. The page holds everyone who has ever had a byline, but the job it
+  // exists for is the masthead at /staff.
+  { label: 'Staff',      path: '/admin/authors',    icon: Users,           exact: true,  permission: null },
   { label: 'Trash',      path: '/admin/trash',      icon: Trash2,          exact: true,  permission: null },
   { label: 'Staff',      path: '/admin/users',      icon: UserCog,         exact: true,  permission: 'manage_users' as const },
   { label: 'Activity',   path: '/admin/activity',   icon: Activity,        exact: true,  permission: 'view_activity' as const },

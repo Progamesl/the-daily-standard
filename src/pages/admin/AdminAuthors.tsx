@@ -197,9 +197,9 @@ export default function AdminAuthors() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Authors &amp; Staff</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Staff</h1>
           <p className="text-sm text-slate-500 mt-1">
-            {onMastheadCount} on the staff page · {allAuthors.length} people who have written for the paper
+            {onMastheadCount} on the public staff page · {allAuthors.length} people who have written for the paper
           </p>
         </div>
         <Button onClick={openCreate} className="gap-2">
