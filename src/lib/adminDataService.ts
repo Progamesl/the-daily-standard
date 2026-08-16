@@ -91,6 +91,20 @@ export interface AdminAuthor {
   image: string;
   email?: string;
   twitter?: string;
+  // ── Masthead ──
+  // Everyone who has ever written for the paper is an author; only this year's
+  // staff appear on /staff. These are the fields that decide that, and they are
+  // the reason the staff page no longer needs a code change to update.
+  /** Show this person on the public staff page. */
+  onMasthead?: boolean;
+  /** Which heading they appear under. */
+  primarySection?: string;
+  /** Other sections they also belong to. */
+  altSections?: string[];
+  /** Extra credits shown on their card, e.g. "Photographer". */
+  tags?: string[];
+  /** Position within their section, so an editor controls the order. */
+  sortOrder?: number;
 }
 
 export interface InternalNote {

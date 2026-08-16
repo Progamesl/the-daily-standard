@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { X, ArrowUpRight, Search } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { getArticles } from "@/data/seedData";
 import type { Article } from "@/data/seedData";
-import { ALL_MEMBERS } from "@/data/staffData";
+import { fetchMasthead, mastheadFromFile } from "@/lib/mastheadService";
 import { str } from "@/lib/normalizeArticle";
 import type { StaffMember as Member } from "@/data/staffData";
 
@@ -194,10 +194,23 @@ export default function StaffPage() {
   const [activeTab, setActiveTab] = useState("All");
   const [query, setQuery] = useState("");
 
+  // The masthead comes from the database so the newsroom can edit it, and falls
+  // back to the committed file if the database cannot be reached. Starting from
+  // the file means the page renders immediately rather than flashing empty.
+  const [people, setPeople] = useState<Member[]>(mastheadFromFile);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchMasthead().then(({ people: rows }) => {
+      if (!cancelled && rows.length) setPeople(rows);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const visible = useMemo(() => {
     let members = activeTab === "All"
-      ? ALL_MEMBERS
-      : ALL_MEMBERS.filter(
+      ? people
+      : people.filter(
           (m) => m.primarySection === activeTab || m.altSections?.includes(activeTab)
         );
     if (query.trim()) {
@@ -205,7 +218,7 @@ export default function StaffPage() {
       members = members.filter((m) => m.name.toLowerCase().includes(q));
     }
     return members;
-  }, [activeTab, query]);
+  }, [people, activeTab, query]);
 
   return (
     <Layout>
@@ -214,7 +227,7 @@ export default function StaffPage() {
         <div className="flow-container py-10 md:py-14">
           <div className="flex items-baseline justify-between mb-5">
             <h1 className="font-serif text-3xl md:text-4xl font-bold text-stone-900 tracking-tight">
-              2025–2026 <span className="italic">Staff</span>
+              2026–2027 <span className="italic">Staff</span>
             </h1>
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-400 hidden sm:block">
               The Octagon

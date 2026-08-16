@@ -335,9 +335,15 @@ export async function getAuthorsFromSupabase(): Promise<Record<string, AdminAuth
         image: row.image,
         email: row.email,
         twitter: row.twitter,
+        // Absent until 06_staff_masthead.sql has been run.
+        onMasthead: row.on_masthead === true,
+        primarySection: row.primary_section ?? undefined,
+        altSections: Array.isArray(row.alt_sections) ? row.alt_sections : [],
+        tags: Array.isArray(row.tags) ? row.tags : [],
+        sortOrder: typeof row.sort_order === 'number' ? row.sort_order : 0,
       };
     });
-    
+
     return authors;
   } catch (error) {
     console.error('Error fetching authors from Supabase:', error);
@@ -348,25 +354,48 @@ export async function getAuthorsFromSupabase(): Promise<Record<string, AdminAuth
 export async function saveAuthorToSupabase(author: AdminAuthor): Promise<boolean> {
   const client = await initSupabase();
   if (!client) return false;
-  
+
+  const core = {
+    id: author.id,
+    name: author.name,
+    role: author.role,
+    bio: author.bio,
+    image: author.image,
+    email: author.email,
+    twitter: author.twitter,
+    updated_at: new Date().toISOString(),
+  };
+
+  const withMasthead = {
+    ...core,
+    on_masthead: author.onMasthead ?? false,
+    primary_section: author.primarySection ?? null,
+    alt_sections: author.altSections ?? [],
+    tags: author.tags ?? [],
+    sort_order: author.sortOrder ?? 0,
+  };
+
   try {
     const { error } = await client
       .from('authors')
-      .upsert({
-        id: author.id,
-        name: author.name,
-        role: author.role,
-        bio: author.bio,
-        image: author.image,
-        email: author.email,
-        twitter: author.twitter,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id',
-      });
-    
-    if (error) throw error;
-    return true;
+      .upsert(withMasthead as never, { onConflict: 'id' });
+
+    if (!error) return true;
+
+    // The masthead columns only exist once 06_staff_masthead.sql has been run.
+    // Until then the whole upsert would be rejected and an editor would lose an
+    // ordinary bio edit for the sake of a column nobody has added yet, so fall
+    // back to saving the person without their masthead fields.
+    if (/column|schema cache/i.test(error.message)) {
+      console.warn('Masthead columns not present yet — saving the author without them.');
+      const { error: retryError } = await client
+        .from('authors')
+        .upsert(core as never, { onConflict: 'id' });
+      if (retryError) throw retryError;
+      return true;
+    }
+
+    throw error;
   } catch (error) {
     console.error('Error saving author to Supabase:', error);
     return false;
