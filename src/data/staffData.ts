@@ -23,7 +23,7 @@ export interface StaffMember {
 }
 
 export const ALL_MEMBERS: StaffMember[] = [
-  // ── Editors-in-Chief ──────────────────────────────────────────────────────
+  // ── Editors-in-Chief ────────────────────────────────────────────────────────
   {
     name: "Kate Barnes",
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7348123_570.jpg?resize=200,200",
@@ -55,13 +55,52 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7114686_810.jpg?resize=200,200",
     role: "Editor-in-Chief",
     primarySection: "Editors-in-Chief",
-    altSections: ["Reporters"],
-    tags: ["Reporter"],
+    altSections: ["Page Editors", "Reporters"],
+    tags: ["Page Editor", "Reporter"],
     bio: "When you first walk into The Octagon room, the first thing you may notice is senior Lukas Chung rummaging through the snack bin. Contact him at lchung@scdsstudent.org.",
     email: "lchung@scdsstudent.org",
   },
 
-  // ── Section Editors ───────────────────────────────────────────────────────
+  // ── Section Editors ─────────────────────────────────────────────────────────
+  {
+    name: "Ethan Minton",
+    photo: null,
+    role: "News Editor",
+    primarySection: "Section Editors",
+    altSections: ["Reporters"],
+    tags: ["Reporter"],
+    bio: "Sophomore Ethan Minton is entering his second year writing for The Octagon. Contact him at eminton29@scdsstudent.org.",
+    email: "eminton29@scdsstudent.org",
+  },
+  {
+    name: "Khivi Singh",
+    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6375565_50.jpg?resize=200,200",
+    role: "Feature Editor",
+    primarySection: "Section Editors",
+    altSections: ["Reporters"],
+    tags: ["Reporter"],
+    bio: "Khivi Singh is a sophomore at Country Day. Contact her at ksingh29@scdsstudent.org.",
+    email: "ksingh29@scdsstudent.org",
+  },
+  {
+    name: "Sid Shukla",
+    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6857756_142.jpg?resize=200,200",
+    role: "Sports Editor",
+    primarySection: "Section Editors",
+    altSections: ["Technology Staff", "Business Staff", "Page Editors", "Reporters"],
+    tags: ["Business Manager", "Technology Manager", "Page Editor", "Reporter"],
+    bio: "this guys the goat.",
+  },
+  {
+    name: "Noor Alameri",
+    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7139431_748.jpg?resize=200,200",
+    role: "A&E Editor",
+    primarySection: "Section Editors",
+    altSections: ["Page Editors", "Reporters"],
+    tags: ["Page Editor", "Reporter"],
+    bio: "Senior Noor Alameri is a third-year staffer on The Octagon. She most enjoys writing A&E and opinion stories, but hopes to expand her writing experience this year to include more news. When she isn’t bothering her friends by talking incessantly about whatever new book she just read or movie she watched, she’s trying to cook an edible meal, failing at it and then eating it anyway. Although her cooking skills may be subpar, her ability to procrastinate any assignment, no matter how long she was given to do it, is truly outstanding. Contact her at nalameri27@scdsstudent.org.",
+    email: "nalameri27@scdsstudent.org",
+  },
   {
     name: "Maggie Nuñez-Aguilera",
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7595033_713.jpg?resize=200,200",
@@ -75,8 +114,8 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_5729732_955.jpg?resize=200,200",
     role: "Social Media Editor",
     primarySection: "Section Editors",
-    altSections: ["Graphic Artists", "Reporters"],
-    tags: ["Graphic Editor", "Reporter"],
+    altSections: ["Graphic Artists", "Page Editors", "Reporters"],
+    tags: ["Graphic Editor", "Page Editor", "Reporter"],
     bio: "Sophomore Susie Wang is entering her second year on The Octagon. Contact her at swang29@scdsstudent.org.",
     email: "swang29@scdsstudent.org",
   },
@@ -91,18 +130,56 @@ export const ALL_MEMBERS: StaffMember[] = [
     email: "mschank28@scdsoctagon.org",
   },
 
-  // ── Technology Staff ──────────────────────────────────────────────────────
+  // ── Page Editors ────────────────────────────────────────────────────────────
   {
-    name: "Sid Shukla",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6857756_142.jpg?resize=200,200",
-    role: "Business & Technology Manager",
-    primarySection: "Technology Staff",
+    name: "Vivian Li",
+    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6857377_874.jpg?resize=200,200",
+    role: "Page Editor",
+    primarySection: "Page Editors",
+    altSections: ["Reporters"],
+    tags: ["Reporter"],
+    bio: "Junior Vivian Li, when not in class, can be found binge watching anime or aggressively petting her cat Lucky. Contact her at wli28@scdsstudent.org.",
+    email: "wli28@scdsstudent.org",
+  },
+  {
+    name: "Zachary Vando-Milberger",
+    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_4613392_393.jpg?resize=200,200",
+    role: "Page Editor",
+    primarySection: "Page Editors",
+    altSections: ["Reporters"],
+    tags: ["Reporter"],
+  },
+  {
+    name: "Chloey Fang",
+    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7196347_644.jpg?resize=200,200",
+    role: "Page Editor",
+    primarySection: "Page Editors",
+    altSections: ["Reporters"],
+    tags: ["Reporter"],
+    bio: "Sophomore Chloey Fang spends most of her time listening to music while playing Roblox with her friends. Contact her at cfang29@scdsstudent.org.",
+    email: "cfang29@scdsstudent.org",
+  },
+  {
+    name: "Parsa Salari",
+    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6352338_182.jpg?resize=200,200",
+    role: "Page Editor",
+    primarySection: "Page Editors",
     altSections: ["Business Staff", "Reporters"],
-    tags: ["Business Manager", "Reporter"],
-    bio: "this guys the goat.",
+    tags: ["Business Staff", "Reporter"],
+    bio: "Junior Parsa Salari is about to start his sixth year at Country Day. He spends most of his time playing basketball or helping out around campus with the student council. Salari is a massive fan of movies, especially dramas, comedies and superhero films. His current favorite is “The Shawshank Redemption.” When he is not watching his favorite movies and shows, you can find him playing basketball on the blacktop with his friends whenever he’s free. Contact him at psalari28@scdsstudent.org",
+    email: "psalari28@scdsstudent.org",
+  },
+  {
+    name: "Ammar Hussain",
+    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6425432_560.jpg?resize=200,200",
+    role: "Page Editor",
+    primarySection: "Page Editors",
+    altSections: ["Business Staff", "Reporters"],
+    tags: ["Business Staff", "Reporter"],
+    bio: "Ammar is a junior at our school with a passion for skiing. When he’s not hitting the slopes, he’s perfecting his skills and bringing the same dedication to his writing for The Octagon. Known for his enthusiasm and precision, Ammar takes every project he works on with care and creativity.",
   },
 
-  // ── Business Staff ────────────────────────────────────────────────────────
+  // ── Business Staff ──────────────────────────────────────────────────────────
   {
     name: "Brenden Yu",
     photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7889021_930.jpg?resize=200,200",
@@ -113,27 +190,8 @@ export const ALL_MEMBERS: StaffMember[] = [
     bio: "Junior Brenden Yu is usually eating. When not surrounded by numerous snacks and drinks, he enjoys talking about food, cooking and connecting people through the art of speech. Now in his second year on The Octagon, he is excited to keep venturing into journalism and reporting at Sacramento Country Day. Outside of writing, Brenden is a proud member of the Country Day Mock Trial team and DECA chapter. Brenden also can't be without his love for music, singing with the Ragazzi Boys Chorus for 10 years and counting. Having lived across the globe, including in the Bay Area, North Carolina, Taiwan, Switzerland and Italy, he aims to bring his international perspective to The Octagon and Country Day community. You can reach him at byu28@scdsstudent.org — and yes, it's normal to be eagerly awaiting a reply.",
     email: "byu28@scdsstudent.org",
   },
-  {
-    name: "Parsa Salari",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6352338_182.jpg?resize=200,200",
-    role: "Business Staff",
-    primarySection: "Business Staff",
-    altSections: ["Reporters"],
-    tags: ["Reporter"],
-    bio: "Junior Parsa Salari is about to start his sixth year at Country Day. He spends most of his time playing basketball or helping out around campus with the student council. Salari is a massive fan of movies, especially dramas, comedies and superhero films. His current favorite is “The Shawshank Redemption.” When he is not watching his favorite movies and shows, you can find him playing basketball on the blacktop with his friends whenever he’s free. Contact him at psalari28@scdsstudent.org",
-    email: "psalari28@scdsstudent.org",
-  },
-  {
-    name: "Ammar Hussain",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6425432_560.jpg?resize=200,200",
-    role: "Business Staff",
-    primarySection: "Business Staff",
-    altSections: ["Reporters"],
-    tags: ["Reporter"],
-    bio: "Ammar is a junior at our school with a passion for skiing. When he’s not hitting the slopes, he’s perfecting his skills and bringing the same dedication to his writing for The Octagon. Known for his enthusiasm and precision, Ammar takes every project he works on with care and creativity.",
-  },
 
-  // ── Graphic Artists ───────────────────────────────────────────────────────
+  // ── Graphic Artists ─────────────────────────────────────────────────────────
   {
     name: "Amelia Dizon",
     photo: null,
@@ -141,20 +199,12 @@ export const ALL_MEMBERS: StaffMember[] = [
     primarySection: "Graphic Artists",
   },
 
-  // ── Reporters ─────────────────────────────────────────────────────────────
+  // ── Reporters ───────────────────────────────────────────────────────────────
   {
     name: "Ayaan Ahsan Mian",
     photo: null,
     role: "Reporter",
     primarySection: "Reporters",
-  },
-  {
-    name: "Noor Alameri",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7139431_748.jpg?resize=200,200",
-    role: "Reporter",
-    primarySection: "Reporters",
-    bio: "Senior Noor Alameri is a third-year staffer on The Octagon. She most enjoys writing A&E and opinion stories, but hopes to expand her writing experience this year to include more news. When she isn’t bothering her friends by talking incessantly about whatever new book she just read or movie she watched, she’s trying to cook an edible meal, failing at it and then eating it anyway. Although her cooking skills may be subpar, her ability to procrastinate any assignment, no matter how long she was given to do it, is truly outstanding. Contact her at nalameri27@scdsstudent.org.",
-    email: "nalameri27@scdsstudent.org",
   },
   {
     name: "Stephanie Auron",
@@ -167,14 +217,6 @@ export const ALL_MEMBERS: StaffMember[] = [
     photo: null,
     role: "Reporter",
     primarySection: "Reporters",
-  },
-  {
-    name: "Chloey Fang",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_7196347_644.jpg?resize=200,200",
-    role: "Reporter",
-    primarySection: "Reporters",
-    bio: "Sophomore Chloey Fang spends most of her time listening to music while playing Roblox with her friends. Contact her at cfang29@scdsstudent.org.",
-    email: "cfang29@scdsstudent.org",
   },
   {
     name: "Trisha Gandhi",
@@ -215,22 +257,6 @@ export const ALL_MEMBERS: StaffMember[] = [
     primarySection: "Reporters",
   },
   {
-    name: "Vivian Li",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6857377_874.jpg?resize=200,200",
-    role: "Reporter",
-    primarySection: "Reporters",
-    bio: "Junior Vivian Li, when not in class, can be found binge watching anime or aggressively petting her cat Lucky. Contact her at wli28@scdsstudent.org.",
-    email: "wli28@scdsstudent.org",
-  },
-  {
-    name: "Ethan Minton",
-    photo: null,
-    role: "Reporter",
-    primarySection: "Reporters",
-    bio: "Sophomore Ethan Minton is entering his second year writing for The Octagon. Contact him at eminton29@scdsstudent.org.",
-    email: "eminton29@scdsstudent.org",
-  },
-  {
     name: "Nivaar Nijher",
     photo: null,
     role: "Reporter",
@@ -245,20 +271,6 @@ export const ALL_MEMBERS: StaffMember[] = [
   {
     name: "Aniket Sarkar",
     photo: null,
-    role: "Reporter",
-    primarySection: "Reporters",
-  },
-  {
-    name: "Khivi Singh",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_6375565_50.jpg?resize=200,200",
-    role: "Reporter",
-    primarySection: "Reporters",
-    bio: "Khivi Singh is a sophomore at Country Day. Contact her at ksingh29@scdsstudent.org.",
-    email: "ksingh29@scdsstudent.org",
-  },
-  {
-    name: "Zachary Vando-Milberger",
-    photo: "https://bbk12e1-cdn.myschoolcdn.com/ftpimages/1072/user/large_user_4613392_393.jpg?resize=200,200",
     role: "Reporter",
     primarySection: "Reporters",
   },
