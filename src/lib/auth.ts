@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
-import { recordLoginAttempt, createUserSession, deleteUserSession } from './securityTracking';
+import { recordLoginAttempt } from './securityTracking';
 
 // ─── Role types (mirrors adminUserService.ts) ────────────────────────────────
 
@@ -137,30 +137,37 @@ export async function signIn(
   }
 
   void recordLoginAttempt(email, true, profile.id);
+  void logToNewsroom('login', `${profile.displayName} signed in`, profile.id, profile.displayName);
 
-  const sessionToken = data.session?.access_token || `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const expiresAt = data.session?.expires_at
-    ? new Date(data.session.expires_at * 1000)
-    : new Date(Date.now() + 8 * 60 * 60 * 1000); // 8 hours default
-
-  void createUserSession(profile.id, user.id, sessionToken, expiresAt);
+  // There is no session bookkeeping of our own. There used to be a call here
+  // writing to a user_sessions table, but that table does not exist on this
+  // database, so every write failed into a swallowed error. Supabase Auth
+  // already owns the session — a second copy of it was never doing anything.
 
   return { user, profile, error: null };
 }
 
 export async function signOut(): Promise<void> {
   if (!supabase) return;
-
-  // Get current session before signing out
-  const { data: { session } } = await supabase.auth.getSession();
-  const sessionToken = session?.access_token;
-
-  await supabase.auth.signOut();
-
-  // Delete session record from Supabase
-  if (sessionToken) {
-    await deleteUserSession(sessionToken);
+  const { profile } = await getCurrentUser();
+  if (profile) {
+    void logToNewsroom('logout', `${profile.displayName} signed out`, profile.id, profile.displayName);
   }
+  await supabase.auth.signOut();
+}
+
+/**
+ * Add a line to the shared activity log.
+ *
+ * Signing in and out were never recorded anywhere: the only code that logged
+ * them belonged to the retired localStorage login flow, which nothing calls.
+ * Imported lazily because adminUserService reaches back into this module.
+ */
+async function logToNewsroom(action: string, description: string, userId: string, displayName: string) {
+  try {
+    const { logActivity } = await import('./adminUserService');
+    logActivity(action, description, userId, undefined, displayName);
+  } catch { /* logging must never break signing in */ }
 }
 
 export async function getCurrentUser(): Promise<{

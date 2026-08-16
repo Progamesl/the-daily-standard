@@ -723,37 +723,106 @@ export interface ActivityLogEntry {
   timestamp: string;
 }
 
+/**
+ * Record something that happened, for the whole newsroom to see.
+ *
+ * This wrote to localStorage only, so the activity trail was a different trail
+ * on every computer: an editor looking at the log saw what they themselves had
+ * done and nothing else. There has been an activity_log table on the server the
+ * whole time, unused. It writes there now, and keeps a local copy as an offline
+ * fallback so nothing is lost when the connection drops.
+ *
+ * Deliberately not awaited — an editor's save must not wait on, or fail
+ * because of, a log line.
+ */
 export function logActivity(
   action: string,
   description: string,
   userId?: string,
-  targetId?: string
+  targetId?: string,
+  userDisplayName?: string,
 ): void {
+  const entry: ActivityLogEntry = {
+    id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+    action,
+    description,
+    userId,
+    userDisplayName: userDisplayName ?? (userId ? getUser(userId)?.displayName : undefined),
+    targetId,
+    timestamp: new Date().toISOString(),
+  };
+
   try {
-    const user = userId ? getUser(userId) : undefined;
     const logs: ActivityLogEntry[] = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '[]');
-    logs.unshift({
-      id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      action,
-      description,
-      userId,
-      userDisplayName: user?.displayName,
-      targetId,
-      timestamp: new Date().toISOString(),
-    });
-    // Keep last 1000 log entries
-    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(logs.slice(0, 1000)));
+    logs.unshift(entry);
+    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(logs.slice(0, 200)));
   } catch { /* non-fatal */ }
+
+  void (async () => {
+    try {
+      const { supabase } = await import('./supabaseClient');
+      if (!supabase) return;
+      await supabase.from('activity_log').insert({
+        id: entry.id,
+        action: entry.action,
+        description: entry.description,
+        user_id: entry.userId ?? null,
+        user_display_name: entry.userDisplayName ?? null,
+        target_id: entry.targetId ?? null,
+        timestamp: entry.timestamp,
+      } as never);
+    } catch {
+      // Offline, or the row was rejected. The local copy above still has it.
+    }
+  })();
 }
 
+/** The whole newsroom's activity, newest first. Falls back to this browser's copy. */
+export async function fetchActivityLog(limit = 200): Promise<ActivityLogEntry[]> {
+  try {
+    const { supabase } = await import('./supabaseClient');
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('activity_log')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+      if (!error && data) {
+        return (data as unknown as Record<string, unknown>[]).map(r => ({
+          id: String(r.id),
+          action: String(r.action ?? ''),
+          description: String(r.description ?? ''),
+          userId: (r.user_id as string) ?? undefined,
+          userDisplayName: (r.user_display_name as string) ?? undefined,
+          targetId: (r.target_id as string) ?? undefined,
+          timestamp: String(r.timestamp ?? new Date().toISOString()),
+        }));
+      }
+    }
+  } catch { /* fall through to the local copy */ }
+  return getActivityLog();
+}
+
+/** This browser's copy only. Prefer fetchActivityLog. */
 export function getActivityLog(): ActivityLogEntry[] {
   try {
     return JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '[]');
   } catch { return []; }
 }
 
-export function clearActivityLog(): void {
+/**
+ * Erase the activity trail for everyone.
+ *
+ * This only emptied the current browser before, so pressing it looked like it
+ * worked and the entries came straight back on the next visit from another
+ * computer. It clears the server now, which is also why it asks first.
+ */
+export async function clearActivityLog(): Promise<void> {
   localStorage.removeItem(ACTIVITY_KEY);
+  const { supabase } = await import('./supabaseClient');
+  if (!supabase) return;
+  const { error } = await supabase.from('activity_log').delete().neq('id', '');
+  if (error) throw new Error(error.message);
 }
 
 // ─── Security Functions ───────────────────────────────────────────────────────

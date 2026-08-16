@@ -1,428 +1,323 @@
 /**
- * Security Dashboard
- * Monitor login attempts, blocked IPs, security alerts, and account lockouts.
- * Only accessible to super admins.
+ * Security — who has been signing in, and which accounts still can.
+ *
+ * The previous version showed alerts, blocked IP addresses and locked accounts
+ * read out of four localStorage keys that nothing has written to since sign-in
+ * moved to Supabase: guaranteed empty on every computer, forever. Worse, its
+ * "Block IP" button wrote to a list no server ever consults, so an editor could
+ * believe they had shut an attacker out while nothing had changed at all.
+ *
+ * What is left is what is real and actually enforced:
+ *   · every sign-in attempt, from the login_attempts table the real login writes
+ *   · repeated failures against one account, the signal worth acting on
+ *   · turning an account off, which the sign-in path genuinely checks
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Shield, AlertTriangle, Lock, Unlock, X, CheckCircle2,
-  AlertCircle, Ban, Eye, Clock, User, Globe,
+  Shield, AlertTriangle, Lock, CheckCircle2, Clock, User, Globe, RefreshCw, Power,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  getSecurityAlerts,
-  getLoginAttemptsHistory,
-  getBlockedIPsList,
-  resolveSecurityAlert,
-  unblockIP,
-  unlockUser,
-  getUsersList,
-  blockIP,
-  type SecurityAlert,
-  type LoginAttempt,
-} from '@/lib/adminUserService';
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { fetchLoginAttempts, type LoginAttemptRow } from '@/lib/securityTracking';
+import { listStaff, updateStaff, type StaffMember } from '@/lib/staffService';
+import { ROLE_LABELS, logActivity } from '@/lib/adminUserService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const SEVERITY_COLORS: Record<SecurityAlert['severity'], string> = {
-  low: 'bg-blue-100 text-blue-700 border-blue-200',
-  medium: 'bg-amber-100 text-amber-700 border-amber-200',
-  high: 'bg-orange-100 text-orange-700 border-orange-200',
-  critical: 'bg-red-100 text-red-700 border-red-200',
-};
+/** "3 min ago", or a date once that stops being useful. */
+function timeAgo(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (!t) return 'unknown';
+  const diff = Date.now() - t;
+  if (diff < 0) return new Date(iso).toLocaleString();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 2) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  if (hours < 24) return `${hours} hr ago`;
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/** "Chrome on Windows", rather than 140 characters of user-agent string. */
+function describeBrowser(ua: string): string {
+  if (!ua) return 'unknown browser';
+  const browser =
+    /Edg\//.test(ua) ? 'Edge' :
+    /OPR\//.test(ua) ? 'Opera' :
+    /Chrome\//.test(ua) ? 'Chrome' :
+    /Firefox\//.test(ua) ? 'Firefox' :
+    /Safari\//.test(ua) ? 'Safari' : 'a browser';
+  const os =
+    /Windows/.test(ua) ? 'Windows' :
+    /iPhone|iPad/.test(ua) ? 'an iPhone or iPad' :
+    /Android/.test(ua) ? 'Android' :
+    /Mac OS X/.test(ua) ? 'a Mac' :
+    /Linux/.test(ua) ? 'Linux' : 'an unknown device';
+  return `${browser} on ${os}`;
+}
 
 export default function AdminSecurity() {
   const { currentUser } = useAdminAuth();
-  const [alerts, setAlerts] = useState(getSecurityAlerts());
-  const [blockedIPs, setBlockedIPs] = useState(getBlockedIPsList());
-  
-  const loginAttempts = useMemo(() => getLoginAttemptsHistory(100), []);
-  const users = useMemo(() => getUsersList(), []);
-  const lockedUsers = useMemo(() => users.filter(u => u.lockedUntil && new Date(u.lockedUntil).getTime() > Date.now()), [users]);
-  
-  const recentFailures = useMemo(() => 
-    loginAttempts.filter(a => !a.success).slice(0, 20),
-    [loginAttempts]
-  );
-  
-  const suspiciousIPs = useMemo(() => {
-    const ipCounts = new Map<string, number>();
-    recentFailures.forEach(attempt => {
-      ipCounts.set(attempt.ip, (ipCounts.get(attempt.ip) || 0) + 1);
-    });
-    return Array.from(ipCounts.entries())
-      .filter(([_, count]) => count >= 3)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10);
-  }, [recentFailures]);
-  
-  const unresolvedAlerts = useMemo(() => alerts.filter(a => !a.resolved), [alerts]);
-  const criticalAlerts = useMemo(() => unresolvedAlerts.filter(a => a.severity === 'critical' || a.severity === 'high'), [unresolvedAlerts]);
+  const [attempts, setAttempts] = useState<LoginAttemptRow[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [suspendTarget, setSuspendTarget] = useState<StaffMember | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleResolveAlert = (alertId: string) => {
-    if (!currentUser) return;
-    resolveSecurityAlert(alertId, currentUser.displayName);
-    setAlerts(getSecurityAlerts());
-    toast.success('Alert resolved');
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([fetchLoginAttempts(200), listStaff().catch(() => [] as StaffMember[])])
+      .then(([a, s]) => {
+        if (cancelled) return;
+        setAttempts(a);
+        setStaff(s);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [refreshKey]);
+
+  const failures = useMemo(() => attempts.filter(a => !a.success), [attempts]);
+
+  const last24h = useMemo(() => {
+    const cutoff = Date.now() - 86_400_000;
+    return attempts.filter(a => new Date(a.timestamp).getTime() >= cutoff);
+  }, [attempts]);
+
+  /**
+   * Accounts somebody is guessing at.
+   *
+   * Three or more failures against one username inside a day is the shape of
+   * someone trying passwords, rather than a reporter mistyping theirs once on a
+   * Monday morning.
+   */
+  const underAttack = useMemo(() => {
+    const cutoff = Date.now() - 86_400_000;
+    const byUser = new Map<string, LoginAttemptRow[]>();
+    for (const a of failures) {
+      if (new Date(a.timestamp).getTime() < cutoff) continue;
+      byUser.set(a.username, [...(byUser.get(a.username) ?? []), a]);
+    }
+    return Array.from(byUser.entries())
+      .filter(([, list]) => list.length >= 3)
+      .map(([username, list]) => ({
+        username,
+        count: list.length,
+        addresses: Array.from(new Set(list.map(l => l.ip))),
+        latest: list[0].timestamp,
+        account: staff.find(s => s.email === username || s.username === username) ?? null,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [failures, staff]);
+
+  const inactive = useMemo(() => staff.filter(s => !s.active), [staff]);
+
+  const handleSuspend = async () => {
+    if (!suspendTarget) return;
+    setBusy(true);
+    try {
+      await updateStaff(suspendTarget.id, { active: false });
+      logActivity(
+        'user_updated',
+        `Turned off the account for ${suspendTarget.displayName}`,
+        currentUser?.id, suspendTarget.id, currentUser?.displayName,
+      );
+      toast.success(`${suspendTarget.displayName} can no longer sign in.`);
+      setSuspendTarget(null);
+      setRefreshKey(k => k + 1);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not turn the account off.');
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleUnblockIP = (ip: string) => {
-    unblockIP(ip);
-    setBlockedIPs(getBlockedIPsList());
-    toast.success('IP unblocked');
+  const handleReactivate = async (member: StaffMember) => {
+    try {
+      await updateStaff(member.id, { active: true });
+      logActivity(
+        'user_updated',
+        `Turned the account for ${member.displayName} back on`,
+        currentUser?.id, member.id, currentUser?.displayName,
+      );
+      toast.success(`${member.displayName} can sign in again.`);
+      setRefreshKey(k => k + 1);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not turn the account back on.');
+    }
   };
-
-  const handleUnlockUser = (userId: string) => {
-    if (!currentUser) return;
-    unlockUser(userId, currentUser.displayName);
-    toast.success('User unlocked');
-    // Refresh page data
-    setTimeout(() => window.location.reload(), 500);
-  };
-
-  const formatTime = (iso: string) => {
-    return new Date(iso).toLocaleString();
-  };
-
-  const timeAgo = (iso: string) => {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
-
-  if (!currentUser || currentUser.role !== 'super_admin') {
-    return (
-      <div className="p-6 lg:p-8">
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              <div>
-                <p className="font-semibold text-red-900">Access Denied</p>
-                <p className="text-sm text-red-700 mt-1">Only super administrators can access the security dashboard.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-serif font-bold text-slate-900 flex items-center gap-3">
-          <Shield className="h-8 w-8 text-red-600" />
-          Security Dashboard
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">Monitor login attempts, security alerts, and account lockouts</p>
+    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+      <div className="flex items-start justify-between mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <Shield className="h-6 w-6 text-slate-400" />
+            Security
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Who has tried to sign in, and which accounts are allowed to.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-1.5 shrink-0"
+          onClick={() => setRefreshKey(k => k + 1)} disabled={loading}>
+          <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+          Refresh
+        </Button>
       </div>
 
-      {/* Critical Alerts Banner */}
-      {criticalAlerts.length > 0 && (
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-900">
-              <AlertTriangle className="h-5 w-5" />
-              Critical Security Alerts ({criticalAlerts.length})
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        {[
+          { label: 'Signed in today', value: last24h.filter(a => a.success).length, alarming: false },
+          { label: 'Refused today', value: last24h.filter(a => !a.success).length, alarming: last24h.some(a => !a.success) },
+          { label: 'Accounts being guessed at', value: underAttack.length, alarming: underAttack.length > 0 },
+          { label: 'Accounts turned off', value: inactive.length, alarming: false },
+        ].map(({ label, value, alarming }) => (
+          <div key={label} className="bg-white rounded-xl border border-slate-200 p-4">
+            <p className={cn('text-2xl font-bold', alarming ? 'text-red-600' : 'text-slate-900')}>{value}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {underAttack.length > 0 && (
+        <Card className="mb-6 border-red-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-red-900">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              Someone is trying passwords
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {criticalAlerts.slice(0, 5).map(alert => (
-                <div key={alert.id} className="flex items-start justify-between p-3 bg-white rounded-lg border border-red-200">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge className={SEVERITY_COLORS[alert.severity]}>
-                        {alert.severity.toUpperCase()}
-                      </Badge>
-                      <span className="text-sm font-medium text-slate-900">{alert.type.replace(/_/g, ' ')}</span>
-                    </div>
-                    <p className="text-sm text-slate-700">{alert.message}</p>
-                    <p className="text-xs text-slate-500 mt-1">{timeAgo(alert.timestamp)}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleResolveAlert(alert.id)}
-                  >
-                    Resolve
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">Unresolved Alerts</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{unresolvedAlerts.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">Blocked IPs</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{blockedIPs.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
-                <Ban className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">Locked Accounts</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{lockedUsers.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Lock className="h-6 w-6 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">Failed Attempts (24h)</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">
-                  {loginAttempts.filter(a => !a.success && new Date(a.timestamp).getTime() > Date.now() - 86400000).length}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Eye className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Security Alerts */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Security Alerts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {alerts.slice(0, 20).map(alert => (
-              <div
-                key={alert.id}
-                className={cn(
-                  "flex items-start justify-between p-4 rounded-lg border",
-                  alert.resolved
-                    ? "bg-slate-50 border-slate-200"
-                    : SEVERITY_COLORS[alert.severity].replace('bg-', 'bg-').replace('text-', 'border-')
-                )}
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge className={SEVERITY_COLORS[alert.severity]}>
-                      {alert.severity.toUpperCase()}
-                    </Badge>
-                    <span className="text-sm font-medium text-slate-900">{alert.type.replace(/_/g, ' ')}</span>
-                    {alert.resolved && (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Resolved
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-700">{alert.message}</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {formatTime(alert.timestamp)}
-                    {alert.resolvedBy && ` · Resolved by ${alert.resolvedBy}`}
+          <CardContent className="space-y-3">
+            {underAttack.map(row => (
+              <div key={row.username} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-100 bg-red-50/50 p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{row.username}</p>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    {row.count} failed attempts in the last day, from {row.addresses.length}{' '}
+                    {row.addresses.length === 1 ? 'address' : 'addresses'} · last {timeAgo(row.latest)}
                   </p>
                 </div>
-                {!alert.resolved && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleResolveAlert(alert.id)}
-                  >
-                    Resolve
+                {row.account?.active ? (
+                  <Button size="sm" variant="outline"
+                    className="border-red-300 text-red-700 hover:bg-red-100 gap-1.5 shrink-0"
+                    onClick={() => setSuspendTarget(row.account)}>
+                    <Power className="h-3.5 w-3.5" />
+                    Turn this account off
                   </Button>
+                ) : row.account ? (
+                  <Badge variant="outline" className="shrink-0 text-slate-600">Already turned off</Badge>
+                ) : (
+                  <Badge variant="outline" className="shrink-0 text-slate-600">No such account</Badge>
                 )}
               </div>
             ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Locked Accounts */}
-      {lockedUsers.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Locked Accounts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {lockedUsers.map(user => (
-                <div key={user.id} className="flex items-center justify-between p-4 rounded-lg border border-amber-200 bg-amber-50">
-                  <div className="flex items-center gap-3">
-                    <Lock className="h-5 w-5 text-amber-600" />
-                    <div>
-                      <p className="font-medium text-slate-900">{user.displayName} ({user.username})</p>
-                      <p className="text-sm text-slate-600">
-                        Locked until {new Date(user.lockedUntil!).toLocaleString()}
-                        {user.failedAttempts && ` · ${user.failedAttempts} failed attempts`}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleUnlockUser(user.id)}
-                    className="gap-2"
-                  >
-                    <Unlock className="h-4 w-4" />
-                    Unlock
-                  </Button>
-                </div>
-              ))}
-            </div>
+            <p className="text-xs text-slate-500">
+              Turning an account off stops it signing in immediately, on every computer. The person keeps
+              their stories, and an Editor-in-Chief can turn it back on.
+            </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Blocked IPs */}
-      {blockedIPs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Blocked IP Addresses</CardTitle>
+      {inactive.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lock className="h-4 w-4 text-slate-400" />
+              Accounts that cannot sign in
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {blockedIPs.map(({ ip, blockedUntil }) => (
-                <div key={ip} className="flex items-center justify-between p-4 rounded-lg border border-orange-200 bg-orange-50">
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-5 w-5 text-orange-600" />
-                    <div>
-                      <p className="font-mono text-sm font-medium text-slate-900">{ip.slice(0, 60)}...</p>
-                      <p className="text-xs text-slate-600">Blocked until {new Date(blockedUntil).toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleUnblockIP(ip)}
-                  >
-                    Unblock
-                  </Button>
+          <CardContent className="space-y-2">
+            {inactive.map(member => (
+              <div key={member.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">{member.displayName}</p>
+                  <p className="text-xs text-slate-500 truncate">{member.email} · {ROLE_LABELS[member.role]}</p>
                 </div>
-              ))}
-            </div>
+                <Button size="sm" variant="outline" className="shrink-0"
+                  onClick={() => handleReactivate(member)}>
+                  Turn back on
+                </Button>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
 
-      {/* Recent Login Attempts */}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Login Attempts</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4 text-slate-400" />
+            Recent sign-in attempts
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Time</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Username</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">IP</th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loginAttempts.slice(0, 50).map(attempt => (
-                  <tr key={attempt.id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-3 px-4 text-sm text-slate-600">{timeAgo(attempt.timestamp)}</td>
-                    <td className="py-3 px-4 text-sm font-medium text-slate-900">{attempt.username}</td>
-                    <td className="py-3 px-4 text-sm font-mono text-slate-600">{attempt.ip.slice(0, 40)}...</td>
-                    <td className="py-3 px-4 text-center">
-                      {attempt.success ? (
-                        <Badge className="bg-green-100 text-green-700 border-green-200">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Success
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-red-100 text-red-700 border-red-200">
-                          <X className="h-3 w-3 mr-1" />
-                          Failed
-                        </Badge>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Suspicious IPs */}
-      {suspiciousIPs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Suspicious IP Addresses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {suspiciousIPs.map(([ip, count]) => (
-                <div key={ip} className="flex items-center justify-between p-4 rounded-lg border border-amber-200 bg-amber-50">
-                  <div className="flex items-center gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600" />
-                    <div>
-                      <p className="font-mono text-sm font-medium text-slate-900">{ip.slice(0, 60)}...</p>
-                      <p className="text-xs text-slate-600">{count} failed attempts</p>
-                    </div>
+          {loading ? (
+            <div className="flex flex-col items-center py-12 text-center">
+              <RefreshCw className="h-5 w-5 text-slate-300 mb-2 animate-spin" />
+              <p className="text-sm text-slate-400">Loading…</p>
+            </div>
+          ) : attempts.length === 0 ? (
+            <div className="flex flex-col items-center py-12 text-center">
+              <CheckCircle2 className="h-8 w-8 text-slate-200 mb-2" />
+              <p className="text-sm font-medium text-slate-500">Nothing recorded yet.</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                Attempts appear here from the next time anybody signs in.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {attempts.slice(0, 60).map(a => (
+                <div key={a.id} className="flex items-center gap-3 py-2.5">
+                  <span className={cn('h-2 w-2 rounded-full shrink-0', a.success ? 'bg-green-500' : 'bg-red-500')} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-slate-900 truncate">
+                      <span className="font-medium">{a.username}</span>
+                      <span className="text-slate-500">{a.success ? ' signed in' : ' was refused'}</span>
+                    </p>
+                    <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">
+                      <User className="h-3 w-3" />{describeBrowser(a.userAgent)}
+                      <Globe className="h-3 w-3 ml-1" />{a.ip}
+                    </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      blockIP(ip);
-                      setBlockedIPs(getBlockedIPsList());
-                      toast.success('IP blocked');
-                    }}
-                    className="gap-2"
-                  >
-                    <Ban className="h-4 w-4" />
-                    Block IP
-                  </Button>
+                  <span className="text-xs text-slate-400 shrink-0">{timeAgo(a.timestamp)}</span>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={!!suspendTarget} onOpenChange={o => { if (!o && !busy) setSuspendTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop this account signing in?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {suspendTarget?.displayName} will be refused at the sign-in page from now on, on every computer.
+              Their stories stay exactly where they are, and an Editor-in-Chief can turn the account back on
+              at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={busy} className="bg-red-600 hover:bg-red-700"
+              onClick={e => { e.preventDefault(); handleSuspend(); }}>
+              {busy ? 'Turning off…' : 'Turn the account off'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,28 +8,44 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Search, Activity, Trash2, RefreshCw, LogIn, LogOut, FileText, User } from 'lucide-react';
-import { getActivityLog, clearActivityLog, type ActivityLogEntry } from '@/lib/adminUserService';
+import {
+  Search, Activity, Trash2, RefreshCw, LogIn, LogOut, FileText, User,
+  Send, EyeOff, RotateCcw,
+} from 'lucide-react';
+import { fetchActivityLog, clearActivityLog, type ActivityLogEntry } from '@/lib/adminUserService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { canDo } from '@/lib/adminUserService';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
-  login:          <LogIn  className="h-3.5 w-3.5 text-green-500" />,
-  logout:         <LogOut className="h-3.5 w-3.5 text-slate-400" />,
-  article_created:<FileText className="h-3.5 w-3.5 text-blue-500" />,
-  article_saved:  <FileText className="h-3.5 w-3.5 text-slate-500" />,
-  user_created:   <User  className="h-3.5 w-3.5 text-purple-500" />,
-  user_deleted:   <User  className="h-3.5 w-3.5 text-red-500" />,
+  login:              <LogIn  className="h-3.5 w-3.5 text-green-500" />,
+  logout:             <LogOut className="h-3.5 w-3.5 text-slate-400" />,
+  article_created:    <FileText className="h-3.5 w-3.5 text-blue-500" />,
+  article_saved:      <FileText className="h-3.5 w-3.5 text-slate-500" />,
+  article_published:  <Send className="h-3.5 w-3.5 text-green-600" />,
+  article_unpublished:<EyeOff className="h-3.5 w-3.5 text-amber-600" />,
+  article_trashed:    <Trash2 className="h-3.5 w-3.5 text-red-500" />,
+  article_restored:   <RotateCcw className="h-3.5 w-3.5 text-teal-600" />,
+  article_purged:     <Trash2 className="h-3.5 w-3.5 text-red-700" />,
+  user_created:       <User  className="h-3.5 w-3.5 text-purple-500" />,
+  user_updated:       <User  className="h-3.5 w-3.5 text-slate-500" />,
+  user_deleted:       <User  className="h-3.5 w-3.5 text-red-500" />,
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  login:          'Sign In',
-  logout:         'Sign Out',
-  article_created:'Story Created',
-  article_saved:  'Story Updated',
-  user_created:   'User Created',
-  user_deleted:   'User Removed',
+  login:              'Signed in',
+  logout:             'Signed out',
+  article_created:    'Story started',
+  article_saved:      'Story edited',
+  article_published:  'Published',
+  article_unpublished:'Taken off the site',
+  article_trashed:    'Moved to trash',
+  article_restored:   'Restored',
+  article_purged:     'Deleted for good',
+  user_created:       'Staff added',
+  user_updated:       'Staff changed',
+  user_deleted:       'Staff removed',
 };
 
 function formatTimestamp(iso: string): string {
@@ -64,8 +80,19 @@ export default function AdminActivityLog() {
 
   const canClear = currentUser && canDo(currentUser, 'manage_settings');
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const logs = useMemo(() => getActivityLog(), [refreshKey]);
+  // The log lives on the server now, so this is what everyone did, not just
+  // what happened in this browser.
+  const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchActivityLog()
+      .then(entries => { if (!cancelled) setLogs(entries); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [refreshKey]);
 
   const filtered = useMemo(() => {
     let list = [...logs];
@@ -81,8 +108,13 @@ export default function AdminActivityLog() {
     return list;
   }, [logs, query, actionFilter]);
 
-  const handleClear = () => {
-    clearActivityLog();
+  const handleClear = async () => {
+    try {
+      await clearActivityLog();
+      toast.success('Activity log cleared');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not clear the activity log.');
+    }
     setClearOpen(false);
     setRefreshKey(k => k + 1);
   };
@@ -161,7 +193,12 @@ export default function AdminActivityLog() {
 
       {/* Log */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {grouped.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <RefreshCw className="h-6 w-6 text-slate-300 mb-3 animate-spin" />
+            <p className="text-sm text-slate-400">Loading the newsroom's activity…</p>
+          </div>
+        ) : grouped.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Activity className="h-10 w-10 text-slate-200 mb-3" />
             <p className="text-sm font-medium text-slate-400">No activity recorded yet.</p>

@@ -25,6 +25,7 @@ import {
   type AdminArticle,
   WORKFLOW_LABELS, WORKFLOW_COLORS, PRIORITY_COLORS,
 } from '@/lib/adminDataService';
+import { logActivity } from '@/lib/adminUserService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { useDataSync } from '@/contexts/DataSyncContext';
 import { articles as jsonArticles } from '@/data/seedData';
@@ -181,6 +182,11 @@ export default function AdminStories() {
         currentUser?.displayName,
         'Deleted from stories list'
       );
+      logActivity(
+        'article_trashed',
+        `Moved "${deleteTarget.headline}" to the trash`,
+        currentUser?.id, deleteTarget.id, currentUser?.displayName,
+      );
       toast.success(
         deleteTarget.status === 'published'
           ? 'Story taken off the site and moved to trash'
@@ -205,6 +211,7 @@ export default function AdminStories() {
     for (const a of selectedList) {
       try {
         await deleteAdminArticle(a.id, currentUser?.id, currentUser?.displayName, 'Bulk deleted from stories list');
+        logActivity('article_trashed', `Moved "${a.headline}" to the trash`, currentUser?.id, a.id, currentUser?.displayName);
       } catch {
         failed.push(a.headline || a.slug || a.id);
       }

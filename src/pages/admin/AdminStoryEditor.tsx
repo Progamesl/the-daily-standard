@@ -449,13 +449,32 @@ export default function AdminStoryEditor() {
       // live story sat there labelled "Draft" and the next Save put it back.
       if (status !== form.status) setForm(prev => ({ ...prev, status }));
 
+      // What went in the log matters more than that something did. Every save
+      // used to be filed as "updated", so the record could not tell you who
+      // put a story on the site or who took one off — the two things an editor
+      // actually needs to look up afterwards.
+      const previousStatus = article?.status;
+      const logFor = (articleId: string) => {
+        if (isNew || !previousStatus) {
+          logActivity('article_created', `Started "${built.headline}"`, userId, articleId, userName);
+        } else if (status === 'published' && previousStatus !== 'published') {
+          logActivity('article_published', `Published "${built.headline}"`, userId, articleId, userName);
+        } else if (previousStatus === 'published' && status !== 'published') {
+          logActivity('article_unpublished', `Took "${built.headline}" off the site`, userId, articleId, userName);
+        } else if (status !== previousStatus) {
+          logActivity('article_saved', `Moved "${built.headline}" to ${WORKFLOW_LABELS[status]}`, userId, articleId, userName);
+        } else {
+          logActivity('article_saved', `Edited "${built.headline}"`, userId, articleId, userName);
+        }
+      };
+
       if (isNew || !id) {
         const created = await adminData.createAdminArticle(built, userId, userName, { onPublish });
         setDirty(false);
         setLastSaved(new Date());
         setArticle(created);
         navigate(`/admin/stories/edit/${created.id}`, { replace: true });
-        logActivity('article_created', `"${built.headline}" created`, userId, created.id);
+        logFor(created.id);
         if (!silent) reportSave(status, publish);
       } else {
         const saved = await adminData.saveAdminArticle({ ...built, id }, userId, userName, undefined, { onPublish });
@@ -464,7 +483,7 @@ export default function AdminStoryEditor() {
         setArticle(saved);
         // The work is on the server now, so the local recovery copy is stale.
         try { localStorage.removeItem(`octagon_editor_recovery_${id}`); } catch { /* non-fatal */ }
-        logActivity('article_saved', `"${built.headline}" updated`, userId, id);
+        logFor(id);
         if (!silent) reportSave(status, publish);
       }
     } catch (err) {

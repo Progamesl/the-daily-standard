@@ -14,6 +14,7 @@ import {
   getTrashedArticles, restoreTrashedArticle, permanentlyDeleteTrashedArticle,
   clearTrash, type TrashedArticle,
 } from '@/lib/adminDataService';
+import { logActivity } from '@/lib/adminUserService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { cn } from '@/lib/utils';
 
@@ -67,6 +68,10 @@ export default function AdminTrash() {
         restoreTarget.article.id, currentUser?.id, currentUser?.displayName,
       );
       if (!restored) throw new Error('That story is no longer in the trash.');
+      logActivity(
+        'article_restored', `Restored "${restored.headline}" from the trash`,
+        currentUser?.id, restored.id, currentUser?.displayName,
+      );
       toast.success(`"${restored.headline}" is back in Stories, as a draft.`);
       setRestoreTarget(null);
       refresh();
@@ -82,6 +87,10 @@ export default function AdminTrash() {
     setBusy(true);
     try {
       await permanentlyDeleteTrashedArticle(deleteTarget.article.id);
+      logActivity(
+        'article_purged', `Deleted "${deleteTarget.article.headline}" for good`,
+        currentUser?.id, deleteTarget.article.id, currentUser?.displayName,
+      );
       toast.success('Story deleted for good');
       setDeleteTarget(null);
       refresh();
