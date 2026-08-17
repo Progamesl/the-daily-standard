@@ -20,7 +20,7 @@ import {
 import { toast } from 'sonner';
 import {
   type UserRole,
-  ROLE_LABELS, ROLE_COLORS, getRoleLevel,
+  ROLE_LABELS, ROLE_COLORS, getRoleLevel, logActivity,
 } from '@/lib/adminUserService';
 import {
   listStaff, createStaff, updateStaff, resetStaffPassword, deleteStaff,
@@ -176,6 +176,12 @@ export default function AdminUsers() {
         });
         if (form.password) await resetStaffPassword(editingUser.id, form.password);
         if (editingUser.id === currentUser?.id) refreshUser();
+        const changedRole = editingUser.role !== form.role;
+        logActivity(
+          'account_updated',
+          `Changed ${form.displayName.trim()}'s account${changedRole ? ` — role is now ${ROLE_LABELS[form.role]}` : ''}${form.password ? ', and set a new password' : ''}`,
+          currentUser?.id, editingUser.id, currentUser?.displayName,
+        );
         toast.success('Staff member updated');
       } else {
         await createStaff({
@@ -190,6 +196,11 @@ export default function AdminUsers() {
           graduationYear: form.graduationYear || undefined,
           avatar,
         });
+        logActivity(
+          'account_created',
+          `Created a ${ROLE_LABELS[form.role]} account for ${form.displayName.trim()} (${form.email.trim()})`,
+          currentUser?.id, undefined, currentUser?.displayName,
+        );
         toast.success(`${form.displayName} can now sign in with their email and password`);
       }
       setDialogOpen(false);
@@ -205,6 +216,11 @@ export default function AdminUsers() {
     if (user.id === currentUser?.id) { toast.error("You can't deactivate yourself."); return; }
     try {
       await updateStaff(user.id, { active: !user.active });
+      logActivity(
+        'account_updated',
+        `${user.active ? 'Turned off' : 'Turned on'} the account for ${user.displayName}`,
+        currentUser?.id, user.id, currentUser?.displayName,
+      );
       toast.success(user.active ? `${user.displayName} can no longer sign in` : `${user.displayName} reactivated`);
       await refresh();
     } catch (err) {
@@ -217,6 +233,11 @@ export default function AdminUsers() {
     if (deleteTarget.id === currentUser?.id) { toast.error("You can't delete your own account."); return; }
     try {
       await deleteStaff(deleteTarget.id);
+      logActivity(
+        'account_removed',
+        `Deleted the ${ROLE_LABELS[deleteTarget.role]} account for ${deleteTarget.displayName} (${deleteTarget.email})`,
+        currentUser?.id, deleteTarget.id, currentUser?.displayName,
+      );
       toast.success(`${deleteTarget.displayName} removed from staff`);
       setDeleteTarget(null);
       await refresh();
@@ -230,6 +251,12 @@ export default function AdminUsers() {
     if (newPassword.length < 10) { toast.error('Password must be at least 10 characters.'); return; }
     try {
       await resetStaffPassword(passwordTarget.id, newPassword);
+      // The password itself is never logged, only that it changed.
+      logActivity(
+        'account_password',
+        `Set a new password for ${passwordTarget.displayName}`,
+        currentUser?.id, passwordTarget.id, currentUser?.displayName,
+      );
       toast.success(`New password set for ${passwordTarget.displayName}`);
       setPasswordDialogOpen(false);
       setNewPassword('');

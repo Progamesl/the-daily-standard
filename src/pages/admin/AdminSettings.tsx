@@ -16,15 +16,18 @@ import { toast } from 'sonner';
 import {
   getSiteSettings, saveSiteSettings, exportAdminData,
   importAdminDataFromJson, clearAdminData, mergeDuplicateAuthors,
-  getAutoBackups, restoreFromBackup, deleteBackup,
+  getAutoBackups, restoreFromBackup, deleteBackup, PREVIOUS_MARKER,
   type SiteSettings,
 } from '@/lib/adminDataService';
+import { logActivity } from '@/lib/adminUserService';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { isSupabaseConfigured } from '@/lib/supabaseClient';
 import { migrateLocalStorageToSupabase } from '@/lib/supabaseDataService';
 import { syncArticlesFromSupabase } from '@/lib/adminDataService';
 // Removed syncToCode - HEADLESS CMS uses Supabase as single source of truth
 
 export default function AdminSettings() {
+  const { currentUser } = useAdminAuth();
   const [settings, setSettings] = useState<SiteSettings>(getSiteSettings);
   const [saving, setSaving]     = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
@@ -44,9 +47,23 @@ export default function AdminSettings() {
   const handleSave = () => {
     setSaving(true);
     setTimeout(() => {
+      // Name the settings that actually changed, and keep what they were, so a
+      // surprising change to the site can be traced and undone.
+      const before = getSiteSettings();
+      const changed = (Object.keys(settings) as (keyof SiteSettings)[])
+        .filter(k => JSON.stringify(before[k]) !== JSON.stringify(settings[k]));
       saveSiteSettings(settings);
+      if (changed.length) {
+        const was: Record<string, unknown> = {};
+        for (const k of changed) was[k] = before[k];
+        logActivity(
+          'settings_changed',
+          `Changed ${changed.join(', ')}${PREVIOUS_MARKER}${JSON.stringify(was)}`,
+          currentUser?.id, undefined, currentUser?.displayName,
+        );
+      }
       setSaving(false);
-      toast.success('Settings saved');
+      toast.success(changed.length ? `Saved — ${changed.length} setting${changed.length === 1 ? '' : 's'} changed` : 'Nothing had changed');
     }, 300);
   };
 
@@ -59,6 +76,8 @@ export default function AdminSettings() {
     a.download = `the-octagon-export-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    logActivity('data_exported', 'Downloaded a backup of the site data',
+      currentUser?.id, undefined, currentUser?.displayName);
     toast.success('Data exported');
   };
 

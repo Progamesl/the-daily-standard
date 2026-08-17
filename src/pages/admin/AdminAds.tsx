@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clearAdsCache, type Ad } from '@/hooks/useAds';
+import { logActivity } from '@/lib/adminUserService';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 
 const PLACEMENTS: { value: Ad['placement']; label: string; desc: string }[] = [
   { value: 'sidebar',     label: 'Sidebar (300×250)',    desc: 'Article page right column' },
@@ -59,6 +61,7 @@ const EMPTY_FORM = {
 };
 
 export default function AdminAds() {
+  const { currentUser } = useAdminAuth();
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -165,6 +168,11 @@ export default function AdminAds() {
       if (error) throw error;
 
       clearAdsCache();
+      logActivity(
+        editingId ? 'ad_updated' : 'ad_created',
+        `${editingId ? 'Edited' : 'Created'} the ad "${form.title}"${form.advertiser ? ` for ${form.advertiser}` : ''}`,
+        currentUser?.id, editingId ?? undefined, currentUser?.displayName,
+      );
       toast.success(editingId ? 'Ad updated' : 'Ad created');
       setShowForm(false);
       fetchAds();
@@ -186,6 +194,11 @@ export default function AdminAds() {
       if (error) throw error;
       clearAdsCache();
       setAds(prev => prev.map(a => a.id === ad.id ? { ...a, active: !a.active } : a));
+      logActivity(
+        ad.active ? 'ad_deactivated' : 'ad_activated',
+        `${ad.active ? 'Switched off' : 'Switched on'} the ad "${ad.title}"`,
+        currentUser?.id, ad.id, currentUser?.displayName,
+      );
       toast.success(ad.active ? 'Ad paused' : 'Ad activated — now live on site');
     } catch {
       toast.error('Failed to update ad');
@@ -201,7 +214,14 @@ export default function AdminAds() {
       const { error } = await supabase.from('ads').delete().eq('id', id);
       if (error) throw error;
       clearAdsCache();
+      // Deleting an ad is permanent, so the log keeps enough to rebuild it.
+      const gone = ads.find(a => a.id === id);
       setAds(prev => prev.filter(a => a.id !== id));
+      logActivity(
+        'ad_deleted',
+        `Deleted the ad "${gone?.title ?? id}"${gone?.advertiser ? ` for ${gone.advertiser}` : ''}${gone?.link_url ? ` — linked to ${gone.link_url}` : ''}`,
+        currentUser?.id, id, currentUser?.displayName,
+      );
       toast.success('Ad deleted');
     } catch {
       toast.error('Failed to delete ad');

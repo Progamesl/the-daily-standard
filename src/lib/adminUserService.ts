@@ -20,81 +20,6 @@ export type UserRole =
   | 'reporter'
   | 'photographer';
 
-export interface AdminUser {
-  id: string;
-  username: string;
-  passwordHash: string;
-  displayName: string;
-  email: string;
-  role: UserRole;
-  section?: string;   // section editors: which section they own
-  bio?: string;
-  avatar?: string;
-  phone?: string;
-  graduationYear?: string;
-  createdAt: string;
-  lastLogin?: string;
-  active: boolean;
-  lockedUntil?: string;  // ISO timestamp when account unlocks
-  failedAttempts?: number; // Count of failed login attempts
-  approvedBy?: string;     // Super admin who approved this account
-  approvedAt?: string;     // When account was approved
-  
-  // Enhanced Security Fields
-  emailVerified: boolean;           // Email verified via code
-  twoFactorEnabled: boolean;        // 2FA enabled
-  twoFactorSecret?: string;         // TOTP secret (if using authenticator app)
-  trustedDevices?: TrustedDevice[];  // Trusted devices (fingerprint)
-  securityQuestions?: SecurityQuestion[]; // Backup authentication
-  passwordChangedAt?: string;       // Last password change
-  passwordExpiresAt?: string;        // Password expiration (90 days)
-  requiresPasswordChange?: boolean;  // Force password change on next login
-}
-
-export interface TrustedDevice {
-  fingerprint: string;    // Device fingerprint hash
-  name: string;          // User-friendly device name
-  lastUsed: string;      // ISO timestamp
-  ip?: string;           // Last known IP
-  userAgent?: string;    // Browser/device info
-}
-
-export interface SecurityQuestion {
-  question: string;
-  answerHash: string;    // Hashed answer
-}
-
-export interface VerificationCode {
-  code: string;
-  type: 'email_verification' | '2fa' | 'password_reset' | 'device_verification';
-  userId: string;
-  expiresAt: string;     // ISO timestamp
-  attempts: number;      // Failed attempts
-  used: boolean;
-}
-
-export interface LoginAttempt {
-  id: string;
-  username: string;
-  ip: string;
-  userAgent: string;
-  success: boolean;
-  timestamp: string;
-  userId?: string;
-}
-
-export interface SecurityAlert {
-  id: string;
-  type: 'brute_force' | 'suspicious_ip' | 'account_locked' | 'multiple_failures' | 'unusual_activity';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  message: string;
-  details: Record<string, unknown>;
-  timestamp: string;
-  resolved: boolean;
-  resolvedBy?: string;
-  resolvedAt?: string;
-}
-
 export const ROLE_LABELS: Record<UserRole, string> = {
   super_admin:      'Super Admin',
   editor_in_chief:  'Editor-in-Chief',
@@ -123,371 +48,18 @@ const ROLE_LEVEL: Record<UserRole, number> = {
   photographer:     1,
 };
 
-// ─── Storage Keys ─────────────────────────────────────────────────────────────
-const USERS_KEY    = 'octagon_users_v3';  // v3 for enhanced security fields
-const SESSION_KEY  = 'octagon_session_v3';
-export const ACTIVITY_KEY = 'octagon_activity_log';
-const LOGIN_ATTEMPTS_KEY = 'octagon_login_attempts_v2';
-const BLOCKED_IPS_KEY = 'octagon_blocked_ips_v2';
-const SECURITY_ALERTS_KEY = 'octagon_security_alerts_v2';
-const VERIFICATION_CODES_KEY = 'octagon_verification_codes_v1';
-const TRUSTED_DEVICES_KEY = 'octagon_trusted_devices_v1';
-
-// ─── Security Configuration ───────────────────────────────────────────────────
-const MAX_LOGIN_ATTEMPTS = 5;           // Lock account after 5 failed attempts
-const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes lockout
-const IP_BLOCK_DURATION = 60 * 60 * 1000; // 1 hour IP block
-const MAX_ATTEMPTS_PER_IP = 10;          // Block IP after 10 total failed attempts
-const SUSPICIOUS_ACTIVITY_THRESHOLD = 3; // Alert after 3 suspicious events
-const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours session
-const VERIFICATION_CODE_EXPIRY = 10 * 60 * 1000; // 10 minutes for codes
-const PASSWORD_EXPIRY_DAYS = 90;        // Password expires after 90 days
-const MIN_PASSWORD_LENGTH = 12;         // Minimum password length
-const REQUIRE_PASSWORD_COMPLEXITY = true; // Require uppercase, lowercase, number, special char
-
-// ─── Password hashing ─────────────────────────────────────────────────────────
-// NOTE: For a production backend, replace with server-side bcrypt.
-// This is a client-side fallback that's far better than plain text.
-function simpleHash(password: string): string {
-  return btoa(encodeURIComponent(password + '_octagon_salt_2025_secure_v3'));
-}
-
-// ─── Password Validation ──────────────────────────────────────────────────────
-export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-  
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    errors.push(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
-  }
-  
-  if (REQUIRE_PASSWORD_COMPLEXITY) {
-    if (!/[a-z]/.test(password)) errors.push('Password must contain lowercase letters');
-    if (!/[A-Z]/.test(password)) errors.push('Password must contain uppercase letters');
-    if (!/[0-9]/.test(password)) errors.push('Password must contain numbers');
-    if (!/[^a-zA-Z0-9]/.test(password)) errors.push('Password must contain special characters');
-  }
-  
-  // Check for common weak passwords
-  const commonPasswords = ['password', '12345678', 'qwerty', 'octagon', 'admin'];
-  if (commonPasswords.some(weak => password.toLowerCase().includes(weak))) {
-    errors.push('Password is too common or weak');
-  }
-  
-  return { valid: errors.length === 0, errors };
-}
-
-// ─── Device Fingerprinting ────────────────────────────────────────────────────
-function generateDeviceFingerprint(): string {
-  if (typeof window === 'undefined') return 'unknown';
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  ctx?.fillText('Device fingerprint', 2, 2);
-  const fingerprint = [
-    navigator.userAgent,
-    navigator.language,
-    screen.width + 'x' + screen.height,
-    new Date().getTimezoneOffset(),
-    canvas.toDataURL(),
-  ].join('|');
-  return btoa(fingerprint).slice(0, 32);
-}
-
-function getDeviceName(): string {
-  if (typeof window === 'undefined') return 'Unknown Device';
-  const ua = navigator.userAgent;
-  if (ua.includes('iPhone')) return 'iPhone';
-  if (ua.includes('iPad')) return 'iPad';
-  if (ua.includes('Android')) return 'Android Device';
-  if (ua.includes('Mac')) return 'Mac';
-  if (ua.includes('Windows')) return 'Windows PC';
-  if (ua.includes('Linux')) return 'Linux PC';
-  return 'Unknown Device';
-}
-
-// ─── Verification Code Management ────────────────────────────────────────────
-function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
-}
-
-function saveVerificationCode(code: VerificationCode): void {
-  const codes: VerificationCode[] = JSON.parse(localStorage.getItem(VERIFICATION_CODES_KEY) || '[]');
-  codes.push(code);
-  // Keep only last 100 codes
-  localStorage.setItem(VERIFICATION_CODES_KEY, JSON.stringify(codes.slice(-100)));
-}
-
-function getVerificationCode(userId: string, type: VerificationCode['type']): VerificationCode | null {
-  const codes: VerificationCode[] = JSON.parse(localStorage.getItem(VERIFICATION_CODES_KEY) || '[]');
-  const code = codes.find(c => c.userId === userId && c.type === type && !c.used && new Date(c.expiresAt) > new Date());
-  return code || null;
-}
-
-function markCodeUsed(userId: string, type: VerificationCode['type']): void {
-  const codes: VerificationCode[] = JSON.parse(localStorage.getItem(VERIFICATION_CODES_KEY) || '[]');
-  const updated = codes.map(c => 
-    c.userId === userId && c.type === type && !c.used ? { ...c, used: true } : c
-  );
-  localStorage.setItem(VERIFICATION_CODES_KEY, JSON.stringify(updated));
-}
-
-// ─── Email Service (Mock - Replace with real email service) ───────────────────
-function sendEmailVerificationCode(email: string, code: string, type: 'email_verification' | '2fa' | 'password_reset' | 'device_verification'): void {
-  // In production, integrate with Resend, SendGrid, or similar
-  console.log(`[EMAIL] To: ${email}, Code: ${code}, Type: ${type}`);
-  // For now, we'll store it in localStorage and show it in console
-  // In production, this would send an actual email
-  localStorage.setItem(`email_code_${email}`, JSON.stringify({ code, type, sentAt: new Date().toISOString() }));
-}
-
-export function getEmailCodeForTesting(email: string): string | null {
-  const stored = localStorage.getItem(`email_code_${email}`);
-  if (!stored) return null;
-  const data = JSON.parse(stored);
-  // Code expires after 10 minutes
-  if (new Date(data.sentAt).getTime() + VERIFICATION_CODE_EXPIRY < Date.now()) return null;
-  return data.code;
-}
-
-// ─── Storage helpers ──────────────────────────────────────────────────────────
-function loadUsers(): AdminUser[] {
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-function saveUsers(users: AdminUser[]): void {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-// ─── Seed ─────────────────────────────────────────────────────────────────────
-// REMOVED: ensureDefaultAdmin() used to seed a hardcoded super admin
-// (username "admin" with a fixed password) into localStorage on first load, in
-// every browser that opened the site. Combined with the client-side gate, that
-// was a permanent skeleton key to the CMS.
+// ─── The retired localStorage user store ──────────────────────────────────────
 //
-// Identity now lives in Supabase Auth (see src/lib/auth.ts). Staff accounts are
-// created deliberately, not seeded, so this local user list starts empty.
-
-// ─── User CRUD ────────────────────────────────────────────────────────────────
-export function getUsersList(): AdminUser[] {
-  return loadUsers();
-}
-
-export function getUser(id: string): AdminUser | undefined {
-  return loadUsers().find(u => u.id === id);
-}
-
-export function getUserByUsername(username: string): AdminUser | undefined {
-  return loadUsers().find(u => u.username.toLowerCase() === username.toLowerCase());
-}
-
-export function createUser(data: {
-  username: string;
-  password: string;
-  displayName: string;
-  email: string;
-  role: UserRole;
-  section?: string;
-  bio?: string;
-  avatar?: string;
-  phone?: string;
-  graduationYear?: string;
-  approvedBy?: string;  // Super admin who created this account
-}): AdminUser {
-  const { password, ...rest } = data;
-  
-  // Validate password strength
-  const passwordValidation = validatePasswordStrength(password);
-  if (!passwordValidation.valid) {
-    throw new Error(`Password validation failed: ${passwordValidation.errors.join(', ')}`);
-  }
-  
-  const now = new Date();
-  const passwordExpiresAt = new Date(now.getTime() + PASSWORD_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
-  
-  const user: AdminUser = {
-    ...rest,
-    id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    passwordHash: simpleHash(password),
-    createdAt: now.toISOString(),
-    active: true,
-    emailVerified: false,  // Requires email verification
-    twoFactorEnabled: false,  // Can be enabled later
-    approvedBy: data.approvedBy || undefined,
-    approvedAt: data.approvedBy ? now.toISOString() : undefined,
-    passwordChangedAt: now.toISOString(),
-    passwordExpiresAt: passwordExpiresAt.toISOString(),
-    requiresPasswordChange: false,
-  };
-  
-  const users = loadUsers();
-  users.push(user);
-  saveUsers(users);
-  
-  // Send email verification code
-  const verificationCode = generateVerificationCode();
-  sendEmailVerificationCode(user.email, verificationCode, 'email_verification');
-  saveVerificationCode({
-    code: verificationCode,
-    type: 'email_verification',
-    userId: user.id,
-    expiresAt: new Date(Date.now() + VERIFICATION_CODE_EXPIRY).toISOString(),
-    attempts: 0,
-    used: false,
-  });
-  
-  logActivity('user_created', `New staff member "${user.displayName}" added as ${ROLE_LABELS[user.role]}`);
-  return user;
-}
-
-export function updateUser(
-  id: string,
-  updates: Partial<Omit<AdminUser, 'id' | 'createdAt'>> & { password?: string }
-): AdminUser | undefined {
-  const users = loadUsers();
-  const idx = users.findIndex(u => u.id === id);
-  if (idx === -1) return undefined;
-  const { password, ...rest } = updates;
-  users[idx] = {
-    ...users[idx],
-    ...rest,
-    ...(password ? { passwordHash: simpleHash(password) } : {}),
-  };
-  saveUsers(users);
-  return users[idx];
-}
-
-export function deleteUser(id: string): void {
-  const user = getUser(id);
-  if (user) logActivity('user_deleted', `Staff member "${user.displayName}" removed`);
-  saveUsers(loadUsers().filter(u => u.id !== id));
-}
-
-// ─── Security Helpers ──────────────────────────────────────────────────────────
-function getClientIP(): string {
-  // In browser, we can't get real IP, but we can use a fingerprint
-  // For production, this should come from server-side
-  return typeof window !== 'undefined' 
-    ? `${navigator.userAgent.slice(0, 50)}_${navigator.language}_${screen.width}x${screen.height}`
-    : 'unknown';
-}
-
-function getUserAgent(): string {
-  return typeof window !== 'undefined' ? navigator.userAgent : 'unknown';
-}
-
-function getLoginAttempts(): LoginAttempt[] {
-  try {
-    return JSON.parse(localStorage.getItem(LOGIN_ATTEMPTS_KEY) || '[]');
-  } catch { return []; }
-}
-
-function saveLoginAttempt(attempt: LoginAttempt): void {
-  const attempts = getLoginAttempts();
-  attempts.unshift(attempt);
-  // Keep last 500 attempts
-  localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts.slice(0, 500)));
-}
-
-function getBlockedIPs(): Record<string, number> {
-  try {
-    return JSON.parse(localStorage.getItem(BLOCKED_IPS_KEY) || '{}');
-  } catch { return {}; }
-}
-
-export function blockIP(ip: string): void {
-  const blocked = getBlockedIPs();
-  blocked[ip] = Date.now() + IP_BLOCK_DURATION;
-  localStorage.setItem(BLOCKED_IPS_KEY, JSON.stringify(blocked));
-  createSecurityAlert('suspicious_ip', 'high', `IP blocked due to excessive failed login attempts: ${ip.slice(0, 30)}...`, { ip });
-}
-
-function isIPBlocked(ip: string): boolean {
-  const blocked = getBlockedIPs();
-  const blockUntil = blocked[ip];
-  if (!blockUntil) return false;
-  if (blockUntil < Date.now()) {
-    // Expired, remove
-    const updated = { ...blocked };
-    delete updated[ip];
-    localStorage.setItem(BLOCKED_IPS_KEY, JSON.stringify(updated));
-    return false;
-  }
-  return true;
-}
-
-function createSecurityAlert(
-  type: SecurityAlert['type'],
-  severity: SecurityAlert['severity'],
-  message: string,
-  details: Record<string, unknown>
-): void {
-  try {
-    const alerts: SecurityAlert[] = JSON.parse(localStorage.getItem(SECURITY_ALERTS_KEY) || '[]');
-    alerts.unshift({
-      id: `alert_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      type,
-      severity,
-      message,
-      details,
-      timestamp: new Date().toISOString(),
-      resolved: false,
-    });
-    // Keep last 200 alerts
-    localStorage.setItem(SECURITY_ALERTS_KEY, JSON.stringify(alerts.slice(0, 200)));
-  } catch { /* non-fatal */ }
-}
-
-function checkAccountLockout(user: AdminUser): boolean {
-  if (!user.lockedUntil) return false;
-  const lockTime = new Date(user.lockedUntil).getTime();
-  if (lockTime < Date.now()) {
-    // Lock expired, clear it
-    updateUser(user.id, { lockedUntil: undefined, failedAttempts: 0 });
-    return false;
-  }
-  return true;
-}
-
-function incrementFailedAttempts(user: AdminUser, ip: string): void {
-  const attempts = (user.failedAttempts || 0) + 1;
-  const updates: Partial<AdminUser> = { failedAttempts: attempts };
-  
-  if (attempts >= MAX_LOGIN_ATTEMPTS) {
-    updates.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION).toISOString();
-    createSecurityAlert(
-      'account_locked',
-      'high',
-      `Account "${user.username}" locked due to ${attempts} failed login attempts`,
-      { username: user.username, userId: user.id, attempts }
-    );
-    logActivity('security_lock', `Account "${user.username}" locked due to failed attempts`, user.id);
-  } else if (attempts >= SUSPICIOUS_ACTIVITY_THRESHOLD) {
-    createSecurityAlert(
-      'multiple_failures',
-      'medium',
-      `Multiple failed login attempts for "${user.username}" (${attempts}/${MAX_LOGIN_ATTEMPTS})`,
-      { username: user.username, userId: user.id, attempts }
-    );
-  }
-  
-  updateUser(user.id, updates);
-}
-
-function checkIPAttempts(ip: string): boolean {
-  const attempts = getLoginAttempts();
-  const recentFailures = attempts.filter(
-    a => a.ip === ip && !a.success && new Date(a.timestamp).getTime() > Date.now() - IP_BLOCK_DURATION
-  );
-  
-  if (recentFailures.length >= MAX_ATTEMPTS_PER_IP) {
-    blockIP(ip);
-    return false; // Blocked
-  }
-  
-  return true; // Allowed
-}
+// Everything that used to sit here — a second user table, password hashing,
+// device fingerprints, verification codes, a mock email sender, login-attempt
+// and blocked-IP lists, security alerts — belonged to a sign-in system that
+// Supabase Auth replaced. Nothing outside this file has imported any of it for
+// a long time: the only exports anyone still uses are the roles above, the
+// permission check, and the activity log below.
+//
+// It is deleted rather than left in place. It is what made the Security page
+// read four lists that nothing ever wrote to, and it kept four actions in the
+// activity-log catalogue that could never actually happen.
 
 // ─── Retired sign-in code ─────────────────────────────────────────────────────
 //
@@ -537,6 +109,10 @@ export function getRoleLevel(role: UserRole): number {
 }
 
 // ─── Activity Log ─────────────────────────────────────────────────────────────
+
+/** This browser's offline copy of the log. The real one is on the server. */
+export const ACTIVITY_KEY = 'octagon_activity_log';
+
 export interface ActivityLogEntry {
   id: string;
   action: string;
@@ -546,6 +122,71 @@ export interface ActivityLogEntry {
   targetId?: string;
   timestamp: string;
 }
+
+/**
+ * Everything the newsroom can do, and what to call it in the log.
+ *
+ * One place, so the pages that write entries and the page that reads them
+ * cannot drift apart — and so it is obvious at a glance what is *not* covered.
+ * A log is only worth trusting if it is complete.
+ */
+export const ACTIVITY_ACTIONS = {
+  // Stories
+  article_created:     { area: 'Stories',  label: 'Story started' },
+  article_saved:       { area: 'Stories',  label: 'Story edited' },
+  article_published:   { area: 'Stories',  label: 'Published' },
+  article_unpublished: { area: 'Stories',  label: 'Taken off the site' },
+  article_trashed:     { area: 'Stories',  label: 'Moved to trash' },
+  article_restored:    { area: 'Stories',  label: 'Restored' },
+  article_purged:      { area: 'Stories',  label: 'Deleted for good' },
+  article_duplicated:  { area: 'Stories',  label: 'Duplicated' },
+  article_imported:    { area: 'Stories',  label: 'Imported' },
+  revision_restored:   { area: 'Stories',  label: 'Revision restored' },
+  note_added:          { area: 'Stories',  label: 'Note added' },
+  note_deleted:        { area: 'Stories',  label: 'Note deleted' },
+
+  // People on the masthead
+  staff_added:         { area: 'Staff',    label: 'Person added' },
+  staff_updated:       { area: 'Staff',    label: 'Person edited' },
+  staff_removed:       { area: 'Staff',    label: 'Person removed' },
+
+  // Logins
+  account_created:     { area: 'Accounts', label: 'Account created' },
+  account_updated:     { area: 'Accounts', label: 'Account changed' },
+  account_removed:     { area: 'Accounts', label: 'Account deleted' },
+  account_password:    { area: 'Accounts', label: 'Password changed' },
+  login:               { area: 'Accounts', label: 'Signed in' },
+  login_failed:        { area: 'Accounts', label: 'Sign-in refused' },
+  logout:              { area: 'Accounts', label: 'Signed out' },
+
+  // Readers
+  comment_approved:    { area: 'Comments', label: 'Comment approved' },
+  comment_unapproved:  { area: 'Comments', label: 'Comment hidden' },
+  comment_deleted:     { area: 'Comments', label: 'Comment deleted' },
+
+  // Advertising
+  ad_created:          { area: 'Ads',      label: 'Ad created' },
+  ad_updated:          { area: 'Ads',      label: 'Ad edited' },
+  ad_deleted:          { area: 'Ads',      label: 'Ad deleted' },
+  ad_activated:        { area: 'Ads',      label: 'Ad switched on' },
+  ad_deactivated:      { area: 'Ads',      label: 'Ad switched off' },
+
+  // The site itself
+  settings_changed:    { area: 'Settings', label: 'Settings changed' },
+  data_exported:       { area: 'Settings', label: 'Backup downloaded' },
+  pdf_imported:        { area: 'Stories',  label: 'Story from a PDF' },
+} as const;
+
+export type ActivityAction = keyof typeof ACTIVITY_ACTIONS;
+
+/** The groups the Activity Log offers as a filter, in order. */
+export const ACTIVITY_AREAS = ['Stories', 'Staff', 'Accounts', 'Comments', 'Ads', 'Settings'] as const;
+
+export const activityLabel = (action: string): string =>
+  ACTIVITY_ACTIONS[action as ActivityAction]?.label ?? action;
+
+export const activityArea = (action: string): string =>
+  ACTIVITY_ACTIONS[action as ActivityAction]?.area ?? 'Other';
 
 /**
  * Record something that happened, for the whole newsroom to see.
@@ -571,7 +212,7 @@ export function logActivity(
     action,
     description,
     userId,
-    userDisplayName: userDisplayName ?? (userId ? getUser(userId)?.displayName : undefined),
+    userDisplayName,
     targetId,
     timestamp: new Date().toISOString(),
   };
@@ -646,51 +287,9 @@ export function clearLocalActivityLog(): void {
   localStorage.removeItem(ACTIVITY_KEY);
 }
 
-// ─── Security Functions ───────────────────────────────────────────────────────
-export function getSecurityAlerts(): SecurityAlert[] {
-  try {
-    return JSON.parse(localStorage.getItem(SECURITY_ALERTS_KEY) || '[]');
-  } catch { return []; }
-}
-
-export function resolveSecurityAlert(alertId: string, resolvedBy: string): void {
-  const alerts = getSecurityAlerts();
-  const idx = alerts.findIndex(a => a.id === alertId);
-  if (idx !== -1) {
-    alerts[idx].resolved = true;
-    alerts[idx].resolvedBy = resolvedBy;
-    alerts[idx].resolvedAt = new Date().toISOString();
-    localStorage.setItem(SECURITY_ALERTS_KEY, JSON.stringify(alerts));
-  }
-}
-
-export function getLoginAttemptsHistory(limit = 100): LoginAttempt[] {
-  return getLoginAttempts().slice(0, limit);
-}
-
-export function getBlockedIPsList(): Array<{ ip: string; blockedUntil: string }> {
-  const blocked = getBlockedIPs();
-  return Object.entries(blocked)
-    .filter(([_, until]) => until > Date.now())
-    .map(([ip, until]) => ({
-      ip,
-      blockedUntil: new Date(until).toISOString(),
-    }));
-}
-
-export function unblockIP(ip: string): void {
-  const blocked = getBlockedIPs();
-  delete blocked[ip];
-  localStorage.setItem(BLOCKED_IPS_KEY, JSON.stringify(blocked));
-}
-
-export function unlockUser(userId: string, unlockedBy: string): void {
-  const user = getUser(userId);
-  if (user) {
-    updateUser(userId, { 
-      lockedUntil: undefined, 
-      failedAttempts: 0 
-    });
-    logActivity('security_unlock', `Account "${user.username}" unlocked by ${unlockedBy}`, userId);
-  }
-}
+// ─── Security helpers, removed ────────────────────────────────────────────────
+//
+// getSecurityAlerts / resolveSecurityAlert / getLoginAttemptsHistory /
+// getBlockedIPsList / unblockIP / unlockUser all read the localStorage stores
+// deleted above. The Security page now reads the login_attempts table that real
+// sign-ins actually write to, and turns accounts off through the auth layer.

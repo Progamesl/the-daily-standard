@@ -230,12 +230,18 @@ export default function AdminStories() {
       try {
         const imported = await importJsonArticle(article as unknown as Record<string, unknown>);
         targetId = imported.id;
+        logActivity('article_imported', `Imported "${imported.headline}" so it could be edited`,
+          currentUser?.id, imported.id, currentUser?.displayName);
       } catch {
         toast.error('Failed to import story. Please try again.');
         return;
       }
     }
     const duped = await duplicateAdminArticle(targetId);
+    if (duped) {
+      logActivity('article_duplicated', `Duplicated "${article.headline}"`,
+        currentUser?.id, duped.id, currentUser?.displayName);
+    }
     if (duped) {
       toast.success('Story duplicated');
       refresh();

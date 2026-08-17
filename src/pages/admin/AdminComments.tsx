@@ -9,6 +9,8 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { logActivity } from '@/lib/adminUserService';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { cn } from '@/lib/utils';
 
 interface Comment {
@@ -25,6 +27,7 @@ interface Comment {
 type FilterTab = 'pending' | 'approved' | 'all';
 
 export default function AdminComments() {
+  const { currentUser } = useAdminAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterTab>('pending');
@@ -72,6 +75,9 @@ export default function AdminComments() {
 
   useEffect(() => { fetchComments(); }, [fetchComments]);
 
+  /** Name the reader in the log rather than an id nobody can read. */
+  const who = (id: string) => comments.find(c => c.id === id)?.display_name || 'a reader';
+
   const approve = async (id: string) => {
     if (!supabase) return;
     setActionLoading(prev => new Set(prev).add(id));
@@ -79,6 +85,8 @@ export default function AdminComments() {
       const { error } = await supabase.from('comments').update({ approved: true }).eq('id', id);
       if (error) throw error;
       setComments(prev => prev.map(c => c.id === id ? { ...c, approved: true } : c));
+      logActivity('comment_approved', `Approved a comment from ${who(id)}`,
+        currentUser?.id, id, currentUser?.displayName);
       toast.success('Comment approved');
     } catch {
       toast.error('Failed to approve comment');
@@ -94,6 +102,8 @@ export default function AdminComments() {
       const { error } = await supabase.from('comments').update({ approved: false }).eq('id', id);
       if (error) throw error;
       setComments(prev => prev.map(c => c.id === id ? { ...c, approved: false } : c));
+      logActivity('comment_unapproved', `Hid a comment from ${who(id)}`,
+        currentUser?.id, id, currentUser?.displayName);
       toast.success('Comment unapproved');
     } catch {
       toast.error('Failed to unapprove comment');
@@ -108,7 +118,15 @@ export default function AdminComments() {
     try {
       const { error } = await supabase.from('comments').delete().eq('id', id);
       if (error) throw error;
+      // The text goes into the log because deleting a comment is permanent —
+      // there is no trash for them.
+      const gone = comments.find(c => c.id === id);
       setComments(prev => prev.filter(c => c.id !== id));
+      logActivity(
+        'comment_deleted',
+        `Deleted a comment from ${gone?.display_name || 'a reader'}${gone ? ` — "${gone.content}"` : ''}`,
+        currentUser?.id, id, currentUser?.displayName,
+      );
       toast.success('Comment deleted');
     } catch {
       toast.error('Failed to delete comment');

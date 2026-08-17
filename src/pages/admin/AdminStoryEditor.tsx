@@ -503,13 +503,25 @@ export default function AdminStoryEditor() {
       content: newNote.trim(),
       type: noteType,
     });
-    if (updated) { setArticle(updated); setNewNote(''); toast.success('Note added'); }
+    if (updated) {
+      setArticle(updated);
+      setNewNote('');
+      logActivity('note_added', `Left a note on "${form.headline}" — "${newNote.trim()}"`,
+        currentUser?.id, id, currentUser?.displayName);
+      toast.success('Note added');
+    }
   };
 
   const handleDeleteNote = async (noteId: string) => {
     if (!id) return;
     const adminData = await import('@/lib/adminDataService');
+    const gone = article?.internalNotes?.find(n => n.id === noteId);
     adminData.deleteInternalNote(id, noteId);
+    logActivity(
+      'note_deleted',
+      `Deleted a note on "${form.headline}"${gone ? ` — "${gone.content}"` : ''}`,
+      currentUser?.id, id, currentUser?.displayName,
+    );
     const updated = adminData.getAdminArticle(id);
     if (updated) setArticle(updated);
     toast.success('Note deleted');
@@ -521,6 +533,11 @@ export default function AdminStoryEditor() {
     const restored = await adminData.restoreRevision(id, restoreTarget.id, currentUser?.id ?? '', currentUser?.displayName ?? '');
     if (restored) {
       applyArticleToForm(restored);
+      logActivity(
+        'revision_restored',
+        `Rolled "${restored.headline}" back to the version from ${new Date(restoreTarget.savedAt).toLocaleString()}`,
+        currentUser?.id, id, currentUser?.displayName,
+      );
       toast.success('Revision restored');
     }
     setRestoreTarget(null);

@@ -262,7 +262,7 @@ export default function AdminSecurity() {
     setBusyId(member.id);
     try {
       await updateStaff(member.id, { active: false });
-      logActivity('user_updated', `Turned off the account for ${member.displayName}`,
+      logActivity('account_updated', `Turned off the account for ${member.displayName}`,
         currentUser?.id, member.id, currentUser?.displayName);
       toast.success(`${member.displayName} can no longer sign in.`);
       refresh();
@@ -275,7 +275,7 @@ export default function AdminSecurity() {
     setBusyId(member.id);
     try {
       await updateStaff(member.id, { active: true });
-      logActivity('user_updated', `Turned the account for ${member.displayName} back on`,
+      logActivity('account_updated', `Turned the account for ${member.displayName} back on`,
         currentUser?.id, member.id, currentUser?.displayName);
       toast.success(`${member.displayName} can sign in again.`);
       refresh();
@@ -293,7 +293,7 @@ export default function AdminSecurity() {
     setBusyId(resetTarget.id);
     try {
       await resetStaffPassword(resetTarget.id, newPassword);
-      logActivity('user_updated', `Reset the password for ${resetTarget.displayName}`,
+      logActivity('account_password', `Reset the password for ${resetTarget.displayName}`,
         currentUser?.id, resetTarget.id, currentUser?.displayName);
       toast.success(`Password changed. Give it to ${resetTarget.displayName} in person, not by email.`);
       setResetTarget(null);

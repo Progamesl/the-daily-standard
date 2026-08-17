@@ -123,6 +123,9 @@ export async function signIn(
 
   if (error) {
     void recordLoginAttempt(email, false, null);
+    // A refused sign-in belongs in the log too — a run of them against one
+    // account is the thing an editor-in-chief most wants to notice.
+    void logToNewsroom('login_failed', `Sign-in refused for ${email}`, '', email);
     return { user: null, profile: null, error: error.message };
   }
 
@@ -180,7 +183,7 @@ export async function signOut(): Promise<void> {
 async function logToNewsroom(action: string, description: string, userId: string, displayName: string) {
   try {
     const { logActivity } = await import('./adminUserService');
-    logActivity(action, description, userId, undefined, displayName);
+    logActivity(action, description, userId || undefined, undefined, displayName);
   } catch { /* logging must never break signing in */ }
 }
 

@@ -19,6 +19,8 @@ import {
   ExternalLink, AlertTriangle, Loader2, X, Copy, Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { logActivity } from '@/lib/adminUserService';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { cn } from '@/lib/utils';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
@@ -189,6 +191,7 @@ function bodyToHtml(text: string): string {
 /* ── Component ──────────────────────────────────────────────────────────── */
 
 export default function AdminPdfImport() {
+  const { currentUser } = useAdminAuth();
   const navigate = useNavigate();
   const dropRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -276,6 +279,11 @@ export default function AdminPdfImport() {
       byline: story.byline,
       body: html,
     }));
+    logActivity(
+      'pdf_imported',
+      `Pulled "${story.headline}" out of a PDF${story.byline ? ` by ${story.byline}` : ''}`,
+      currentUser?.id, undefined, currentUser?.displayName,
+    );
     navigate('/admin/stories/new?from=pdf');
   };
 

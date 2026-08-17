@@ -6,10 +6,14 @@ import {
 } from '@/components/ui/select';
 import {
   Search, Activity, Trash2, RefreshCw, LogIn, LogOut, FileText, User,
-  Send, EyeOff, RotateCcw,
+  Send, EyeOff, RotateCcw, KeyRound, MessageSquare, MonitorPlay,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { fetchActivityLog, type ActivityLogEntry } from '@/lib/adminUserService';
+import {
+  fetchActivityLog, activityLabel, activityArea, ACTIVITY_AREAS, ACTIVITY_ACTIONS,
+  type ActivityLogEntry,
+} from '@/lib/adminUserService';
 import {
   readPreviousFromLog, saveAdminAuthor, getAdminAuthor, type AdminAuthor,
 } from '@/lib/adminDataService';
@@ -17,41 +21,41 @@ import { clearMastheadCache } from '@/lib/mastheadService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { cn } from '@/lib/utils';
 
-const ACTION_ICONS: Record<string, React.ReactNode> = {
-  login:              <LogIn  className="h-3.5 w-3.5 text-green-500" />,
-  logout:             <LogOut className="h-3.5 w-3.5 text-slate-400" />,
-  article_created:    <FileText className="h-3.5 w-3.5 text-blue-500" />,
-  article_saved:      <FileText className="h-3.5 w-3.5 text-slate-500" />,
-  article_published:  <Send className="h-3.5 w-3.5 text-green-600" />,
-  article_unpublished:<EyeOff className="h-3.5 w-3.5 text-amber-600" />,
-  article_trashed:    <Trash2 className="h-3.5 w-3.5 text-red-500" />,
-  article_restored:   <RotateCcw className="h-3.5 w-3.5 text-teal-600" />,
-  article_purged:     <Trash2 className="h-3.5 w-3.5 text-red-700" />,
-  user_created:       <User  className="h-3.5 w-3.5 text-purple-500" />,
-  user_updated:       <User  className="h-3.5 w-3.5 text-slate-500" />,
-  user_deleted:       <User  className="h-3.5 w-3.5 text-red-500" />,
-  staff_added:        <User  className="h-3.5 w-3.5 text-purple-500" />,
-  staff_updated:      <User  className="h-3.5 w-3.5 text-slate-500" />,
-  staff_removed:      <User  className="h-3.5 w-3.5 text-red-500" />,
+/**
+ * One icon per area rather than per action.
+ *
+ * The catalogue in adminUserService is the single list of what the newsroom can
+ * do; keeping icons keyed by area means adding an action there never leaves a
+ * blank space here.
+ */
+const AREA_ICONS: Record<string, React.ReactNode> = {
+  Stories:  <FileText className="h-3.5 w-3.5 text-blue-500" />,
+  Staff:    <User className="h-3.5 w-3.5 text-purple-500" />,
+  Accounts: <KeyRound className="h-3.5 w-3.5 text-slate-500" />,
+  Comments: <MessageSquare className="h-3.5 w-3.5 text-teal-600" />,
+  Ads:      <MonitorPlay className="h-3.5 w-3.5 text-amber-600" />,
+  Settings: <SettingsIcon className="h-3.5 w-3.5 text-slate-500" />,
+  Other:    <Activity className="h-3.5 w-3.5 text-slate-400" />,
 };
 
-const ACTION_LABELS: Record<string, string> = {
-  login:              'Signed in',
-  logout:             'Signed out',
-  article_created:    'Story started',
-  article_saved:      'Story edited',
-  article_published:  'Published',
-  article_unpublished:'Taken off the site',
-  article_trashed:    'Moved to trash',
-  article_restored:   'Restored',
-  article_purged:     'Deleted for good',
-  user_created:       'Staff added',
-  user_updated:       'Staff changed',
-  user_deleted:       'Staff removed',
-  staff_added:        'Person added',
-  staff_updated:      'Person edited',
-  staff_removed:      'Person removed',
+/** A handful of actions earn their own icon because they are the consequential ones. */
+const ACTION_ICONS: Record<string, React.ReactNode> = {
+  login:               <LogIn className="h-3.5 w-3.5 text-green-500" />,
+  login_failed:        <LogIn className="h-3.5 w-3.5 text-red-500" />,
+  logout:              <LogOut className="h-3.5 w-3.5 text-slate-400" />,
+  article_published:   <Send className="h-3.5 w-3.5 text-green-600" />,
+  article_unpublished: <EyeOff className="h-3.5 w-3.5 text-amber-600" />,
+  article_trashed:     <Trash2 className="h-3.5 w-3.5 text-red-500" />,
+  article_purged:      <Trash2 className="h-3.5 w-3.5 text-red-700" />,
+  article_restored:    <RotateCcw className="h-3.5 w-3.5 text-teal-600" />,
+  staff_removed:       <User className="h-3.5 w-3.5 text-red-500" />,
+  account_removed:     <KeyRound className="h-3.5 w-3.5 text-red-500" />,
+  comment_deleted:     <Trash2 className="h-3.5 w-3.5 text-red-500" />,
+  ad_deleted:          <Trash2 className="h-3.5 w-3.5 text-red-500" />,
 };
+
+const iconFor = (action: string) =>
+  ACTION_ICONS[action] ?? AREA_ICONS[activityArea(action)] ?? AREA_ICONS.Other;
 
 function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString('en-US', {
@@ -81,6 +85,7 @@ export default function AdminActivityLog() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery]           = useState('');
   const [actionFilter, setActionFilter] = useState('all');
+  const [areaFilter, setAreaFilter]     = useState<string>('all');
   const [expanded, setExpanded]     = useState<string | null>(null);
   const [restoring, setRestoring]   = useState<string | null>(null);
 
@@ -133,9 +138,10 @@ export default function AdminActivityLog() {
         l.action.toLowerCase().includes(q)
       );
     }
+    if (areaFilter !== 'all') list = list.filter(l => activityArea(l.action) === areaFilter);
     if (actionFilter !== 'all') list = list.filter(l => l.action === actionFilter);
     return list;
-  }, [logs, query, actionFilter]);
+  }, [logs, query, actionFilter, areaFilter]);
 
 
   // Group logs by date
@@ -178,19 +184,38 @@ export default function AdminActivityLog() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { label: 'Total Events', value: logs.length },
-          { label: 'Logins',       value: logs.filter(l => l.action === 'login').length },
-          { label: 'Story Updates',value: logs.filter(l => l.action.startsWith('article')).length },
-          { label: 'User Actions', value: logs.filter(l => l.action.startsWith('user')).length },
-        ].map(({ label, value }) => (
-          <div key={label} className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-2xl font-bold text-slate-900">{value}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{label}</p>
-          </div>
-        ))}
+      {/* Counts per area, which is how somebody actually looks for a change:
+          "something happened to the ads" rather than "ad_deactivated". */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+        <button
+          type="button"
+          onClick={() => setAreaFilter('all')}
+          className={cn(
+            'rounded-xl border p-4 text-left transition-colors',
+            areaFilter === 'all' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white hover:border-slate-300',
+          )}
+        >
+          <p className="text-2xl font-bold">{logs.length}</p>
+          <p className={cn('text-xs mt-0.5', areaFilter === 'all' ? 'text-slate-300' : 'text-slate-500')}>Everything</p>
+        </button>
+        {ACTIVITY_AREAS.map(area => {
+          const count = logs.filter(l => activityArea(l.action) === area).length;
+          const on = areaFilter === area;
+          return (
+            <button
+              key={area}
+              type="button"
+              onClick={() => setAreaFilter(on ? 'all' : area)}
+              className={cn(
+                'rounded-xl border p-4 text-left transition-colors',
+                on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white hover:border-slate-300',
+              )}
+            >
+              <p className="text-2xl font-bold">{count}</p>
+              <p className={cn('text-xs mt-0.5', on ? 'text-slate-300' : 'text-slate-500')}>{area}</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* Filters */}
@@ -198,17 +223,25 @@ export default function AdminActivityLog() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search activity…" className="pl-9" />
+            placeholder="Search by what happened, or who did it…" className="pl-9" />
         </div>
         <Select value={actionFilter} onValueChange={setActionFilter}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="All actions" /></SelectTrigger>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Anything" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Actions</SelectItem>
-            {Object.entries(ACTION_LABELS).map(([action, label]) => (
-              <SelectItem key={action} value={action}>{label}</SelectItem>
-            ))}
+            <SelectItem value="all">Anything</SelectItem>
+            {Object.keys(ACTIVITY_ACTIONS)
+              .filter(a => areaFilter === 'all' || activityArea(a) === areaFilter)
+              .map(action => (
+                <SelectItem key={action} value={action}>{activityLabel(action)}</SelectItem>
+              ))}
           </SelectContent>
         </Select>
+        {(areaFilter !== 'all' || actionFilter !== 'all' || query) && (
+          <Button variant="ghost" size="sm"
+            onClick={() => { setAreaFilter('all'); setActionFilter('all'); setQuery(''); }}>
+            Clear filters
+          </Button>
+        )}
       </div>
 
       {/* Log */}
@@ -237,7 +270,7 @@ export default function AdminActivityLog() {
                       className="flex items-start gap-4 px-6 py-3.5 hover:bg-slate-50 transition-colors">
                       {/* Icon */}
                       <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
-                        {ACTION_ICONS[entry.action] ?? <Activity className="h-3.5 w-3.5 text-slate-400" />}
+                        {iconFor(entry.action)}
                       </div>
 
                       {/* Content */}
@@ -300,7 +333,7 @@ export default function AdminActivityLog() {
                           )}
                           {entry.userDisplayName && <span className="text-slate-300">·</span>}
                           <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                            {ACTION_LABELS[entry.action] ?? entry.action}
+                            {activityLabel(entry.action)}
                           </span>
                         </div>
                       </div>
