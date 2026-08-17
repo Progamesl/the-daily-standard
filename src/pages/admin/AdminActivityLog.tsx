@@ -8,7 +8,13 @@ import {
   Search, Activity, Trash2, RefreshCw, LogIn, LogOut, FileText, User,
   Send, EyeOff, RotateCcw,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { fetchActivityLog, type ActivityLogEntry } from '@/lib/adminUserService';
+import {
+  readPreviousFromLog, saveAdminAuthor, getAdminAuthor, type AdminAuthor,
+} from '@/lib/adminDataService';
+import { clearMastheadCache } from '@/lib/mastheadService';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { cn } from '@/lib/utils';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -24,6 +30,9 @@ const ACTION_ICONS: Record<string, React.ReactNode> = {
   user_created:       <User  className="h-3.5 w-3.5 text-purple-500" />,
   user_updated:       <User  className="h-3.5 w-3.5 text-slate-500" />,
   user_deleted:       <User  className="h-3.5 w-3.5 text-red-500" />,
+  staff_added:        <User  className="h-3.5 w-3.5 text-purple-500" />,
+  staff_updated:      <User  className="h-3.5 w-3.5 text-slate-500" />,
+  staff_removed:      <User  className="h-3.5 w-3.5 text-red-500" />,
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -39,6 +48,9 @@ const ACTION_LABELS: Record<string, string> = {
   user_created:       'Staff added',
   user_updated:       'Staff changed',
   user_deleted:       'Staff removed',
+  staff_added:        'Person added',
+  staff_updated:      'Person edited',
+  staff_removed:      'Person removed',
 };
 
 function formatTimestamp(iso: string): string {
@@ -65,9 +77,37 @@ function timeAgo(iso: string): string {
 }
 
 export default function AdminActivityLog() {
+  const { currentUser } = useAdminAuth();
   const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery]           = useState('');
   const [actionFilter, setActionFilter] = useState('all');
+  const [expanded, setExpanded]     = useState<string | null>(null);
+  const [restoring, setRestoring]   = useState<string | null>(null);
+
+  /** Put a person's earlier values back, from the copy kept in the log. */
+  const handleRestore = async (entryId: string, previous: Partial<AdminAuthor>) => {
+    if (!previous.id) return;
+    setRestoring(entryId);
+    try {
+      const current = getAdminAuthor(previous.id);
+      if (!current && !previous.name) {
+        toast.error('That person no longer exists and there is not enough here to rebuild them.');
+        return;
+      }
+      // A removal keeps the whole record; an edit keeps only what changed, so
+      // it is laid back over whatever the person looks like now.
+      const restored = { ...(current ?? {}), ...previous } as AdminAuthor;
+      saveAdminAuthor(restored, currentUser?.id, currentUser?.displayName);
+      clearMastheadCache();
+      toast.success(`Put back ${restored.name}'s earlier details`);
+      setExpanded(null);
+      setRefreshKey(k => k + 1);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not put it back.');
+    } finally {
+      setRestoring(null);
+    }
+  };
 
   // The log lives on the server now, so this is what everyone did, not just
   // what happened in this browser.
@@ -202,16 +242,64 @@ export default function AdminActivityLog() {
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-800">{entry.description}</p>
+                        {(() => {
+                          const { text, previous } = readPreviousFromLog(entry.description);
+                          const open = expanded === entry.id;
+                          return (
+                            <>
+                              <p className="text-sm text-slate-800">{text}</p>
+                              {/* An edit that carries what it replaced can be
+                                  undone from here. This exists because somebody
+                                  rewrote a bio, forgot the original, and had
+                                  nowhere to look it up. */}
+                              {previous && (
+                                <div className="mt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpanded(open ? null : entry.id)}
+                                    className="text-xs text-slate-500 hover:text-slate-800 underline underline-offset-2"
+                                  >
+                                    {open ? 'Hide what it was' : 'See what it was before'}
+                                  </button>
+                                  {open && (
+                                    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                      <dl className="space-y-2">
+                                        {Object.entries(previous)
+                                          .filter(([k]) => k !== 'id')
+                                          .map(([k, v]) => (
+                                            <div key={k}>
+                                              <dt className="text-[10px] uppercase tracking-wider text-slate-400">{k}</dt>
+                                              <dd className="text-xs text-slate-700 whitespace-pre-wrap break-words">
+                                                {v === '' || v === undefined || v === null
+                                                  ? <span className="italic text-slate-400">(empty)</span>
+                                                  : typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                              </dd>
+                                            </div>
+                                          ))}
+                                      </dl>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="mt-3 gap-1.5"
+                                        disabled={restoring === entry.id}
+                                        onClick={() => handleRestore(entry.id, previous)}
+                                      >
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                        {restoring === entry.id ? 'Putting it back…' : 'Put this back'}
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                         <div className="flex items-center gap-2 mt-0.5">
                           {entry.userDisplayName && (
                             <span className="text-xs text-slate-500">{entry.userDisplayName}</span>
                           )}
                           {entry.userDisplayName && <span className="text-slate-300">·</span>}
-                          <span className={cn(
-                            'text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full',
-                            ACTION_LABELS[entry.action] ? 'bg-slate-100 text-slate-500' : 'bg-slate-100 text-slate-500'
-                          )}>
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">
                             {ACTION_LABELS[entry.action] ?? entry.action}
                           </span>
                         </div>

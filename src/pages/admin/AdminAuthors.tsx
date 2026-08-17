@@ -26,6 +26,7 @@ import {
   type AdminAuthor,
 } from '@/lib/adminDataService';
 import { MASTHEAD_SECTIONS, clearMastheadCache } from '@/lib/mastheadService';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { authors as jsonAuthors } from '@/data/seedData';
 import { ImageUpload } from '@/components/admin/ImageUpload';
 import { cn } from '@/lib/utils';
@@ -90,6 +91,7 @@ const emptyAuthor: AuthorForm = {
 };
 
 export default function AdminAuthors() {
+  const { currentUser } = useAdminAuth();
   const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery] = useState('');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -171,11 +173,11 @@ export default function AdminAuthors() {
     };
 
     if (editingAuthor) {
-      saveAdminAuthor({ ...editingAuthor, ...fields });
+      saveAdminAuthor({ ...editingAuthor, ...fields }, currentUser?.id, currentUser?.displayName);
       toast.success(formData.onMasthead ? 'Saved — they are on the staff page' : 'Saved');
     } else {
-      createAdminAuthor(fields);
-      toast.success(formData.onMasthead ? 'Added to the staff page' : 'Author added');
+      createAdminAuthor(fields, currentUser?.id, currentUser?.displayName);
+      toast.success(formData.onMasthead ? 'Added to the staff page' : 'Person added');
     }
 
     // The staff page keeps a short cache; drop it so the change is visible now.
@@ -186,8 +188,9 @@ export default function AdminAuthors() {
 
   const handleDelete = () => {
     if (!deleteTarget) return;
-    deleteAdminAuthor(deleteTarget.id);
-    toast.success('Author deleted');
+    deleteAdminAuthor(deleteTarget.id, currentUser?.id, currentUser?.displayName);
+    clearMastheadCache();
+    toast.success(`${deleteTarget.name} removed — the Activity Log can put them back`);
     setDeleteTarget(null);
     setRefreshKey((k) => k + 1);
   };

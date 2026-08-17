@@ -7,6 +7,7 @@
  * becomes the abstraction layer switching between localStorage and the API.
  */
 import octagonData from '@/data/octagonData.json';
+import { logActivity } from '@/lib/adminUserService';
 
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
@@ -1082,10 +1083,87 @@ export function getAdminAuthor(id: string): AdminAuthor | undefined {
   return getAdminAuthorsMap()[id];
 }
 
-export function saveAdminAuthor(author: AdminAuthor): AdminAuthor {
+/** The fields a person's entry is made of, in the words the log uses. */
+const AUTHOR_FIELDS: [keyof AdminAuthor, string][] = [
+  ['name', 'name'],
+  ['role', 'role'],
+  ['bio', 'bio'],
+  ['image', 'photo'],
+  ['email', 'email'],
+  ['twitter', 'twitter'],
+  ['onMasthead', 'whether they are on the staff page'],
+  ['primarySection', 'section'],
+  ['altSections', 'other sections'],
+  ['tags', 'credits'],
+  ['sortOrder', 'position'],
+];
+
+/**
+ * Marks the part of a log line that holds what something used to be.
+ *
+ * Kept inside `description` because activity_log has no spare column, and
+ * adding one would mean another migration before this could help anybody. The
+ * Activity Log page splits on this and shows only the sentence.
+ */
+export const PREVIOUS_MARKER = '\n␟ previous ␟\n';
+
+/** Pull the "what it was before" payload back out of a log entry. */
+export function readPreviousFromLog(description: string): {
+  text: string;
+  previous: Partial<AdminAuthor> | null;
+} {
+  const i = description.indexOf(PREVIOUS_MARKER);
+  if (i === -1) return { text: description, previous: null };
+  try {
+    return {
+      text: description.slice(0, i),
+      previous: JSON.parse(description.slice(i + PREVIOUS_MARKER.length)),
+    };
+  } catch {
+    return { text: description.slice(0, i), previous: null };
+  }
+}
+
+const same = (a: unknown, b: unknown) =>
+  Array.isArray(a) || Array.isArray(b)
+    ? JSON.stringify(a ?? []) === JSON.stringify(b ?? [])
+    : (a ?? '') === (b ?? '');
+
+export function saveAdminAuthor(
+  author: AdminAuthor,
+  savedById?: string,
+  savedByName?: string,
+): AdminAuthor {
   const authors = getAdminAuthorsMap();
+  const before = authors[author.id];
   authors[author.id] = author;
   setStorage(AUTHORS_KEY, authors);
+
+  // Record what changed, and what it used to be.
+  //
+  // An editor rewrote a staffer's bio, forgot the original and had no way to
+  // get it back — nothing kept the old text and nothing even recorded that the
+  // edit had happened. Stories have revision history; people had none. The
+  // previous values ride along in the log entry so the change can be undone
+  // from the Activity Log without anyone digging through the database.
+  try {
+    const changed = AUTHOR_FIELDS.filter(([key]) => !same(before?.[key], author[key]));
+    if (!before) {
+      logActivity('staff_added', `Added ${author.name}`, savedById, author.id, savedByName);
+    } else if (changed.length) {
+      const previous: Partial<AdminAuthor> = { id: author.id };
+      for (const [key] of changed) (previous as Record<string, unknown>)[key] = before[key];
+      const words = changed.map(([, label]) => label);
+      const list = words.length === 1
+        ? words[0]
+        : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+      logActivity(
+        'staff_updated',
+        `Changed ${before.name}'s ${list}${PREVIOUS_MARKER}${JSON.stringify(previous)}`,
+        savedById, author.id, savedByName,
+      );
+    }
+  } catch { /* logging must never break a save */ }
 
   // Persist to Supabase too, or the edit would live only in this browser and
   // nobody else — readers included — would ever see it. Written in the
@@ -1131,9 +1209,20 @@ export async function syncAuthorsFromSupabase(): Promise<boolean> {
   }
 }
 
-export function createAdminAuthor(data: Omit<AdminAuthor, 'id'>): AdminAuthor {
-  const author: AdminAuthor = { ...data, id: generateId() };
-  return saveAdminAuthor(author);
+export function createAdminAuthor(
+  data: Omit<AdminAuthor, 'id'>,
+  savedById?: string,
+  savedByName?: string,
+): AdminAuthor {
+  // A readable id makes the row findable by a human looking at the database,
+  // and matches the ids the masthead seed writes.
+  const base = data.name?.trim()
+    ? data.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    : '';
+  const taken = getAdminAuthorsMap();
+  const id = base && !taken[base] ? base : generateId();
+  return saveAdminAuthor({ ...data, id }, savedById, savedByName);
 }
 
 export function updateAdminAuthor(
@@ -1159,12 +1248,25 @@ export function updateAdminAuthor(
   return updated;
 }
 
-export function deleteAdminAuthor(id: string): void {
+export function deleteAdminAuthor(id: string, deletedById?: string, deletedByName?: string): void {
   const authors = getAdminAuthorsMap();
+  const before = authors[id];
   if (authors[id]) {
     delete authors[id];
     setStorage(AUTHORS_KEY, authors);
   }
+
+  // The whole record goes into the log, so removing the wrong person is one
+  // click to undo rather than a bio typed out from memory.
+  try {
+    if (before) {
+      logActivity(
+        'staff_removed',
+        `Removed ${before.name}${PREVIOUS_MARKER}${JSON.stringify(before)}`,
+        deletedById, id, deletedByName,
+      );
+    }
+  } catch { /* logging must never break a delete */ }
   const deleted = getStorage<string[]>(DELETED_AUTHORS_KEY, []);
   if (!deleted.includes(id)) {
     deleted.push(id);
