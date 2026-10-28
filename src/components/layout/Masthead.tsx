@@ -187,8 +187,12 @@ export function Masthead() {
                   alt=""
                   width={80}
                   height={80}
-                  className="object-contain h-8 sm:h-14 md:h-[4.5rem] w-auto"
+                  className="object-contain h-8 sm:h-14 md:h-[4.5rem] w-auto mix-blend-multiply dark:mix-blend-normal"
                 />
+                {/* The file has a pure-white background, which sat as a white
+                    square on the off-white page. Multiply lets the page colour
+                    show through the white and leaves the red alone. Not in dark
+                    mode, where it would darken the red into the background. */}
                 <h1 className="font-serif font-bold tracking-tight text-2xl sm:text-3xl md:text-5xl mt-1">
                   The Octagon
                 </h1>
