@@ -165,11 +165,21 @@ export function Masthead() {
               </button>
             </div>
 
-            {/* Center: Logo/Wordmark */}
+            {/* Center: Logo/Wordmark.
+                The logo file has a pure-white background, which sat as a white
+                square on the off-white page. Multiply lets the page colour show
+                through the white and leaves the red alone. It is set here on
+                the link rather than on the image because the link fades on
+                hover (a:hover in index.css), and the fade wraps its contents
+                in a layer of their own — a blend on the image then only mixed
+                with that empty layer and the white square came back. The same
+                happened while the two logos cross-fade on scroll. Not in dark
+                mode, where multiply would darken everything into the page. */}
             <Link
               to="/"
               className={cn(
                 "flex-1 relative flex items-center justify-center min-w-0 overflow-hidden",
+                "mix-blend-multiply dark:mix-blend-normal",
                 "transition-[height] duration-300 ease-in-out",
                 isScrolled ? "h-9 sm:h-10" : "h-24 sm:h-28 md:h-36"
               )}
@@ -187,12 +197,8 @@ export function Masthead() {
                   alt=""
                   width={80}
                   height={80}
-                  className="object-contain h-8 sm:h-14 md:h-[4.5rem] w-auto mix-blend-multiply dark:mix-blend-normal"
+                  className="object-contain h-8 sm:h-14 md:h-[4.5rem] w-auto"
                 />
-                {/* The file has a pure-white background, which sat as a white
-                    square on the off-white page. Multiply lets the page colour
-                    show through the white and leaves the red alone. Not in dark
-                    mode, where it would darken the red into the background. */}
                 <h1 className="font-serif font-bold tracking-tight text-2xl sm:text-3xl md:text-5xl mt-1">
                   The Octagon
                 </h1>
