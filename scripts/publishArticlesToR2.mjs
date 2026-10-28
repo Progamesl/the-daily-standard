@@ -46,7 +46,23 @@ function getRequiredEnv() {
   return env;
 }
 
+/** Co-authors kept among a story's internal notes — a copy of the one in api/sync-r2.js. */
+function readCoAuthors(notes) {
+  if (!Array.isArray(notes)) return [];
+  for (const note of notes) {
+    try {
+      const parsed = JSON.parse(note?.content ?? '');
+      if (parsed?.kind !== 'co_authors' || !Array.isArray(parsed.authors)) continue;
+      return parsed.authors
+        .filter(a => a && typeof a.id === 'string' && a.id && typeof a.name === 'string' && a.name.trim())
+        .map(a => ({ id: a.id, name: a.name.trim() }));
+    } catch { /* an ordinary note */ }
+  }
+  return [];
+}
+
 function rowToPublic(row) {
+  const coAuthors = Array.isArray(row.coAuthors) ? row.coAuthors : readCoAuthors(row.internal_notes);
   return {
     id: String(row.id ?? ''),
     slug: row.slug ?? '',
@@ -73,6 +89,7 @@ function rowToPublic(row) {
     featured: row.featured ?? false,
     priority: row.priority ?? 'normal',
     isCinematic: row.is_cinematic ?? row.isCinematic ?? false,
+    ...(coAuthors.length ? { coAuthors } : {}),
   };
 }
 
@@ -83,7 +100,7 @@ export async function publishArticlesToR2() {
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
   const { data, error } = await supabase
     .from('articles')
-    .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority,is_cinematic')
+    .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority,is_cinematic,internal_notes')
     .eq('status', 'published');
 
   if (error) throw error;

@@ -13,12 +13,13 @@ import { getArticleBySlugFromR2, isR2ArticlesConfigured } from '@/lib/r2Articles
 import type { Article } from '@/data/seedData';
 import type { AdminArticle } from '@/lib/adminDataService';
 import { normalizeArticle } from '@/lib/normalizeArticle';
+import { readCoAuthors } from '@/lib/coAuthors';
 
 function adminToArticle(admin: AdminArticle): Article {
   // Supabase rows aren't runtime-type-checked; normalise so a malformed field
   // can't throw while the article renders.
   return {
-    ...normalizeArticle(admin),
+    ...normalizeArticle({ ...admin, coAuthors: readCoAuthors(admin.internalNotes) }),
     isCinematic: Boolean(admin.isCinematic),
   } as Article;
 }

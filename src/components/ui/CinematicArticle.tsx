@@ -4,6 +4,7 @@ import { Article, formatDate } from '@/data/seedData';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, User } from 'lucide-react';
 import { sanitizeArticleHtml } from '@/lib/sanitizeHtml';
+import { bylineText } from '@/lib/coAuthors';
 
 interface CinematicArticleProps {
   article: Article;
@@ -69,7 +70,7 @@ export function CinematicArticle({ article }: CinematicArticleProps) {
           >
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-violet-400" />
-              <span>By {article.author.name}</span>
+              <span>By {bylineText(article)}</span>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-violet-400" />

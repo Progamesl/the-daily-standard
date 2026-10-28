@@ -20,6 +20,7 @@ import {
 import { getImageOrNull, enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { useDataSync } from "@/contexts/DataSyncContext";
+import { bylineText } from "@/lib/coAuthors";
 
 /** Only keep articles that have a real image (not null/empty/placeholder). */
 function withImages(list: Article[]): Article[] {
@@ -164,7 +165,7 @@ const Index = () => {
                         {leadArticle.dek}
                       </p>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm md:text-base text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)]">
-                        <span className="font-medium">{leadArticle.author.name}</span>
+                        <span className="font-medium">{bylineText(leadArticle)}</span>
                         <span className="text-white/50">·</span>
                         <span>{formatTimestamp(leadArticle.publishedAt)}</span>
                         {leadArticle.readingTime && (
@@ -211,7 +212,7 @@ const Index = () => {
                           </h2>
                           <p className="text-sm text-white mb-2 line-clamp-2 drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">{article.dek}</p>
                           <div className="flex items-center gap-2.5 text-xs text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
-                            <span>{article.author.name}</span>
+                            <span>{bylineText(article)}</span>
                             <span>·</span>
                             <span>{formatTimestamp(article.publishedAt)}</span>
                           </div>
@@ -246,7 +247,7 @@ const Index = () => {
                       <div className="p-3 md:p-4 flex-1 flex flex-col">
                         <h3 className="font-serif text-base font-bold leading-tight mb-1 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                         <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2">
-                          <span>{article.author.name}</span>
+                          <span>{bylineText(article)}</span>
                           <span>{formatTimestamp(article.publishedAt)}</span>
                         </div>
                       </div>
@@ -281,7 +282,7 @@ const Index = () => {
                         <h3 className="font-serif text-lg md:text-xl font-bold leading-tight mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                         <p className="text-sm text-muted-foreground line-clamp-2 mb-3 flex-1 leading-relaxed">{article.dek}</p>
                         <div className="flex items-center justify-between text-xs text-muted-foreground pt-2.5 border-t border-border/50">
-                          <span className="font-medium">{article.author.name}</span>
+                          <span className="font-medium">{bylineText(article)}</span>
                           <span>{formatTimestamp(article.publishedAt)}</span>
                         </div>
                       </div>
@@ -320,7 +321,7 @@ const Index = () => {
                                 <h3 className={`${idx === 0 ? 'headline-lg' : 'headline-md'} font-serif font-bold mb-2 ${idx === 0 ? 'line-clamp-3' : 'line-clamp-2'} group-hover:text-accent transition-colors`}>{article.headline}</h3>
                                 {idx === 0 && <p className="text-sm text-muted-foreground line-clamp-2 mb-3 leading-relaxed">{article.dek}</p>}
                                 <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2.5 border-t border-border/50">
-                                  <span className="font-medium">{article.author.name}</span>
+                                  <span className="font-medium">{bylineText(article)}</span>
                                   <span>{formatTimestamp(article.publishedAt)}</span>
                                 </div>
                               </div>
@@ -405,7 +406,7 @@ const Index = () => {
                             <div className="p-4 md:p-5 flex-1 flex flex-col">
                               <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                               <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2">
-                                <span className="font-medium">{article.author.name}</span>
+                                <span className="font-medium">{bylineText(article)}</span>
                                 <span>{formatTimestamp(article.publishedAt)}</span>
                               </div>
                             </div>
@@ -436,7 +437,7 @@ const Index = () => {
                             <div className="p-4 md:p-5 flex-1 flex flex-col">
                               <h3 className="headline-md font-serif font-bold mb-2 line-clamp-2 group-hover:text-accent transition-colors">{article.headline}</h3>
                               <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto pt-2">
-                                <span className="font-medium">{article.author.name}</span>
+                                <span className="font-medium">{bylineText(article)}</span>
                                 <span>{formatTimestamp(article.publishedAt)}</span>
                               </div>
                             </div>

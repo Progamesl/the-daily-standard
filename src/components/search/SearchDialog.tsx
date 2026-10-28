@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { getAllPublicArticles } from "@/lib/publicDataService";
 import { str } from "@/lib/normalizeArticle";
+import { bylineText } from "@/lib/coAuthors";
 import { useDataSync } from "@/contexts/DataSyncContext";
 import { Search, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         has(a.dek) ||
         has(a.section) ||
         has(a.author?.name) ||
+        (a.coAuthors ?? []).some((c) => has(c.name)) ||
         (Array.isArray(a.tags) && a.tags.some(has))
     );
     // syncVersion in deps so results refresh when live R2 data loads.
@@ -116,7 +118,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm line-clamp-2">{article.headline}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {article.section} · {article.author.name}
+                    {article.section} · {bylineText(article)}
                   </p>
                 </div>
               </li>

@@ -15,6 +15,7 @@ import {
   getPublicArticlesBySection,
 } from "@/lib/publicDataService";
 import { getImageOrNull, picturesFirst } from "@/lib/imageHelpers";
+import { storyAuthors, bylineText } from "@/lib/coAuthors";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { useDataSync } from "@/contexts/DataSyncContext";
@@ -146,6 +147,9 @@ export default function ArticlePage() {
     fontSize === "large" ? "text-lg leading-[1.85]" :
     "text-base leading-[1.8]";
 
+  const authors = storyAuthors(article);
+  const byline = bylineText(article);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -154,7 +158,7 @@ export default function ArticlePage() {
     image: heroImage ?? undefined,
     datePublished: article.publishedAt.toISOString(),
     dateModified: (article.updatedAt ?? article.publishedAt).toISOString(),
-    author: { "@type": "Person", name: article.author.name },
+    author: authors.map((a) => ({ "@type": "Person", name: a.name })),
     publisher: { "@type": "Organization", name: "The Octagon" },
   };
 
@@ -168,7 +172,7 @@ export default function ArticlePage() {
           type="article"
           publishedTime={article.publishedAt.toISOString()}
           modifiedTime={(article.updatedAt ?? article.publishedAt).toISOString()}
-          author={article.author.name}
+          author={byline}
           section={article.section}
           jsonLd={jsonLd}
         />
@@ -203,7 +207,7 @@ export default function ArticlePage() {
         type="article"
         publishedTime={article.publishedAt.toISOString()}
         modifiedTime={(article.updatedAt ?? article.publishedAt).toISOString()}
-        author={article.author.name}
+        author={byline}
         section={article.section}
         jsonLd={jsonLd}
       />
@@ -219,19 +223,21 @@ export default function ArticlePage() {
             <h1 className="headline-xl mb-3 sm:mb-4 text-balance text-foreground">{article.headline}</h1>
             <p className="font-sans text-base sm:text-lg text-muted-foreground mb-4 sm:mb-6 text-balance leading-relaxed">{article.dek}</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm border-y border-border py-4 text-muted-foreground">
-              <div className="flex items-center gap-3">
-                <img 
-                  src={article.author.image || "/favicon.png"} 
-                  alt={article.author.name} 
-                  className="w-10 h-10 rounded-full object-cover" 
-                />
-                <div>
-                  <Link to={`/author/${article.author.id}`} className="font-medium text-foreground hover:text-accent transition-colors block">
-                    {article.author.name}
-                  </Link>
-                  <span className="text-xs text-muted-foreground">{article.author.role}</span>
+              {authors.map((a) => (
+                <div key={a.id || a.name} className="flex items-center gap-3">
+                  <img
+                    src={a.image || "/favicon.png"}
+                    alt={a.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div>
+                    <Link to={`/author/${a.id}`} className="font-medium text-foreground hover:text-accent transition-colors block">
+                      {a.name}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">{a.role}</span>
+                  </div>
                 </div>
-              </div>
+              ))}
               <span className="text-muted-foreground hidden sm:inline">|</span>
               <span className="text-muted-foreground text-sm">{formatDate(article.publishedAt)}</span>
               <span className="text-muted-foreground hidden sm:inline">|</span>
@@ -326,22 +332,24 @@ export default function ArticlePage() {
               </div>
 
               {/* Author bio */}
-              <div className="mt-8 p-4 sm:p-6 bg-muted rounded-lg">
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-4 text-center sm:text-left">
-                  <img 
-                    src={article.author.image || "/favicon.png"} 
-                    alt={article.author.name} 
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover" 
-                    loading="lazy" 
-                  />
-                  <div>
-                    <Link to={`/author/${article.author.id}`} className="font-serif text-base sm:text-lg font-bold text-foreground hover:text-accent transition-colors">
-                      {article.author.name}
-                    </Link>
-                    <p className="text-sm text-muted-foreground mb-1 sm:mb-2">{article.author.role}</p>
-                    <p className="text-sm text-muted-foreground ">{article.author.bio}</p>
+              <div className="mt-8 p-4 sm:p-6 bg-muted rounded-lg divide-y divide-border">
+                {authors.map((a) => (
+                  <div key={a.id || a.name} className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-4 text-center sm:text-left py-4 first:pt-0 last:pb-0">
+                    <img
+                      src={a.image || "/favicon.png"}
+                      alt={a.name}
+                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover"
+                      loading="lazy"
+                    />
+                    <div>
+                      <Link to={`/author/${a.id}`} className="font-serif text-base sm:text-lg font-bold text-foreground hover:text-accent transition-colors">
+                        {a.name}
+                      </Link>
+                      <p className="text-sm text-muted-foreground mb-1 sm:mb-2">{a.role}</p>
+                      <p className="text-sm text-muted-foreground ">{a.bio}</p>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
 
               {/* Comments */}

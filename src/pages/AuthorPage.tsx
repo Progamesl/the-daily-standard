@@ -6,6 +6,7 @@ import { DocumentHead } from "@/components/seo/DocumentHead";
 import { getPublicAuthorById, getAllPublicArticles } from "@/lib/publicDataService";
 import { useDataSync } from "@/contexts/DataSyncContext";
 import { picturesFirst } from "@/lib/imageHelpers";
+import { storyAuthors } from "@/lib/coAuthors";
 import { ArrowLeft, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -16,8 +17,11 @@ export default function AuthorPage() {
   const { id } = useParams<{ id: string }>();
   const author = id ? getPublicAuthorById(id) : undefined;
   // Illustrated stories first here too, so a writer's page opens with their
-  // work as it was published rather than a column of bare headlines.
-  const authorArticles = picturesFirst(getAllPublicArticles().filter((a) => a.author.id === id));
+  // work as it was published rather than a column of bare headlines. Stories
+  // they wrote with someone else count as theirs too.
+  const authorArticles = picturesFirst(
+    getAllPublicArticles().filter((a) => storyAuthors(a).some((w) => w.id === id)),
+  );
 
   if (!author) {
     return (

@@ -17,7 +17,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload';
 import {
   ArrowLeft, Save, Eye, Send, Loader2, Clock, MessageSquare,
   History, Trash2, AlertTriangle, ChevronDown, ChevronUp, Search,
-  Undo2, Redo2, Sparkles, ClipboardList, ImageOff,
+  Undo2, Redo2, Sparkles, ClipboardList, ImageOff, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -35,6 +35,7 @@ import { ROLE_LABELS, logActivity } from '@/lib/adminUserService';
 import type { StaffMember } from '@/lib/staffService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { authors as jsonAuthors, sections } from '@/data/seedData';
+import { readCoAuthors, withCoAuthors, isCoAuthorsNote, joinNames, type CoAuthorRef } from '@/lib/coAuthors';
 import { cn } from '@/lib/utils';
 import { DocxImporter } from '@/components/admin/DocxImporter';
 
@@ -50,6 +51,8 @@ interface FormState {
   imageCaption: string;
   section: string;
   authorId: string;
+  /** Everyone else in the byline, in the order they were added. */
+  coAuthorIds: string[];
   tags: string[];
   slug: string;
   status: WorkflowStatus;
@@ -71,7 +74,7 @@ interface FormState {
 
 const emptyForm: FormState = {
   headline: '', dek: '', body: '', image: '', imageCaption: '',
-  section: 'us', authorId: '', tags: [], slug: '', status: 'draft',
+  section: 'us', authorId: '', coAuthorIds: [], tags: [], slug: '', status: 'draft',
   publishedAt: new Date().toISOString().slice(0, 16),
   assignedToId: '', deadline: '', priority: 'normal', pitchSummary: '',
   metaTitle: '', metaDescription: '', ogImage: '', canonicalUrl: '',
@@ -147,7 +150,9 @@ export default function AdminStoryEditor() {
       body: a.body || '',
       image: a.image || '', 
       imageCaption: a.imageCaption || '',
-      section: a.section, authorId: a.author.id, tags: a.tags,
+      section: a.section, authorId: a.author.id,
+      coAuthorIds: readCoAuthors(a.internalNotes).map(c => c.id),
+      tags: a.tags,
       slug: a.slug, status: a.status,
       publishedAt: a.publishedAt ? new Date(a.publishedAt).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
       assignedToId: a.assignedToId ?? '',
@@ -354,6 +359,25 @@ export default function AdminStoryEditor() {
   const readingTime = useMemo(() => calculateReadingTime(form.body), [form.body]);
   const wordCount   = useMemo(() => countWords(form.body), [form.body]);
 
+  // The co-author list rides along in the notes (see src/lib/coAuthors.ts) but
+  // is not a note anybody wrote, so it is kept out of the panel and its count.
+  const visibleNotes = useMemo(
+    () => (article?.internalNotes ?? []).filter(n => !isCoAuthorsNote(n)),
+    [article],
+  );
+
+  // Co-authors as shown under the Author field. The main author is left out
+  // here and when saving, so picking a co-author as the main author never
+  // credits them twice.
+  const coAuthorChoices = useMemo(() => {
+    const saved = new Map(readCoAuthors(article?.internalNotes).map(c => [c.id, c.name]));
+    const picked = (form.coAuthorIds ?? [])
+      .filter(cid => cid !== form.authorId)
+      .map(cid => ({ id: cid, name: allAuthors.find(a => a.id === cid)?.name ?? saved.get(cid) ?? cid }));
+    const taken = new Set([form.authorId, ...picked.map(c => c.id)]);
+    return { picked, available: allAuthors.filter(a => !taken.has(a.id)) };
+  }, [form.coAuthorIds, form.authorId, allAuthors, article]);
+
   const buildArticle = (status: WorkflowStatus, body = form.body): AdminArticle => {
     const author = allAuthors.find(a => a.id === form.authorId) ?? {
       id: form.authorId || 'unknown',
@@ -361,6 +385,14 @@ export default function AdminStoryEditor() {
       image: `https://ui-avatars.com/api/?name=Unknown&size=200`,
     };
     const assignedUser = staffUsers.find(u => u.id === form.assignedToId);
+    // Names come from the author list, falling back to the name saved with the
+    // story, so a co-author whose profile has since been removed keeps their
+    // credit instead of quietly dropping out of the byline on the next save.
+    const savedCoAuthors = new Map(readCoAuthors(article?.internalNotes).map(c => [c.id, c.name]));
+    const coAuthors: CoAuthorRef[] = (form.coAuthorIds ?? [])
+      .filter(cid => cid !== author.id)
+      .map(cid => ({ id: cid, name: allAuthors.find(a => a.id === cid)?.name ?? savedCoAuthors.get(cid) ?? '' }))
+      .filter(c => c.name);
     return {
       id: id ?? '',
       slug: form.slug || generateSlug(form.headline),
@@ -380,7 +412,9 @@ export default function AdminStoryEditor() {
       canonicalUrl: form.canonicalUrl || undefined,
       featured: form.featured || undefined,
       isCinematic: form.isCinematic || undefined,
-      internalNotes: article?.internalNotes ?? [],
+      internalNotes: withCoAuthors(article?.internalNotes, coAuthors, {
+        id: currentUser?.id, name: currentUser?.displayName,
+      }),
       revisions: article?.revisions ?? [],
     };
   };
@@ -736,7 +770,8 @@ export default function AdminStoryEditor() {
                 className="bg-amber-600 hover:bg-amber-700"
                 onClick={() => {
                   setUndoStack(stack => [...stack, form].slice(-50));
-                  setForm(recovery.form);
+                  // Copies kept before co-authors existed have no list of them.
+                  setForm({ ...emptyForm, ...recovery.form });
                   setDirty(true);
                   setRecovery(null);
                   toast.success('Edits restored — save when you are happy with them');
@@ -766,7 +801,7 @@ export default function AdminStoryEditor() {
             {/* Notes & Revisions Panel */}
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <button onClick={() => setShowNotes(!showNotes)} className="w-full flex items-center justify-between px-5 py-4">
-                <span className="text-sm font-medium">Internal Notes ({article?.internalNotes?.length || 0})</span>
+                <span className="text-sm font-medium">Internal Notes ({visibleNotes.length})</span>
                 {showNotes ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
               {showNotes && (
@@ -776,7 +811,7 @@ export default function AdminStoryEditor() {
                     <Button size="sm" onClick={handleAddNote}>Add</Button>
                   </div>
                   <div className="space-y-2">
-                    {article?.internalNotes?.map(note => (
+                    {visibleNotes.map(note => (
                       <div key={note.id} className="p-3 bg-slate-50 rounded-lg text-sm">
                         <div className="flex justify-between mb-1 text-xs text-slate-500">
                           <span>{note.authorName}</span>
@@ -814,6 +849,44 @@ export default function AdminStoryEditor() {
                     {allAuthors.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 block">Additional authors</Label>
+                {coAuthorChoices.picked.length > 0 && (
+                  <ul className="mb-2 space-y-1.5">
+                    {coAuthorChoices.picked.map(c => (
+                      <li key={c.id} className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-3 pr-1.5 text-sm text-slate-700">
+                        <span className="truncate">{c.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => updateField('coAuthorIds', (form.coAuthorIds ?? []).filter(x => x !== c.id))}
+                          className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                          aria-label={`Remove ${c.name} from the byline`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {/* Always empty, so it reads as "add someone" and resets after each pick. */}
+                <Select
+                  value=""
+                  onValueChange={(v) => updateField('coAuthorIds', [...(form.coAuthorIds ?? []).filter(x => x !== v), v])}
+                  disabled={!form.authorId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={form.authorId ? 'Add another author…' : 'Choose the main author first'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {coAuthorChoices.available.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-slate-400">
+                  {coAuthorChoices.picked.length > 0
+                    ? `Byline: By ${joinNames([allAuthors.find(a => a.id === form.authorId)?.name ?? 'the main author', ...coAuthorChoices.picked.map(c => c.name)])}`
+                    : 'For stories written together. Everyone is credited in the byline.'}
+                </p>
               </div>
               <div>
                 <Label className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 block">Section</Label>

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Article, formatTimestamp, getSectionBySlug } from "@/data/seedData";
 import { cn } from "@/lib/utils";
 import { getImageOrNull } from "@/lib/imageHelpers";
+import { bylineText } from "@/lib/coAuthors";
 
 interface StoryCardProps {
   article: Article;
@@ -20,8 +21,9 @@ export function StoryCard({
   showByline = true,
   className,
 }: StoryCardProps) {
-  const { slug, headline, dek, image, images, imageCaption, section, author, publishedAt, readingTime } = article;
+  const { slug, headline, dek, image, images, imageCaption, section, publishedAt, readingTime } = article;
   const resolvedImage = getImageOrNull(image, images);
+  const byline = bylineText(article);
 
   if (variant === "lead") {
     return (
@@ -47,7 +49,7 @@ export function StoryCard({
             {showDek && <p className="dek text-balance">{dek}</p>}
             {showByline && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="byline">{author.name}</span>
+                <span className="byline">{byline}</span>
                 <span className="text-muted-foreground">·</span>
                 <span className="timestamp">{formatTimestamp(publishedAt)}</span>
                 <span className="text-muted-foreground">·</span>
@@ -83,7 +85,7 @@ export function StoryCard({
             {showDek && <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{dek}</p>}
             {showByline && (
               <div className="flex items-center gap-2 text-xs pt-1">
-                <span className="font-medium">{author.name}</span>
+                <span className="font-medium">{byline}</span>
                 <span className="text-muted-foreground">·</span>
                 <span className="timestamp">{formatTimestamp(publishedAt)}</span>
               </div>

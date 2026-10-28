@@ -32,6 +32,8 @@ export interface Article {
   imageCaption: string;
   section: string;
   author: Author;
+  /** Everyone else who wrote it. See src/lib/coAuthors.ts. */
+  coAuthors?: Author[];
   publishedAt: Date;
   updatedAt?: Date;
   readingTime: number;

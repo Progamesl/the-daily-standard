@@ -38,7 +38,30 @@ const {
   R2_S3_ENDPOINT,
 } = process.env;
 
+/**
+ * Everyone besides the main author who wrote a story.
+ *
+ * The CMS keeps them as one entry among the story's internal notes, because
+ * the articles table has no column for them — see src/lib/coAuthors.ts, which
+ * this copies. Only the names and ids are published; the notes themselves never
+ * leave this function.
+ */
+function readCoAuthors(notes) {
+  if (!Array.isArray(notes)) return [];
+  for (const note of notes) {
+    try {
+      const parsed = JSON.parse(note?.content ?? '');
+      if (parsed?.kind !== 'co_authors' || !Array.isArray(parsed.authors)) continue;
+      return parsed.authors
+        .filter(a => a && typeof a.id === 'string' && a.id && typeof a.name === 'string' && a.name.trim())
+        .map(a => ({ id: a.id, name: a.name.trim() }));
+    } catch { /* an ordinary note */ }
+  }
+  return [];
+}
+
 function rowToPublic(row) {
+  const coAuthors = Array.isArray(row.coAuthors) ? row.coAuthors : readCoAuthors(row.internal_notes);
   return {
     id: String(row.id ?? ''),
     slug: row.slug ?? '',
@@ -67,6 +90,7 @@ function rowToPublic(row) {
     isCinematic: row.is_cinematic ?? row.isCinematic ?? false,
     // Narration recorded ahead of time, if this story has any.
     audioUrl: row.audio_url ?? row.audioUrl ?? '',
+    ...(coAuthors.length ? { coAuthors } : {}),
   };
 }
 
@@ -87,7 +111,7 @@ export default async function handler(req, res) {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { data, error } = await supabase
       .from('articles')
-      .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority,is_cinematic,audio_url')
+      .select('id,slug,headline,dek,body,image,images,image_caption,section,author_id,author_name,published_at,updated_at,reading_time,tags,featured,priority,is_cinematic,audio_url,internal_notes')
       .eq('status', 'published');
 
     if (error) throw error;

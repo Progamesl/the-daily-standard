@@ -64,6 +64,14 @@ function normalizeAuthor(value: unknown): Author {
   };
 }
 
+/** Co-authors, dropping anything without a name to print in the byline. */
+function normalizeCoAuthors(value: unknown): Author[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((a) => a && typeof a === 'object' && str((a as Record<string, unknown>).name).trim())
+    .map(normalizeAuthor);
+}
+
 /**
  * Make an article safe to render and search, whatever shape it arrived in.
  * Returns a new object; the input is not mutated.
@@ -82,6 +90,7 @@ export function normalizeArticle(input: unknown): Article {
     imageCaption: str(a.imageCaption),
     section: str(a.section),
     author: normalizeAuthor(a.author),
+    coAuthors: normalizeCoAuthors(a.coAuthors),
     publishedAt: date(a.publishedAt),
     updatedAt: a.updatedAt ? date(a.updatedAt) : undefined,
     readingTime: num(a.readingTime, 1),
