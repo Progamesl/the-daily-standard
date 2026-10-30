@@ -14,12 +14,17 @@ import type { Article } from '@/data/seedData';
 import type { AdminArticle } from '@/lib/adminDataService';
 import { normalizeArticle } from '@/lib/normalizeArticle';
 import { readCoAuthors } from '@/lib/coAuthors';
+import { readTopics } from '@/lib/topics';
 
 function adminToArticle(admin: AdminArticle): Article {
   // Supabase rows aren't runtime-type-checked; normalise so a malformed field
   // can't throw while the article renders.
   return {
-    ...normalizeArticle({ ...admin, coAuthors: readCoAuthors(admin.internalNotes) }),
+    ...normalizeArticle({
+      ...admin,
+      coAuthors: readCoAuthors(admin.internalNotes),
+      topics: readTopics(admin.internalNotes),
+    }),
     isCinematic: Boolean(admin.isCinematic),
   } as Article;
 }

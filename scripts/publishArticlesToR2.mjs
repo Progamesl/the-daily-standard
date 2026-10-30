@@ -46,23 +46,34 @@ function getRequiredEnv() {
   return env;
 }
 
-/** Co-authors kept among a story's internal notes — a copy of the one in api/sync-r2.js. */
-function readCoAuthors(notes) {
-  if (!Array.isArray(notes)) return [];
+/** Co-authors and topic pages kept among a story's internal notes — copies of the ones in api/sync-r2.js. */
+function readNoteEntry(notes, kind) {
+  if (!Array.isArray(notes)) return null;
   for (const note of notes) {
     try {
       const parsed = JSON.parse(note?.content ?? '');
-      if (parsed?.kind !== 'co_authors' || !Array.isArray(parsed.authors)) continue;
-      return parsed.authors
-        .filter(a => a && typeof a.id === 'string' && a.id && typeof a.name === 'string' && a.name.trim())
-        .map(a => ({ id: a.id, name: a.name.trim() }));
+      if (parsed?.kind === kind) return parsed;
     } catch { /* an ordinary note */ }
   }
-  return [];
+  return null;
+}
+
+function readCoAuthors(notes) {
+  const authors = readNoteEntry(notes, 'co_authors')?.authors;
+  if (!Array.isArray(authors)) return [];
+  return authors
+    .filter(a => a && typeof a.id === 'string' && a.id && typeof a.name === 'string' && a.name.trim())
+    .map(a => ({ id: a.id, name: a.name.trim() }));
+}
+
+function readTopics(notes) {
+  const topics = readNoteEntry(notes, 'topics')?.topics;
+  return Array.isArray(topics) ? [...new Set(topics.filter(t => typeof t === 'string' && t))] : [];
 }
 
 function rowToPublic(row) {
   const coAuthors = Array.isArray(row.coAuthors) ? row.coAuthors : readCoAuthors(row.internal_notes);
+  const topics = Array.isArray(row.topics) ? row.topics : readTopics(row.internal_notes);
   return {
     id: String(row.id ?? ''),
     slug: row.slug ?? '',
@@ -90,6 +101,7 @@ function rowToPublic(row) {
     priority: row.priority ?? 'normal',
     isCinematic: row.is_cinematic ?? row.isCinematic ?? false,
     ...(coAuthors.length ? { coAuthors } : {}),
+    ...(topics.length ? { topics } : {}),
   };
 }
 

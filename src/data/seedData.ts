@@ -34,6 +34,8 @@ export interface Article {
   author: Author;
   /** Everyone else who wrote it. See src/lib/coAuthors.ts. */
   coAuthors?: Author[];
+  /** Topic pages it is also listed on, by slug. See src/lib/topics.ts. */
+  topics?: string[];
   publishedAt: Date;
   updatedAt?: Date;
   readingTime: number;

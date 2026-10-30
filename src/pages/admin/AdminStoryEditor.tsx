@@ -35,7 +35,9 @@ import { ROLE_LABELS, logActivity } from '@/lib/adminUserService';
 import type { StaffMember } from '@/lib/staffService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { authors as jsonAuthors, sections } from '@/data/seedData';
-import { readCoAuthors, withCoAuthors, isCoAuthorsNote, joinNames, type CoAuthorRef } from '@/lib/coAuthors';
+import { readCoAuthors, withCoAuthors, joinNames, type CoAuthorRef } from '@/lib/coAuthors';
+import { TOPICS, readTopics, withTopics } from '@/lib/topics';
+import { isStoryDataNote } from '@/lib/storyNotes';
 import { cn } from '@/lib/utils';
 import { DocxImporter } from '@/components/admin/DocxImporter';
 
@@ -50,6 +52,8 @@ interface FormState {
   image: string;
   imageCaption: string;
   section: string;
+  /** Topic pages (Politics, Technology…) the story is also listed on, by slug. */
+  topics: string[];
   authorId: string;
   /** Everyone else in the byline, in the order they were added. */
   coAuthorIds: string[];
@@ -74,7 +78,7 @@ interface FormState {
 
 const emptyForm: FormState = {
   headline: '', dek: '', body: '', image: '', imageCaption: '',
-  section: 'us', authorId: '', coAuthorIds: [], tags: [], slug: '', status: 'draft',
+  section: 'us', topics: [], authorId: '', coAuthorIds: [], tags: [], slug: '', status: 'draft',
   publishedAt: new Date().toISOString().slice(0, 16),
   assignedToId: '', deadline: '', priority: 'normal', pitchSummary: '',
   metaTitle: '', metaDescription: '', ogImage: '', canonicalUrl: '',
@@ -150,7 +154,8 @@ export default function AdminStoryEditor() {
       body: a.body || '',
       image: a.image || '', 
       imageCaption: a.imageCaption || '',
-      section: a.section, authorId: a.author.id,
+      section: a.section, topics: readTopics(a.internalNotes),
+      authorId: a.author.id,
       coAuthorIds: readCoAuthors(a.internalNotes).map(c => c.id),
       tags: a.tags,
       slug: a.slug, status: a.status,
@@ -359,10 +364,10 @@ export default function AdminStoryEditor() {
   const readingTime = useMemo(() => calculateReadingTime(form.body), [form.body]);
   const wordCount   = useMemo(() => countWords(form.body), [form.body]);
 
-  // The co-author list rides along in the notes (see src/lib/coAuthors.ts) but
-  // is not a note anybody wrote, so it is kept out of the panel and its count.
+  // Co-authors and topic pages ride along in the notes (see src/lib/storyNotes.ts)
+  // but are not notes anybody wrote, so they are kept out of the panel and its count.
   const visibleNotes = useMemo(
-    () => (article?.internalNotes ?? []).filter(n => !isCoAuthorsNote(n)),
+    () => (article?.internalNotes ?? []).filter(n => !isStoryDataNote(n)),
     [article],
   );
 
@@ -412,9 +417,11 @@ export default function AdminStoryEditor() {
       canonicalUrl: form.canonicalUrl || undefined,
       featured: form.featured || undefined,
       isCinematic: form.isCinematic || undefined,
-      internalNotes: withCoAuthors(article?.internalNotes, coAuthors, {
-        id: currentUser?.id, name: currentUser?.displayName,
-      }),
+      internalNotes: withTopics(
+        withCoAuthors(article?.internalNotes, coAuthors, { id: currentUser?.id, name: currentUser?.displayName }),
+        form.topics ?? [],
+        { id: currentUser?.id, name: currentUser?.displayName },
+      ),
       revisions: article?.revisions ?? [],
     };
   };
@@ -896,6 +903,46 @@ export default function AdminStoryEditor() {
                     {sections.map(s => <SelectItem key={s.slug} value={s.slug}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 block">Topic pages</Label>
+                {(form.topics ?? []).length > 0 && (
+                  <ul className="mb-2 space-y-1.5">
+                    {TOPICS.filter(t => form.topics.includes(t.slug)).map(t => (
+                      <li key={t.slug} className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-3 pr-1.5 text-sm text-slate-700">
+                        <span className="truncate">{t.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => updateField('topics', form.topics.filter(x => x !== t.slug))}
+                          className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                          aria-label={`Take this story off the ${t.name} page`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {/* Always empty, so it reads as "add one" and resets after each pick. */}
+                <Select
+                  value=""
+                  onValueChange={(v) => updateField('topics', [...(form.topics ?? []).filter(x => x !== v), v])}
+                  disabled={TOPICS.every(t => (form.topics ?? []).includes(t.slug))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={
+                      TOPICS.every(t => (form.topics ?? []).includes(t.slug)) ? 'On every topic page' : 'Add to a topic page…'
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TOPICS.filter(t => !(form.topics ?? []).includes(t.slug)).map(t => (
+                      <SelectItem key={t.slug} value={t.slug}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-slate-400">
+                  The story is listed on these pages as well as its section.
+                </p>
               </div>
 
               {/* Publish date and slug were part of the saved article all along

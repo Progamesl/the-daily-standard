@@ -16,13 +16,16 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDataSync } from "@/contexts/DataSyncContext";
 import { getImageOrNull, picturesFirst } from "@/lib/imageHelpers";
+import { TOPICS, getTopicBySlug } from "@/lib/topics";
 
 export default function SectionPage() {
   // Subscribe to Supabase sync — re-renders automatically when fresh data arrives
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { syncVersion } = useDataSync();
   const { slug } = useParams<{ slug: string }>();
-  const section = slug ? getSectionBySlug(slug) : undefined;
+  // Topic pages (Politics, Technology…) are laid out exactly like sections;
+  // getPublicArticlesBySection already knows how to fill them.
+  const section = slug ? getSectionBySlug(slug) ?? getTopicBySlug(slug) : undefined;
   const articles = slug ? getPublicArticlesBySection(slug) : [];
   const mostPopular = getMostPopularPublic(5);
 
@@ -73,8 +76,8 @@ export default function SectionPage() {
           {/* Subsection nav */}
           <nav className="mt-6 -mx-4 px-4 overflow-x-auto no-scrollbar" aria-label="Section navigation">
             <ul className="flex items-center gap-1.5 w-max">
-              {sections.map((s) => (
-                <li key={s.slug}>
+              {[...sections, ...TOPICS].map((s, i) => (
+                <li key={s.slug} className={i === sections.length ? "ml-1.5 pl-3 border-l border-border" : undefined}>
                   <Link
                     to={`/section/${s.slug}`}
                     className={`px-3.5 py-2 text-sm font-medium whitespace-nowrap rounded-lg transition-colors touch-manipulation ${

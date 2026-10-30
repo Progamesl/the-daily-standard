@@ -39,29 +39,40 @@ const {
 } = process.env;
 
 /**
- * Everyone besides the main author who wrote a story.
- *
- * The CMS keeps them as one entry among the story's internal notes, because
- * the articles table has no column for them — see src/lib/coAuthors.ts, which
- * this copies. Only the names and ids are published; the notes themselves never
- * leave this function.
+ * Story data the CMS keeps among a story's internal notes, because the
+ * articles table has no column for it: co-authors and topic pages. See
+ * src/lib/storyNotes.ts, which this copies. Only these values are published;
+ * the notes themselves never leave this file.
  */
-function readCoAuthors(notes) {
-  if (!Array.isArray(notes)) return [];
+function readNoteEntry(notes, kind) {
+  if (!Array.isArray(notes)) return null;
   for (const note of notes) {
     try {
       const parsed = JSON.parse(note?.content ?? '');
-      if (parsed?.kind !== 'co_authors' || !Array.isArray(parsed.authors)) continue;
-      return parsed.authors
-        .filter(a => a && typeof a.id === 'string' && a.id && typeof a.name === 'string' && a.name.trim())
-        .map(a => ({ id: a.id, name: a.name.trim() }));
+      if (parsed?.kind === kind) return parsed;
     } catch { /* an ordinary note */ }
   }
-  return [];
+  return null;
+}
+
+/** Everyone besides the main author who wrote a story. */
+function readCoAuthors(notes) {
+  const authors = readNoteEntry(notes, 'co_authors')?.authors;
+  if (!Array.isArray(authors)) return [];
+  return authors
+    .filter(a => a && typeof a.id === 'string' && a.id && typeof a.name === 'string' && a.name.trim())
+    .map(a => ({ id: a.id, name: a.name.trim() }));
+}
+
+/** The topic pages (Politics, Technology…) a story is also listed on. */
+function readTopics(notes) {
+  const topics = readNoteEntry(notes, 'topics')?.topics;
+  return Array.isArray(topics) ? [...new Set(topics.filter(t => typeof t === 'string' && t))] : [];
 }
 
 function rowToPublic(row) {
   const coAuthors = Array.isArray(row.coAuthors) ? row.coAuthors : readCoAuthors(row.internal_notes);
+  const topics = Array.isArray(row.topics) ? row.topics : readTopics(row.internal_notes);
   return {
     id: String(row.id ?? ''),
     slug: row.slug ?? '',
@@ -91,6 +102,7 @@ function rowToPublic(row) {
     // Narration recorded ahead of time, if this story has any.
     audioUrl: row.audio_url ?? row.audioUrl ?? '',
     ...(coAuthors.length ? { coAuthors } : {}),
+    ...(topics.length ? { topics } : {}),
   };
 }
 

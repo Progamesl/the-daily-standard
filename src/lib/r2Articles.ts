@@ -38,6 +38,7 @@ type R2ArticleRaw = {
   section: string;
   author: R2Author;
   coAuthors?: R2Author[];
+  topics?: string[];
   publishedAt: string;
   updatedAt?: string;
   readingTime: number;

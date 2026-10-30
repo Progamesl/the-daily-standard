@@ -23,6 +23,7 @@ import {
 import type { R2ArticleListItem } from '@/lib/r2Articles';
 import { normalizeArticle, slugMatches } from '@/lib/normalizeArticle';
 import { readCoAuthors } from '@/lib/coAuthors';
+import { readTopics } from '@/lib/topics';
 
 // The bundled WordPress export isn't runtime-type-checked either (it contains
 // e.g. a numeric tag and a numeric slug). Normalise it once, lazily, rather
@@ -81,6 +82,7 @@ function adminToPublic(admin: AdminArticle): Article {
       twitter: admin.author.twitter,
     },
     coAuthors: readCoAuthors(admin.internalNotes),
+    topics: readTopics(admin.internalNotes),
     publishedAt: new Date(admin.publishedAt),
     updatedAt: admin.updatedAt ? new Date(admin.updatedAt) : undefined,
     readingTime: admin.readingTime,
@@ -167,9 +169,10 @@ export function getPublicArticleById(id: string): Article | undefined {
   return getAllPublicArticles().find(a => String(a.id) === String(id));
 }
 
+/** A section's stories, or a topic page's — the slugs never overlap (see topics.ts). */
 export function getPublicArticlesBySection(section: string): Article[] {
   return getAllPublicArticles()
-    .filter(a => a.section === section)
+    .filter(a => a.section === section || (a.topics ?? []).includes(section))
     .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 }
 

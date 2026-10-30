@@ -9,11 +9,12 @@ const footerSections = [
   {
     title: "News",
     links: [
-      { name: "World", href: "/section/world" },
       { name: "U.S.", href: "/section/us" },
+      // Topic pages — see src/lib/topics.ts. Editors file stories onto them.
       { name: "Politics", href: "/section/politics" },
       { name: "Business", href: "/section/business" },
       { name: "Technology", href: "/section/technology" },
+      { name: "Journalism", href: "/section/journalism" },
     ],
   },
   {
@@ -21,8 +22,6 @@ const footerSections = [
     links: [
       { name: "Arts & Entertainment", href: "/section/arts" },
       { name: "Sports", href: "/section/sports" },
-      { name: "Science", href: "/section/science" },
-      { name: "Health", href: "/section/health" },
       { name: "Opinion", href: "/section/opinion" },
     ],
   },

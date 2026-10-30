@@ -91,6 +91,7 @@ export function normalizeArticle(input: unknown): Article {
     section: str(a.section),
     author: normalizeAuthor(a.author),
     coAuthors: normalizeCoAuthors(a.coAuthors),
+    topics: strArray(a.topics),
     publishedAt: date(a.publishedAt),
     updatedAt: a.updatedAt ? date(a.updatedAt) : undefined,
     readingTime: num(a.readingTime, 1),
