@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Share2, Twitter, Facebook, Link2, Check, Type, Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ListenButton } from "./ListenButton";
+import { trackArticleEngagement } from "@/lib/analyticsService";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,8 @@ function toggleSaved(slug: string): boolean {
 }
 
 interface ArticleReadingToolbarProps {
+  /** For counting shares and saves on the Analytics page. */
+  articleId: string;
   slug: string;
   headline: string;
   dek: string;
@@ -46,6 +49,7 @@ interface ArticleReadingToolbarProps {
 }
 
 export function ArticleReadingToolbar({
+  articleId,
   slug,
   headline,
   dek,
@@ -67,6 +71,7 @@ export function ArticleReadingToolbar({
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(fullUrl);
+      trackArticleEngagement(articleId, "share", { via: "link" });
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -82,6 +87,7 @@ export function ArticleReadingToolbar({
           text: shareDescription ?? shareTitle,
           url: fullUrl,
         });
+        trackArticleEngagement(articleId, "share", { via: "device" });
       } catch {
         // user cancelled or error
       }
@@ -93,6 +99,7 @@ export function ArticleReadingToolbar({
   const handleBookmark = () => {
     const nowSaved = toggleSaved(slug);
     setSaved(nowSaved);
+    if (nowSaved) trackArticleEngagement(articleId, "save");
   };
 
   return (
@@ -114,13 +121,13 @@ export function ArticleReadingToolbar({
             </DropdownMenuItem>
           )}
           <DropdownMenuItem asChild>
-            <a href={twitterUrl} target="_blank" rel="noopener noreferrer">
+            <a href={twitterUrl} target="_blank" rel="noopener noreferrer" onClick={() => trackArticleEngagement(articleId, "share", { via: "twitter" })}>
               <Twitter className="h-4 w-4 mr-2" />
               Twitter
             </a>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <a href={facebookUrl} target="_blank" rel="noopener noreferrer">
+            <a href={facebookUrl} target="_blank" rel="noopener noreferrer" onClick={() => trackArticleEngagement(articleId, "share", { via: "facebook" })}>
               <Facebook className="h-4 w-4 mr-2" />
               Facebook
             </a>

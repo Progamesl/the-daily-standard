@@ -23,7 +23,8 @@ import {
   getTimeSeriesData,
   loadServerAnalytics,
   isShowingServerAnalytics,
-  type ArticleEngagement,
+  getUniqueVisitorsSince,
+  type AnalyticsRange,
 } from '@/lib/analyticsService';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -55,14 +56,16 @@ export default function AdminAnalytics() {
     return () => { cancelled = true; };
   }, []);
 
-  const summary = useMemo(() => getAnalyticsSummary(), [dataKey]);
-  const topArticles = useMemo(() => getTopArticles(10), [dataKey]);
-  const authorsPerformance = useMemo(() => getAllAuthorsPerformance(), [dataKey]);
-  const sectionsPerformance = useMemo(() => getAllSectionsPerformance(), [dataKey]);
-  const timeSeries = useMemo(() => {
-    const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 365;
-    return getTimeSeriesData(days);
-  }, [timeRange, dataKey]);
+  // The range used to change only the chart; every card and table below it
+  // stayed all-time whatever it said. It now applies to all of them.
+  const rangeDays: AnalyticsRange =
+    timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : null;
+  const summary = useMemo(() => getAnalyticsSummary(rangeDays), [dataKey, rangeDays]);
+  const topArticles = useMemo(() => getTopArticles(10, rangeDays), [dataKey, rangeDays]);
+  const authorsPerformance = useMemo(() => getAllAuthorsPerformance(rangeDays), [dataKey, rangeDays]);
+  const sectionsPerformance = useMemo(() => getAllSectionsPerformance(rangeDays), [dataKey, rangeDays]);
+  const timeSeries = useMemo(() => getTimeSeriesData(rangeDays), [dataKey, rangeDays]);
+  const uniqueSince = useMemo(() => getUniqueVisitorsSince(), [dataKey]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -90,7 +93,7 @@ export default function AdminAnalytics() {
               <>What readers are actually reading, across the whole site.</>
             ) : (
               <><AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                Could not reach the server, so these are only this browser&rsquo;s figures.</>
+                Could not load readership from the server, so there is nothing to show.</>
             )}
           </p>
         </div>
@@ -108,26 +111,30 @@ export default function AdminAnalytics() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Total Views</p>
+                <p className="text-sm font-medium text-slate-500">Views</p>
                 <p className="text-3xl font-bold text-slate-900 mt-2">{formatNumber(summary.totalViews)}</p>
-                <div className="flex items-center gap-1 mt-2">
-                  {summary.growthRate >= 0 ? (
-                    <ArrowUpRight className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 text-red-600" />
-                  )}
-                  <span className={cn(
-                    "text-xs font-medium",
-                    summary.growthRate >= 0 ? "text-green-600" : "text-red-600"
-                  )}>
-                    {Math.abs(summary.growthRate).toFixed(1)}% vs last period
-                  </span>
-                </div>
+                {summary.growthRate === null ? (
+                  <p className="text-xs text-slate-400 mt-2">No earlier period to compare</p>
+                ) : (
+                  <div className="flex items-center gap-1 mt-2">
+                    {summary.growthRate >= 0 ? (
+                      <ArrowUpRight className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <ArrowDownRight className="h-4 w-4 text-red-600" />
+                    )}
+                    <span className={cn(
+                      "text-xs font-medium",
+                      summary.growthRate >= 0 ? "text-green-600" : "text-red-600"
+                    )}>
+                      {Math.abs(summary.growthRate).toFixed(1)}% vs the period before
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
                 <Eye className="h-6 w-6 text-blue-600" />
@@ -140,9 +147,29 @@ export default function AdminAnalytics() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
+                <p className="text-sm font-medium text-slate-500">Unique Visitors</p>
+                <p className="text-3xl font-bold text-slate-900 mt-2">{formatNumber(summary.uniqueVisitors)}</p>
+                {/* Older visits cannot say who read them; see analyticsService. */}
+                <p className="text-xs text-slate-400 mt-2">
+                  {uniqueSince
+                    ? `Counted since ${uniqueSince.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                    : 'Counted from the next visit on'}
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                <Users className="h-6 w-6 text-emerald-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm font-medium text-slate-500">Views Today</p>
                 <p className="text-3xl font-bold text-slate-900 mt-2">{summary.viewsToday}</p>
-                <p className="text-xs text-slate-400 mt-2">{summary.viewsThisWeek} this week</p>
+                <p className="text-xs text-slate-400 mt-2">{summary.viewsThisWeek} in the last 7 days</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
                 <TrendingUp className="h-6 w-6 text-purple-600" />
@@ -155,9 +182,9 @@ export default function AdminAnalytics() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Total Articles</p>
+                <p className="text-sm font-medium text-slate-500">Published Stories</p>
                 <p className="text-3xl font-bold text-slate-900 mt-2">{summary.totalArticles}</p>
-                <p className="text-xs text-slate-400 mt-2">{summary.avgViewsPerArticle.toFixed(1)} avg views</p>
+                <p className="text-xs text-slate-400 mt-2">{summary.avgViewsPerArticle.toFixed(1)} views each, on average</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
                 <FileText className="h-6 w-6 text-indigo-600" />
@@ -170,13 +197,13 @@ export default function AdminAnalytics() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Avg Engagement</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">
-                  {topArticles.length > 0
-                    ? formatDuration(topArticles.reduce((sum, a) => sum + a.engagement.avgDuration, 0) / topArticles.length)
-                    : '0s'}
+                <p className="text-sm font-medium text-slate-500">Avg Reading Time</p>
+                <p className="text-3xl font-bold text-slate-900 mt-2">{formatDuration(summary.avgReadSeconds)}</p>
+                <p className="text-xs text-slate-400 mt-2">
+                  {summary.readsMeasured > 0
+                    ? `Across ${formatNumber(summary.readsMeasured)} timed visits`
+                    : 'No visits timed yet'}
                 </p>
-                <p className="text-xs text-slate-400 mt-2">Average reading time</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
                 <Clock className="h-6 w-6 text-amber-600" />
@@ -243,6 +270,9 @@ export default function AdminAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
+                  {topArticles.length === 0 && (
+                    <p className="text-sm text-slate-500">No visits recorded in this period.</p>
+                  )}
                   {topArticles.slice(0, 5).map((article, idx) => (
                     <div key={article.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
                       <div className={cn(
@@ -287,7 +317,7 @@ export default function AdminAnalytics() {
                 <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie
-                      data={sectionsPerformance.map(s => ({ name: s.section, value: s.totalViews }))}
+                      data={sectionsPerformance.filter(s => s.totalViews > 0).map(s => ({ name: s.name, value: s.totalViews }))}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -296,7 +326,7 @@ export default function AdminAnalytics() {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {sectionsPerformance.map((_, index) => (
+                      {sectionsPerformance.filter(s => s.totalViews > 0).map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -328,6 +358,7 @@ export default function AdminAnalytics() {
                     <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Scroll</th>
                     <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Bounce</th>
                     <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Shares</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Saves</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -355,6 +386,7 @@ export default function AdminAnalytics() {
                       <td className="py-3 px-4 text-right text-slate-600">{article.engagement.avgScrollDepth.toFixed(0)}%</td>
                       <td className="py-3 px-4 text-right text-slate-600">{article.engagement.bounceRate.toFixed(0)}%</td>
                       <td className="py-3 px-4 text-right text-slate-600">{article.engagement.shares}</td>
+                      <td className="py-3 px-4 text-right text-slate-600">{article.engagement.saves}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -411,7 +443,7 @@ export default function AdminAnalytics() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FolderOpen className="h-5 w-5" />
-                  {section.section.toUpperCase()}
+                  {section.name}
                 </CardTitle>
               </CardHeader>
               <CardContent>

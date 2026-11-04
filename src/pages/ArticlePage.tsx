@@ -19,7 +19,7 @@ import { storyAuthors, bylineText } from "@/lib/coAuthors";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { useDataSync } from "@/contexts/DataSyncContext";
-import { trackArticleView } from "@/lib/analyticsService";
+import { startArticleVisit } from "@/lib/analyticsService";
 import { ArrowLeft, EyeOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -50,35 +50,16 @@ export default function ArticlePage() {
     if (slug && !isPreview) addToHistory(slug);
   }, [slug, isPreview]);
 
-  // Track article view
+  // One visit per story opened. Keyed on the story's id, not the article
+  // object: the story arrives in two steps (headline first, then the body), and
+  // keying on the object started a second visit when the body landed, so one
+  // read counted as two views. See src/lib/analyticsService.ts.
+  const articleId = article?.id;
+  const articleSlug = article?.slug;
   useEffect(() => {
-    if (article && !isPreview) {
-      trackArticleView(article.id, article.slug, {
-        referrer: document.referrer,
-      });
-      
-      // Track scroll depth
-      let maxScroll = 0;
-      const handleScroll = () => {
-        const scrollPercent = Math.round(
-          ((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight) * 100
-        );
-        maxScroll = Math.max(maxScroll, scrollPercent);
-      };
-      window.addEventListener('scroll', handleScroll);
-      
-      // Track reading time
-      const startTime = Date.now();
-      return () => {
-        window.removeEventListener('scroll', handleScroll);
-        const duration = (Date.now() - startTime) / 1000;
-        trackArticleView(article.id, article.slug, {
-          duration,
-          scrollDepth: maxScroll,
-        });
-      };
-    }
-  }, [article, isPreview]);
+    if (!articleId || !articleSlug || isPreview) return;
+    return startArticleVisit(articleId, articleSlug);
+  }, [articleId, articleSlug, isPreview]);
 
   // When loading with Supabase we may already have partial article (headline, dek, hero). Show that and a body skeleton.
   const isPartial = article && loading && !article.body;
@@ -244,6 +225,7 @@ export default function ArticlePage() {
               <span className="text-muted-foreground text-sm">{article.readingTime} min read</span>
             </div>
             <ArticleReadingToolbar
+              articleId={article.id}
               slug={article.slug}
               headline={article.headline}
               dek={article.dek}
