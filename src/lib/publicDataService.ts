@@ -185,37 +185,26 @@ export function getLatestPublicArticles(count: number): Article[] {
 }
 
 /**
- * How long a story leads the site because an editor featured it.
+ * The stories editors starred for the homepage carousel (the `featured` flag),
+ * newest first. See src/lib/homepageCarousel.ts.
  *
- * Featuring is deliberate, but nobody remembers to undo it. One editorial
- * flagged in March was still the front-page lead months later, ahead of a dozen
- * newer stories, because the flag never expired. Letting it lapse means the
- * front page keeps moving on its own while the newsroom is busy, and an editor
- * who wants something held up simply features it again.
+ * A featured story used to lead for 21 days and then quietly stop, because
+ * nobody remembered to un-feature anything — one editorial flagged in March was
+ * still the lead months later. Stars are capped at four now and listed at the
+ * top of the admin's Stories page, so a star is a visible, deliberate choice
+ * and lasts until someone takes it off.
  */
-const FEATURE_LASTS_DAYS = 21;
-
-const stillFresh = (published: Date) =>
-  Date.now() - published.getTime() < FEATURE_LASTS_DAYS * 24 * 60 * 60 * 1000;
-
-export function getFeaturedPublicArticle(): Article | undefined {
+export function getStarredPublicArticles(): Article[] {
+  const newestFirst = (a: Article, b: Article) => b.publishedAt.getTime() - a.publishedAt.getTime();
   if (r2ArticleList !== null) {
-    // Use R2 featured metadata
-    const featured = r2ArticleList
-      .filter(a => r2FeaturedIds.has(String(a.id)))
-      .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
-    if (featured.length > 0 && stillFresh(featured[0].publishedAt)) return featured[0];
-    return getLatestPublicArticles(1)[0];
+    return getAllPublicArticles().filter(a => r2FeaturedIds.has(String(a.id))).sort(newestFirst);
   }
-
-  // Fallback: check admin articles for featured flag
-  const adminArticles = getAdminArticlesList()
-    .filter(a => a.status === 'published' && a.featured === true)
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  if (adminArticles.length > 0 && stillFresh(new Date(adminArticles[0].publishedAt))) {
-    return adminToPublic(adminArticles[0]);
-  }
-  return getLatestPublicArticles(1)[0];
+  // R2 not loaded yet: the admin copy carries the flag.
+  const deletedIds = new Set(getDeletedArticleIds().map(String));
+  return getAdminArticlesList()
+    .filter(a => a.status === 'published' && a.featured === true && !deletedIds.has(a.id))
+    .map(adminToPublic)
+    .sort(newestFirst);
 }
 
 export function getBreakingPublicNews(count: number): Article[] {

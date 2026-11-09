@@ -16,12 +16,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Search, PenSquare, Trash2, Copy, Eye, Edit, MoreVertical,
-  CheckSquare, Square, Flame, AlertTriangle, History,
+  CheckSquare, Square, Flame, AlertTriangle, History, Star, X, ImageOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getAdminArticlesList, deleteAdminArticle, duplicateAdminArticle,
   importJsonArticle, getDeletedArticleIds, getAdminArticle, getAdminArticleBySlug,
+  setArticleFeatured, getAdminArticlesMap,
   type AdminArticle,
   WORKFLOW_LABELS, WORKFLOW_COLORS, PRIORITY_COLORS,
 } from '@/lib/adminDataService';
@@ -30,6 +31,9 @@ import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { useDataSync } from '@/contexts/DataSyncContext';
 import { articles as jsonArticles } from '@/data/seedData';
 import { cn } from '@/lib/utils';
+import { getImageOrNull } from '@/lib/imageHelpers';
+import { CAROUSEL_SLOTS, CAROUSEL_SECONDS } from '@/lib/homepageCarousel';
+
 
 const SECTION_NAMES: Record<string, string> = {
   us: 'News', arts: 'Arts & Entertainment', opinion: 'Opinion',
@@ -49,11 +53,14 @@ function mergeAll(): AdminArticle[] {
   getAdminArticlesList().forEach((a) => {
     if (!deletedIds.has(a.id)) byId.set(a.id, a);
   });
-  const adminSlugs = new Set(Array.from(byId.values()).map((a) => a.slug));
+  // As strings: some archive stories have a number for a slug (48925), and the
+  // imported copy has the same slug as text, so they never matched and an
+  // imported story was listed twice.
+  const adminSlugs = new Set(Array.from(byId.values()).map((a) => String(a.slug)));
 
   // Seed only if not already in admin (by slug) — avoids duplicate when same story in both
   jsonArticles.forEach((a) => {
-    if (deletedIds.has(String(a.id)) || adminSlugs.has(a.slug)) return;
+    if (deletedIds.has(String(a.id)) || adminSlugs.has(String(a.slug))) return;
     byId.set(String(a.id), {
       id: String(a.id), slug: a.slug, headline: a.headline, dek: a.dek,
       body: a.body, image: a.image, images: a.images ?? [],
@@ -298,6 +305,60 @@ export default function AdminStories() {
     }
   };
 
+  // ── Homepage carousel ──────────────────────────────────────────────────────
+  // Starred stories, in the order the homepage shows them: newest first.
+  const starred = useMemo(
+    () => allArticles
+      .filter(a => a.featured)
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()),
+    [allArticles],
+  );
+  const [starring, setStarring] = useState<string | null>(null);
+
+  const toggleStar = async (article: AdminArticle) => {
+    const on = !article.featured;
+    if (on && starred.length >= CAROUSEL_SLOTS) {
+      toast.error(`The carousel already has ${CAROUSEL_SLOTS} stories`, {
+        description: 'Take the star off one of them first.',
+      });
+      return;
+    }
+    setStarring(article.id);
+    try {
+      // An archive story is only in the bundled file until someone imports
+      // it, and there is no row to star until then — the same step Edit takes.
+      // Asked of the admin's own list rather than read off the id: some
+      // archive stories carry database-style ids without being in the database.
+      let id = article.id;
+      if (!getAdminArticlesMap()[article.id]) {
+        const imported = await importJsonArticle(article as unknown as Record<string, unknown>);
+        id = imported.id;
+        logActivity('article_imported', `Imported "${imported.headline}" so it could be starred`,
+          currentUser?.id, imported.id, currentUser?.displayName);
+      }
+      const publish = await setArticleFeatured(id, on);
+      logActivity(
+        on ? 'article_starred' : 'article_unstarred',
+        on ? `Starred "${article.headline}" for the homepage` : `Took the star off "${article.headline}"`,
+        currentUser?.id, id, currentUser?.displayName,
+      );
+      if (publish && !publish.ok) {
+        toast.error('Saved, but the homepage was not updated', { description: publish.reason, duration: 12000 });
+      } else if (on) {
+        toast.success(article.status === 'published'
+          ? 'Starred — it is in the homepage carousel now.'
+          : 'Starred — it will join the homepage carousel once it is published.');
+      } else {
+        toast.success('Star taken off — it has left the homepage carousel.');
+      }
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not change the star.');
+    } finally {
+      setStarring(null);
+    }
+  };
+
   const isOverdue = (a: AdminArticle) =>
     !!a.deadline && new Date(a.deadline) < new Date() && !['published', 'archived'].includes(a.status);
 
@@ -333,6 +394,66 @@ export default function AdminStories() {
           </Button>
         </div>
       )}
+
+      {/* The homepage carousel's slots, so a star is never a mystery: what is
+          up there, in what order, and why one might not be showing. */}
+      <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
+            Homepage carousel
+            <span className="font-normal text-slate-500">· {Math.min(starred.length, CAROUSEL_SLOTS)} of {CAROUSEL_SLOTS} starred</span>
+          </p>
+          <p className="text-xs text-slate-500">
+            Fades to the next story every {CAROUSEL_SECONDS} seconds. Star stories in the list below.
+          </p>
+        </div>
+        <ol className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: CAROUSEL_SLOTS }, (_, i) => {
+            const a = starred[i];
+            if (!a) {
+              return (
+                <li key={`empty-${i}`} className="rounded-lg border border-dashed border-amber-200 px-3 py-2 text-xs text-slate-400">
+                  {i + 1}. Empty — filled by the newest story with a picture
+                </li>
+              );
+            }
+            const problem = a.status !== 'published'
+              ? 'Not published yet, so not showing'
+              : !getImageOrNull(a.image, a.images)
+                ? 'No picture, so it cannot show'
+                : null;
+            return (
+              <li key={a.id} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2">
+                <span className="mt-0.5 text-xs font-semibold text-amber-600">{i + 1}.</span>
+                <div className="min-w-0 flex-1">
+                  <button onClick={() => handleEdit(a)} className="block w-full truncate text-left text-sm font-medium text-slate-900 hover:text-blue-600">
+                    {a.headline}
+                  </button>
+                  {problem && (
+                    <p className="mt-0.5 flex items-center gap-1 text-[11px] text-amber-700">
+                      <ImageOff className="h-3 w-3 shrink-0" />{problem}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => toggleStar(a)}
+                  disabled={starring === a.id}
+                  className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+                  aria-label={`Take the star off "${a.headline}"`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        {starred.length > CAROUSEL_SLOTS && (
+          <p className="mt-2 text-xs text-amber-700">
+            {starred.length} stories are starred; only the newest {CAROUSEL_SLOTS} show. Take the star off the rest.
+          </p>
+        )}
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -383,10 +504,13 @@ export default function AdminStories() {
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 border-b text-xs font-medium text-slate-500 uppercase tracking-wider items-center">
-          <div className="col-span-1 flex items-center">
+          <div className="col-span-1 flex items-center gap-3">
             <button onClick={toggleAll} className="text-slate-400 hover:text-slate-700">
               {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
             </button>
+            <span title="Star up to four stories for the homepage carousel">
+              <Star className="h-4 w-4" aria-label="Homepage carousel" />
+            </span>
           </div>
           <div className="col-span-4">Title</div>
           <div className="col-span-2">Section</div>
@@ -405,12 +529,36 @@ export default function AdminStories() {
                 selected.has(article.id) && 'bg-blue-50 hover:bg-blue-50',
                 isOverdue(article) && 'border-l-2 border-red-400'
               )}>
-              {/* Checkbox */}
-              <div className="md:col-span-1 hidden md:flex items-center">
+              {/* Checkbox, and the homepage carousel star */}
+              <div className="md:col-span-1 flex items-center gap-3">
                 <Checkbox
+                  className="hidden md:flex"
                   checked={selected.has(article.id)}
                   onCheckedChange={() => toggleSelect(article.id)}
                 />
+                <button
+                  onClick={() => toggleStar(article)}
+                  disabled={starring === article.id}
+                  aria-pressed={!!article.featured}
+                  aria-label={article.featured
+                    ? `Take "${article.headline}" out of the homepage carousel`
+                    : `Star "${article.headline}" for the homepage carousel`}
+                  title={article.featured
+                    ? 'In the homepage carousel — click to take the star off'
+                    : starred.length >= CAROUSEL_SLOTS
+                      ? `The carousel is full (${CAROUSEL_SLOTS} starred)`
+                      : 'Star for the homepage carousel'}
+                  className={cn(
+                    'rounded p-0.5 transition-colors disabled:opacity-40',
+                    article.featured
+                      ? 'text-amber-500 hover:text-amber-600'
+                      : starred.length >= CAROUSEL_SLOTS
+                        ? 'text-slate-200 hover:text-slate-300'
+                        : 'text-slate-300 hover:text-amber-500',
+                  )}
+                >
+                  <Star className={cn('h-4 w-4', article.featured && 'fill-amber-400')} />
+                </button>
               </div>
 
               {/* Title */}

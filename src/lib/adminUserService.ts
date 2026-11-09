@@ -141,6 +141,8 @@ export const ACTIVITY_ACTIONS = {
   article_purged:      { area: 'Stories',  label: 'Deleted for good' },
   article_duplicated:  { area: 'Stories',  label: 'Duplicated' },
   article_imported:    { area: 'Stories',  label: 'Imported' },
+  article_starred:     { area: 'Stories',  label: 'Starred for the homepage' },
+  article_unstarred:   { area: 'Stories',  label: 'Star taken off' },
   revision_restored:   { area: 'Stories',  label: 'Revision restored' },
   note_added:          { area: 'Stories',  label: 'Note added' },
   note_deleted:        { area: 'Stories',  label: 'Note deleted' },

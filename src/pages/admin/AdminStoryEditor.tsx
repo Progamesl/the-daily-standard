@@ -17,7 +17,7 @@ import { ImageUpload } from '@/components/admin/ImageUpload';
 import {
   ArrowLeft, Save, Eye, Send, Loader2, Clock, MessageSquare,
   History, Trash2, AlertTriangle, ChevronDown, ChevronUp, Search,
-  Undo2, Redo2, Sparkles, ClipboardList, ImageOff, X,
+  Undo2, Redo2, Sparkles, ClipboardList, ImageOff, X, Star,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -38,6 +38,7 @@ import { authors as jsonAuthors, sections } from '@/data/seedData';
 import { readCoAuthors, withCoAuthors, joinNames, type CoAuthorRef } from '@/lib/coAuthors';
 import { TOPICS, readTopics, withTopics } from '@/lib/topics';
 import { isStoryDataNote } from '@/lib/storyNotes';
+import { CAROUSEL_SLOTS } from '@/lib/homepageCarousel';
 import { readMidImage, withMidImage, paragraphTexts, midImageSlot } from '@/lib/midImage';
 import { cn } from '@/lib/utils';
 import { DocxImporter } from '@/components/admin/DocxImporter';
@@ -1232,9 +1233,33 @@ export default function AdminStoryEditor() {
             </div>
 
             <div className="bg-violet-50 rounded-xl border border-violet-200 p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold text-violet-900">Featured on Homepage</Label>
-                <Switch checked={form.featured} onCheckedChange={(v) => updateField('featured', v)} />
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Star className="h-3.5 w-3.5 text-violet-600" />
+                    <Label className="text-sm font-semibold text-violet-900">Homepage carousel</Label>
+                  </div>
+                  <Switch
+                    checked={form.featured}
+                    onCheckedChange={async (on) => {
+                      // The same limit the star on the Stories page keeps.
+                      if (on) {
+                        const { getAdminArticlesList } = await import('@/lib/adminDataService');
+                        const others = getAdminArticlesList().filter(a => a.featured && a.id !== id).length;
+                        if (others >= CAROUSEL_SLOTS) {
+                          toast.error(`The carousel already has ${CAROUSEL_SLOTS} stories`, {
+                            description: 'Take the star off one of them on the Stories page first.',
+                          });
+                          return;
+                        }
+                      }
+                      updateField('featured', on);
+                    }}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-violet-700/70">
+                  Up to {CAROUSEL_SLOTS} starred stories lead the homepage, fading one to the next.
+                </p>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">

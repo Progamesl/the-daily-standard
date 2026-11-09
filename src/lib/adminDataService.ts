@@ -670,6 +670,46 @@ export async function saveAdminArticle(
   return saved;
 }
 
+/**
+ * Star or unstar a story for the homepage carousel — the `featured` column.
+ *
+ * Changes that one column and nothing else. The Stories page holds stories
+ * without their body, notes or history, and a full save from there would write
+ * those gaps back, and file a revision of an empty story on the way.
+ *
+ * Resolves to the public-site rebuild's result when the story is live, since
+ * the homepage only changes once that has run; null when there was nothing to
+ * rebuild.
+ */
+export async function setArticleFeatured(id: string, featured: boolean): Promise<PublishResult | null> {
+  const articles = getAdminArticlesMap();
+  const article = articles[id];
+
+  if (typeof window !== 'undefined') {
+    const { supabase } = await import('./supabaseClient');
+    if (!supabase && !article) {
+      throw new Error('That story could not be found. Refresh the page and try again.');
+    }
+    if (supabase) {
+      const { data, error } = await supabase.from('articles').update({ featured } as never).eq('id', id).select('id');
+      if (error || !data?.length) {
+        throw new Error('The star could not be saved. Nothing was changed — try again.');
+      }
+      supabaseArticlesCache = null;
+      supabaseArticlesCacheTime = 0;
+      try { localStorage.removeItem(LIST_FETCH_TIME_KEY); } catch { /* non-fatal */ }
+    }
+  }
+
+  if (article) {
+    articles[id] = { ...article, featured };
+    setStorage(ARTICLES_KEY, articles);
+  }
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('octagon-data-sync'));
+
+  return article?.status === 'published' ? publishToReaders() : null;
+}
+
 export async function createAdminArticle(
   data: Omit<AdminArticle, 'id' | 'updatedAt' | 'wordCount' | 'revisions'>,
   savedById?: string,

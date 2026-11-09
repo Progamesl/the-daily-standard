@@ -9,7 +9,7 @@ import {
   getSectionBySlug,
 } from "@/data/seedData";
 import {
-  getFeaturedPublicArticle,
+  getStarredPublicArticles,
   getMostPopularPublic,
   getPublicArticlesBySection,
   getLatestPublicArticles,
@@ -18,8 +18,9 @@ import {
   getLongReadPublicArticles,
 } from "@/lib/publicDataService";
 import { getImageOrNull, enhanceArticleImage, SITE_PLACEHOLDER } from "@/lib/imageHelpers";
-import { SmartImage } from "@/components/ui/SmartImage";
 import { useDataSync } from "@/contexts/DataSyncContext";
+import { HeroCarousel } from "@/components/home/HeroCarousel";
+import { CAROUSEL_SLOTS } from "@/lib/homepageCarousel";
 import { bylineText } from "@/lib/coAuthors";
 
 /** Only keep articles that have a real image (not null/empty/placeholder). */
@@ -37,7 +38,7 @@ const Index = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { syncVersion } = useDataSync();
 
-  const featured = getFeaturedPublicArticle();
+  const starred = getStarredPublicArticles();
   const latest = getLatestPublicArticles(1)[0];
   const breakingNews = getBreakingPublicNews(3);
   // Ask for far more candidates than each rail shows. Every rail draws from the
@@ -73,16 +74,19 @@ const Index = () => {
   // review is service journalism — it belongs in Arts, and it reads as filler
   // in the biggest slot on the site. So reviews sort to the back of the lead
   // pool and only take the top spot when nothing else is available. An editor
-  // who wants one leading can still say so with Featured on Homepage, which is
-  // checked before any of this.
+  // who wants one leading can still say so by starring it, which is checked
+  // before any of this.
   const isReview = (a: Article) =>
     /\breviews?\b/i.test(a.headline) || /^(top|best) \d+/i.test(a.headline);
-  const leadCandidates = withImages([featured, latest, ...recentPool].filter(Boolean) as Article[]);
+  const leadCandidates = withImages([latest, ...recentPool].filter(Boolean) as Article[]);
   const leadPool = [
     ...leadCandidates.filter((a) => !isReview(a)),
     ...leadCandidates.filter(isReview),
   ];
-  const [leadArticle] = take(leadPool, 1);
+  // The carousel: the stories editors starred in the admin, newest first, then
+  // the best recent ones until there are four. A starred story with no picture
+  // is skipped — the carousel is all picture — and the Stories page says so.
+  const heroSlides = take([...withImages(starred), ...leadPool], CAROUSEL_SLOTS);
 
   // Secondary hero: 2 cards
   const secondaryHeroPool = withImages(recentPool);
@@ -124,64 +128,8 @@ const Index = () => {
           </section>
         )}
 
-        {/* Hero – cinematic 2.35:1 */}
-        {leadArticle && (
-          <section className="w-full relative overflow-hidden" aria-label="Hero">
-            <Link to={`/article/${leadArticle.slug}`} className="block group cursor-pointer">
-              {/* 21:9 on a phone is a ~177px letterbox: object-cover crops the
-                  photo to a slice and the headline alone nearly fills it. Give
-                  mobile a portrait-ish frame and save the cinematic ratio for
-                  wide screens, where it has the height to work. */}
-              <div className="relative w-full aspect-[4/3] sm:aspect-[16/9] lg:aspect-[2.35/1] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                {/* Never upscale: a sub-1200px archive image stretched across a
-                    full-bleed hero is a 2-4x blow-up and looks broken. */}
-                <SmartImage
-                  src={imgSrc(leadArticle)}
-                  alt={leadArticle.headline}
-                  loading="eager"
-                  minWidthForCover={1400}
-                  className="transition-transform duration-[2800ms] ease-out group-hover:scale-[1.06]"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                />
-                {/* Gradient overlays for text readability - balanced to preserve image visibility */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/50 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/75" />
-                {/* Subtle dark overlay at bottom for text area only */}
-                <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/80 via-black/65 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-8 md:p-10 lg:p-12 xl:p-16">
-                  <div className="flow-container">
-                    <div className="max-w-4xl">
-                      <span className="inline-flex items-center text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-white/90 mb-2 sm:mb-4 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
-                        {getSectionBySlug(leadArticle.section)?.name ?? leadArticle.section}
-                      </span>
-                      <h1 className="font-serif text-2xl sm:text-3xl md:text-5xl lg:text-[3.25rem] xl:text-[3.75rem] font-bold leading-[1.1] mb-3 sm:mb-4 text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] tracking-tight">
-                        {leadArticle.headline}
-                      </h1>
-                      {/* Was `hidden xs:block` — `xs` is not a breakpoint in
-                          tailwind.config.ts, so Tailwind never emitted the
-                          variant and this summary was invisible at every size. */}
-                      <p className="font-serif text-sm sm:text-lg md:text-xl lg:text-2xl text-white mb-3 sm:mb-5 line-clamp-2 leading-relaxed max-w-3xl font-normal drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
-                        {leadArticle.dek}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm md:text-base text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)]">
-                        <span className="font-medium">{bylineText(leadArticle)}</span>
-                        <span className="text-white/50">·</span>
-                        <span>{formatTimestamp(leadArticle.publishedAt)}</span>
-                        {leadArticle.readingTime && (
-                          <>
-                            <span className="text-white/50">·</span>
-                            <span>{leadArticle.readingTime} min read</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </section>
-        )}
+        {/* Hero: the starred stories, fading one to the next */}
+        <HeroCarousel articles={heroSlides} />
 
         {/* Secondary hero – 2 cards */}
         {secondaryHero.length >= 2 && (
