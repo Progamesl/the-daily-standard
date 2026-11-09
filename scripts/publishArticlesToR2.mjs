@@ -46,7 +46,7 @@ function getRequiredEnv() {
   return env;
 }
 
-/** Co-authors and topic pages kept among a story's internal notes — copies of the ones in api/sync-r2.js. */
+/** Co-authors, topic pages and the picture inside the story, kept among a story's internal notes — copies of the ones in api/sync-r2.js. */
 function readNoteEntry(notes, kind) {
   if (!Array.isArray(notes)) return null;
   for (const note of notes) {
@@ -71,9 +71,22 @@ function readTopics(notes) {
   return Array.isArray(topics) ? [...new Set(topics.filter(t => typeof t === 'string' && t))] : [];
 }
 
+function readMidImage(notes) {
+  const entry = readNoteEntry(notes, 'mid_image');
+  const url = typeof entry?.url === 'string' ? entry.url.trim() : '';
+  if (!/^https?:\/\//i.test(url)) return null;
+  const after = Number(entry.after);
+  return {
+    url,
+    caption: typeof entry.caption === 'string' ? entry.caption.trim() : '',
+    after: Number.isInteger(after) && after > 0 ? after : null,
+  };
+}
+
 function rowToPublic(row) {
   const coAuthors = Array.isArray(row.coAuthors) ? row.coAuthors : readCoAuthors(row.internal_notes);
   const topics = Array.isArray(row.topics) ? row.topics : readTopics(row.internal_notes);
+  const midImage = row.midImage ?? readMidImage(row.internal_notes);
   return {
     id: String(row.id ?? ''),
     slug: row.slug ?? '',
@@ -102,6 +115,7 @@ function rowToPublic(row) {
     isCinematic: row.is_cinematic ?? row.isCinematic ?? false,
     ...(coAuthors.length ? { coAuthors } : {}),
     ...(topics.length ? { topics } : {}),
+    ...(midImage ? { midImage } : {}),
   };
 }
 

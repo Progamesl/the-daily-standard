@@ -4,8 +4,8 @@
  * Each is kept as a single entry among the story's internal notes — a note
  * whose content is JSON tagged with a `kind` — because adding a column means a
  * database migration before the feature can help anybody. The trash has always
- * recorded who deleted a story this way; co-authors (coAuthors.ts) and topic
- * pages (topics.ts) use it too.
+ * recorded who deleted a story this way; co-authors (coAuthors.ts), topic
+ * pages (topics.ts) and the picture inside the story (midImage.ts) use it too.
  *
  * These entries are data, not notes anybody wrote, so the notes panel hides
  * them. /api/sync-r2 and scripts/publishArticlesToR2.mjs carry their own copy of
@@ -15,7 +15,7 @@
 import type { InternalNote } from '@/lib/adminDataService';
 
 /** The kinds of entry that hold story data and stay out of the notes panel. */
-export const STORY_DATA_KINDS = ['co_authors', 'topics'] as const;
+export const STORY_DATA_KINDS = ['co_authors', 'topics', 'mid_image'] as const;
 export type StoryDataKind = (typeof STORY_DATA_KINDS)[number];
 
 function parse(note: unknown): Record<string, unknown> | null {

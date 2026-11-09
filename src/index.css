@@ -551,6 +551,14 @@
     margin-top: 0.5rem;
   }
 
+  /* A picture with a caption sits as one unit: the image's own margins used to
+     push the caption 1.5rem away from it. Centred, so a narrow chart or graph
+     does not hug the left edge. */
+  .article-body figure img {
+    display: block;
+    margin: 0 auto;
+  }
+
   /* Drop cap: large decorative initial (4 line spaces) */
   .article-body .drop-cap {
     font-size: 4.5rem;

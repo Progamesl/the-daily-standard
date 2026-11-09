@@ -40,7 +40,8 @@ const {
 
 /**
  * Story data the CMS keeps among a story's internal notes, because the
- * articles table has no column for it: co-authors and topic pages. See
+ * articles table has no column for it: co-authors, topic pages and the
+ * picture inside the story. See
  * src/lib/storyNotes.ts, which this copies. Only these values are published;
  * the notes themselves never leave this file.
  */
@@ -70,9 +71,23 @@ function readTopics(notes) {
   return Array.isArray(topics) ? [...new Set(topics.filter(t => typeof t === 'string' && t))] : [];
 }
 
+/** The picture placed between two paragraphs, with its caption. */
+function readMidImage(notes) {
+  const entry = readNoteEntry(notes, 'mid_image');
+  const url = typeof entry?.url === 'string' ? entry.url.trim() : '';
+  if (!/^https?:\/\//i.test(url)) return null;
+  const after = Number(entry.after);
+  return {
+    url,
+    caption: typeof entry.caption === 'string' ? entry.caption.trim() : '',
+    after: Number.isInteger(after) && after > 0 ? after : null,
+  };
+}
+
 function rowToPublic(row) {
   const coAuthors = Array.isArray(row.coAuthors) ? row.coAuthors : readCoAuthors(row.internal_notes);
   const topics = Array.isArray(row.topics) ? row.topics : readTopics(row.internal_notes);
+  const midImage = row.midImage ?? readMidImage(row.internal_notes);
   return {
     id: String(row.id ?? ''),
     slug: row.slug ?? '',
@@ -103,6 +118,7 @@ function rowToPublic(row) {
     audioUrl: row.audio_url ?? row.audioUrl ?? '',
     ...(coAuthors.length ? { coAuthors } : {}),
     ...(topics.length ? { topics } : {}),
+    ...(midImage ? { midImage } : {}),
   };
 }
 

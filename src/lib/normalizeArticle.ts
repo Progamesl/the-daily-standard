@@ -16,6 +16,7 @@
  */
 
 import type { Article, Author } from '@/data/seedData';
+import { normalizeMidImage } from '@/lib/midImage';
 
 /** Coerce to a string. null/undefined/NaN become ''. */
 export function str(value: unknown, fallback = ''): string {
@@ -92,6 +93,7 @@ export function normalizeArticle(input: unknown): Article {
     author: normalizeAuthor(a.author),
     coAuthors: normalizeCoAuthors(a.coAuthors),
     topics: strArray(a.topics),
+    midImage: normalizeMidImage(a.midImage),
     publishedAt: date(a.publishedAt),
     updatedAt: a.updatedAt ? date(a.updatedAt) : undefined,
     readingTime: num(a.readingTime, 1),

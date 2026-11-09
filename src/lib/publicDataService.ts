@@ -24,6 +24,7 @@ import type { R2ArticleListItem } from '@/lib/r2Articles';
 import { normalizeArticle, slugMatches } from '@/lib/normalizeArticle';
 import { readCoAuthors } from '@/lib/coAuthors';
 import { readTopics } from '@/lib/topics';
+import { readMidImage } from '@/lib/midImage';
 
 // The bundled WordPress export isn't runtime-type-checked either (it contains
 // e.g. a numeric tag and a numeric slug). Normalise it once, lazily, rather
@@ -83,6 +84,7 @@ function adminToPublic(admin: AdminArticle): Article {
     },
     coAuthors: readCoAuthors(admin.internalNotes),
     topics: readTopics(admin.internalNotes),
+    midImage: readMidImage(admin.internalNotes),
     publishedAt: new Date(admin.publishedAt),
     updatedAt: admin.updatedAt ? new Date(admin.updatedAt) : undefined,
     readingTime: admin.readingTime,

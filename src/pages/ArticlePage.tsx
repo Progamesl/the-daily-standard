@@ -16,6 +16,7 @@ import {
 } from "@/lib/publicDataService";
 import { getImageOrNull, picturesFirst } from "@/lib/imageHelpers";
 import { storyAuthors, bylineText } from "@/lib/coAuthors";
+import { placeMidImage } from "@/lib/midImage";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { DocumentHead } from "@/components/seo/DocumentHead";
 import { useDataSync } from "@/contexts/DataSyncContext";
@@ -298,7 +299,7 @@ export default function ArticlePage() {
                   <div className="h-4 bg-muted rounded w-4/5" />
                 </div>
               ) : (
-                <ArticleContent html={article.body} className={fontSizeClass} />
+                <ArticleContent html={placeMidImage(article.body, article.midImage)} className={fontSizeClass} />
               )}
 
               {/* Tags */}

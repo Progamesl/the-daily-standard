@@ -39,6 +39,7 @@ type R2ArticleRaw = {
   author: R2Author;
   coAuthors?: R2Author[];
   topics?: string[];
+  midImage?: { url: string; caption?: string; after?: number | null };
   publishedAt: string;
   updatedAt?: string;
   readingTime: number;

@@ -38,6 +38,7 @@ import { authors as jsonAuthors, sections } from '@/data/seedData';
 import { readCoAuthors, withCoAuthors, joinNames, type CoAuthorRef } from '@/lib/coAuthors';
 import { TOPICS, readTopics, withTopics } from '@/lib/topics';
 import { isStoryDataNote } from '@/lib/storyNotes';
+import { readMidImage, withMidImage, paragraphTexts, midImageSlot } from '@/lib/midImage';
 import { cn } from '@/lib/utils';
 import { DocxImporter } from '@/components/admin/DocxImporter';
 
@@ -71,6 +72,11 @@ interface FormState {
   metaDescription: string;
   ogImage: string;
   canonicalUrl: string;
+  // Picture inside the story (see src/lib/midImage.ts)
+  midImage: string;
+  midImageCaption: string;
+  /** 'middle', or the paragraph it follows, counting from 1. */
+  midImageAfter: string;
   // Homepage Feature
   featured: boolean;
   isCinematic: boolean;
@@ -82,6 +88,7 @@ const emptyForm: FormState = {
   publishedAt: new Date().toISOString().slice(0, 16),
   assignedToId: '', deadline: '', priority: 'normal', pitchSummary: '',
   metaTitle: '', metaDescription: '', ogImage: '', canonicalUrl: '',
+  midImage: '', midImageCaption: '', midImageAfter: 'middle',
   featured: false, isCinematic: false,
 };
 
@@ -148,6 +155,7 @@ export default function AdminStoryEditor() {
     if (!a) return;
     console.log(`📡 Applying article to form: ${a.headline} (Body length: ${a.body?.length ?? 0})`);
     setArticle(a);
+    const mid = readMidImage(a.internalNotes);
     setForm({
       headline: a.headline || '', 
       dek: a.dek || '', 
@@ -168,6 +176,9 @@ export default function AdminStoryEditor() {
       metaDescription: a.metaDescription ?? '',
       ogImage: a.ogImage ?? '',
       canonicalUrl: a.canonicalUrl ?? '',
+      midImage: mid?.url ?? '',
+      midImageCaption: mid?.caption ?? '',
+      midImageAfter: mid?.after ? String(mid.after) : 'middle',
       featured: a.featured ?? false,
       isCinematic: a.isCinematic ?? false,
     });
@@ -364,6 +375,13 @@ export default function AdminStoryEditor() {
   const readingTime = useMemo(() => calculateReadingTime(form.body), [form.body]);
   const wordCount   = useMemo(() => countWords(form.body), [form.body]);
 
+  // The story's paragraphs, so "Where it goes" can name them. Only worked out
+  // once there is a picture to place.
+  const bodyParagraphs = useMemo(
+    () => (form.midImage ? paragraphTexts(form.body) : []),
+    [form.body, form.midImage],
+  );
+
   // Co-authors and topic pages ride along in the notes (see src/lib/storyNotes.ts)
   // but are not notes anybody wrote, so they are kept out of the panel and its count.
   const visibleNotes = useMemo(
@@ -383,7 +401,7 @@ export default function AdminStoryEditor() {
     return { picked, available: allAuthors.filter(a => !taken.has(a.id)) };
   }, [form.coAuthorIds, form.authorId, allAuthors, article]);
 
-  const buildArticle = (status: WorkflowStatus, body = form.body): AdminArticle => {
+  const buildArticle = (status: WorkflowStatus, body = form.body, midImageUrl = form.midImage): AdminArticle => {
     const author = allAuthors.find(a => a.id === form.authorId) ?? {
       id: form.authorId || 'unknown',
       name: 'Unknown Author', role: 'Student Journalist', bio: '',
@@ -417,9 +435,19 @@ export default function AdminStoryEditor() {
       canonicalUrl: form.canonicalUrl || undefined,
       featured: form.featured || undefined,
       isCinematic: form.isCinematic || undefined,
-      internalNotes: withTopics(
-        withCoAuthors(article?.internalNotes, coAuthors, { id: currentUser?.id, name: currentUser?.displayName }),
-        form.topics ?? [],
+      internalNotes: withMidImage(
+        withTopics(
+          withCoAuthors(article?.internalNotes, coAuthors, { id: currentUser?.id, name: currentUser?.displayName }),
+          form.topics ?? [],
+          { id: currentUser?.id, name: currentUser?.displayName },
+        ),
+        /^https?:\/\//i.test(midImageUrl.trim())
+          ? {
+              url: midImageUrl.trim(),
+              caption: (form.midImageCaption ?? '').trim(),
+              after: form.midImageAfter === 'middle' ? null : Number(form.midImageAfter) || null,
+            }
+          : null,
         { id: currentUser?.id, name: currentUser?.displayName },
       ),
       revisions: article?.revisions ?? [],
@@ -481,7 +509,27 @@ export default function AdminStoryEditor() {
         );
       }
 
-      const built = buildArticle(status, inline.html);
+      // The picture inside the story can arrive as a pasted data: URL too.
+      // It goes up the same way; if that fails the one already saved is kept
+      // rather than the story losing its picture.
+      let midImageUrl = (form.midImage ?? '').trim();
+      if (midImageUrl.startsWith('data:')) {
+        const up = await uploadInlineImages(`<img src="${midImageUrl}">`);
+        const uploadedSrc = /src="([^"]+)"/.exec(up.html)?.[1] ?? '';
+        if (/^https?:\/\//i.test(uploadedSrc)) {
+          midImageUrl = uploadedSrc;
+          setForm(prev => (prev.midImage === form.midImage ? { ...prev, midImage: uploadedSrc } : prev));
+        } else {
+          midImageUrl = readMidImage(article?.internalNotes)?.url ?? '';
+          if (!silent) {
+            toast.warning('The picture inside the story could not be uploaded', {
+              description: 'Try adding it again, or paste a link to it instead.',
+            });
+          }
+        }
+      }
+
+      const built = buildArticle(status, inline.html, midImageUrl);
       const userId   = currentUser?.id;
       const userName = currentUser?.displayName;
 
@@ -804,6 +852,69 @@ export default function AdminStoryEditor() {
 
             <RichTextEditor value={form.body} onChange={(html) => updateField('body', html)} placeholder="Body…" />
             <p className="text-xs text-slate-400 mt-2">{readingTime} min read · {wordCount} words</p>
+
+            {/* A picture inside the story. Kept apart from the body so it can
+                be swapped, moved or removed here without touching the story's
+                HTML; it is placed between paragraphs when the story is shown. */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  Picture inside the story <span className="font-normal text-slate-400">— optional</span>
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  A chart, graph or second photo, shown between two paragraphs with its own caption.
+                </p>
+              </div>
+              <ImageUpload
+                label="Image"
+                value={form.midImage}
+                onChange={(url) => updateField('midImage', url)}
+                caption={form.midImageCaption}
+                onCaptionChange={(v) => updateField('midImageCaption', v)}
+                pasteAnywhere={false}
+              />
+              {form.midImage.trim() && (
+                <>
+                  {!form.midImageCaption.trim() && (
+                    <p className="-mt-3 text-xs text-slate-500">
+                      No caption yet. Say what it shows, and where any numbers come from.
+                    </p>
+                  )}
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 block">Where it goes</Label>
+                    <Select value={form.midImageAfter} onValueChange={(v) => updateField('midImageAfter', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="middle">Halfway through the story</SelectItem>
+                        {Array.from(
+                          { length: Math.max(bodyParagraphs.length - 1, Number(form.midImageAfter) || 0) },
+                          (_, i) => {
+                            const text = bodyParagraphs[i] ?? '';
+                            const opening = text.length > 48 ? `${text.slice(0, 48).trimEnd()}…` : text;
+                            return (
+                              <SelectItem key={i + 1} value={String(i + 1)}>
+                                After paragraph {i + 1}{opening ? `: “${opening}”` : ''}
+                              </SelectItem>
+                            );
+                          },
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {bodyParagraphs.length < 2
+                        ? 'Once the story has two paragraphs it sits between them; until then it goes at the end.'
+                        : (() => {
+                            const slot = midImageSlot(
+                              bodyParagraphs.length,
+                              form.midImageAfter === 'middle' ? null : Number(form.midImageAfter) || null,
+                            );
+                            return `Readers see it between paragraphs ${slot} and ${slot + 1}.`;
+                          })()}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* Notes & Revisions Panel */}
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">

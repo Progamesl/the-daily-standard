@@ -22,6 +22,18 @@ interface ImageUploadProps {
   caption?: string;
   onCaptionChange?: (caption: string) => void;
   label?: string;
+  /**
+   * Take a picture pasted anywhere on the page, not just inside this box. Only
+   * one box on a page should: with two, a pasted picture went into both.
+   */
+  pasteAnywhere?: boolean;
+}
+
+// The last thing clicked, so that with more than one upload box on a page a
+// pasted picture goes to the box being used.
+let lastPointerTarget: EventTarget | null = null;
+if (typeof document !== 'undefined') {
+  document.addEventListener('pointerdown', (e) => { lastPointerTarget = e.target; }, true);
 }
 
 const MAX_B64_MB = 2; // warn if base64 exceeds this size
@@ -166,6 +178,7 @@ export function ImageUpload({
   caption = '',
   onCaptionChange,
   label = 'Story Image',
+  pasteAnywhere = true,
 }: ImageUploadProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef      = useRef<HTMLInputElement>(null);
@@ -279,6 +292,14 @@ export function ImageUpload({
   // Clipboard paste handler - works globally when component is mounted
   useEffect(() => {
     const handlePaste = async (e: ClipboardEvent) => {
+      // With two boxes on the page, only the one in use takes the picture.
+      const here = containerRef.current;
+      const clicked = lastPointerTarget instanceof Element ? lastPointerTarget : null;
+      const inUse = [document.activeElement, clicked];
+      const isHere = inUse.some((el) => !!el && !!here?.contains(el));
+      const isAnotherBox = inUse.some((el) => !!el?.closest('[data-image-upload]') && !here?.contains(el));
+      if (pasteAnywhere ? isAnotherBox : !isHere) return;
+
       // Don't intercept if user is typing in a text input/textarea (let normal paste work)
       const activeEl = document.activeElement;
       if (activeEl && (
@@ -329,14 +350,14 @@ export function ImageUpload({
     // Add paste listener to document
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [applyFile]);
+  }, [applyFile, pasteAnywhere]);
 
   const previewSrc = value || null;
 
   const uploadTarget = 'R2 (via server)';
 
   return (
-    <div ref={containerRef} className="space-y-3">
+    <div ref={containerRef} data-image-upload className="space-y-3">
       <Label className="text-sm font-medium text-slate-700 block">{label}</Label>
       <p className="text-xs text-slate-500">Upload target: {uploadTarget}</p>
 

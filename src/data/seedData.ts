@@ -36,6 +36,8 @@ export interface Article {
   coAuthors?: Author[];
   /** Topic pages it is also listed on, by slug. See src/lib/topics.ts. */
   topics?: string[];
+  /** A picture between two paragraphs, with its caption. See src/lib/midImage.ts. */
+  midImage?: { url: string; caption: string; after: number | null };
   publishedAt: Date;
   updatedAt?: Date;
   readingTime: number;

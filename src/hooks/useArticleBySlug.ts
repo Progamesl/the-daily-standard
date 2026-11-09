@@ -15,6 +15,7 @@ import type { AdminArticle } from '@/lib/adminDataService';
 import { normalizeArticle } from '@/lib/normalizeArticle';
 import { readCoAuthors } from '@/lib/coAuthors';
 import { readTopics } from '@/lib/topics';
+import { readMidImage } from '@/lib/midImage';
 
 function adminToArticle(admin: AdminArticle): Article {
   // Supabase rows aren't runtime-type-checked; normalise so a malformed field
@@ -24,6 +25,7 @@ function adminToArticle(admin: AdminArticle): Article {
       ...admin,
       coAuthors: readCoAuthors(admin.internalNotes),
       topics: readTopics(admin.internalNotes),
+      midImage: readMidImage(admin.internalNotes),
     }),
     isCinematic: Boolean(admin.isCinematic),
   } as Article;
