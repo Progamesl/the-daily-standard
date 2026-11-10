@@ -1,11 +1,17 @@
 /**
- * AdSlot — renders the first live ad for a placement.
+ * AdSlot — renders one live ad for a placement.
  * Completely adblock-proof: no external ad scripts, no trackers,
  * just a native image served from the site's own CDN.
+ *
+ * When more than one ad is live in the same placement, each page view picks
+ * one at random, so every advertiser gets a share of the slot instead of the
+ * newest one taking all of it.
  */
 
+import { useState } from 'react';
 import { useAds, type Ad } from '@/hooks/useAds';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 interface AdSlotProps {
   placement: Ad['placement'];
@@ -14,7 +20,7 @@ interface AdSlotProps {
 
 function AdCard({ ad }: { ad: Ad }) {
   return (
-    <div className="w-full">
+    <div className={cn('w-full', ad.placement === 'leaderboard' && 'max-w-[728px] mx-auto')}>
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 text-center">
         Advertisement
       </p>
@@ -42,12 +48,15 @@ function AdCard({ ad }: { ad: Ad }) {
 
 export function AdSlot({ placement, className = '' }: AdSlotProps) {
   const { ads, loading } = useAds(placement);
+  // Fixed for the life of the page, so the ad does not change under the
+  // reader when the list refreshes.
+  const [pick] = useState(() => Math.random());
 
   if (loading || ads.length === 0) return null;
 
   return (
     <div className={className}>
-      <AdCard ad={ads[0]} />
+      <AdCard ad={ads[Math.floor(pick * ads.length)]} />
     </div>
   );
 }

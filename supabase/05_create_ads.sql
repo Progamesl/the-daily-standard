@@ -8,7 +8,7 @@
 -- Writing is limited to signed-in staff.
 
 CREATE TABLE IF NOT EXISTS ads (
-  id          TEXT PRIMARY KEY,
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   title       TEXT NOT NULL,
   advertiser  TEXT NOT NULL DEFAULT '',
   image_url   TEXT NOT NULL DEFAULT '',
@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS ads (
   notes       TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- The first version of this file had no default for id, and the admin did not
+-- send one, so every new ad was refused. The admin now sends its own id; this
+-- covers a table created from that first version too. Safe to re-run.
+ALTER TABLE ads ALTER COLUMN id SET DEFAULT gen_random_uuid()::text;
 
 CREATE INDEX IF NOT EXISTS ads_active_placement_idx ON ads (active, placement);
 

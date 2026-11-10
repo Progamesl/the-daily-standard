@@ -11,11 +11,14 @@ import { cn } from '@/lib/utils';
 import { clearAdsCache, type Ad } from '@/hooks/useAds';
 import { logActivity } from '@/lib/adminUserService';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
+import { adDayInput, adEndsAt, adErrorMessage, adStartsAt, newAdId } from '@/lib/ads';
 
+// Where each one actually shows on the public site — keep these in step with
+// the <AdSlot> calls in ArticlePage and Layout.
 const PLACEMENTS: { value: Ad['placement']; label: string; desc: string }[] = [
-  { value: 'sidebar',     label: 'Sidebar (300×250)',    desc: 'Article page right column' },
-  { value: 'leaderboard', label: 'Leaderboard (728×90)', desc: 'Top/bottom of pages' },
-  { value: 'inline',      label: 'Inline (300×250)',     desc: 'Between article sections' },
+  { value: 'sidebar',     label: 'Sidebar (300×250)',    desc: 'Story pages, top of the right-hand column' },
+  { value: 'leaderboard', label: 'Leaderboard (728×90)', desc: 'Every page, a banner just above the footer' },
+  { value: 'inline',      label: 'Inline (300×250)',     desc: 'Story pages, right-hand column below Most Popular' },
 ];
 
 async function uploadAdImage(file: File): Promise<string> {
@@ -78,7 +81,7 @@ export default function AdminAds() {
   const [tableMissing, setTableMissing] = useState(false);
 
   const fetchAds = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase) { setLoading(false); return; }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -95,8 +98,8 @@ export default function AdminAds() {
       }
       setTableMissing(false);
       setAds((data as unknown as Ad[]) || []);
-    } catch {
-      toast.error('Failed to load ads');
+    } catch (err) {
+      toast.error(`Failed to load ads: ${adErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -119,8 +122,8 @@ export default function AdminAds() {
       link_url:   ad.link_url,
       placement:  ad.placement,
       active:     ad.active,
-      starts_at:  ad.starts_at ? ad.starts_at.slice(0, 10) : '',
-      ends_at:    ad.ends_at   ? ad.ends_at.slice(0, 10)   : '',
+      starts_at:  adDayInput(ad.starts_at),
+      ends_at:    adDayInput(ad.ends_at),
       notes:      ad.notes ?? '',
     });
     setShowForm(true);
@@ -141,43 +144,49 @@ export default function AdminAds() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase) return;
+    if (!supabase) { toast.error('Ads cannot be saved: the site is not connected to the database.'); return; }
+    if (!form.advertiser.trim() || !form.title.trim()) { toast.error('Add the advertiser name and an internal title'); return; }
     if (!form.image_url) { toast.error('Please add an ad image'); return; }
-    if (!form.link_url.startsWith('http')) { toast.error('Link URL must start with http'); return; }
+    if (!/^https?:\/\//i.test(form.link_url.trim())) { toast.error('Click-through URL must start with http:// or https://'); return; }
+    if (form.starts_at && form.ends_at && form.ends_at < form.starts_at) {
+      toast.error('The end date is before the start date');
+      return;
+    }
 
     setSaving(true);
     try {
       const payload = {
-        title:      form.title,
-        advertiser: form.advertiser,
-        image_url:  form.image_url,
-        link_url:   form.link_url,
+        title:      form.title.trim(),
+        advertiser: form.advertiser.trim(),
+        image_url:  form.image_url.trim(),
+        link_url:   form.link_url.trim(),
         placement:  form.placement,
         active:     form.active,
-        starts_at:  form.starts_at || null,
-        ends_at:    form.ends_at   || null,
-        notes:      form.notes     || null,
+        starts_at:  adStartsAt(form.starts_at),
+        ends_at:    adEndsAt(form.ends_at),
+        notes:      form.notes.trim() || null,
       };
 
-      let error;
-      if (editingId) {
-        ({ error } = await supabase.from('ads').update(payload).eq('id', editingId));
-      } else {
-        ({ error } = await supabase.from('ads').insert(payload));
-      }
+      // Ask for the row back: when the database's rules turn a write away it
+      // can answer with no error and no rows, and that must not read as saved.
+      const id = editingId ?? newAdId();
+      const { data, error } = editingId
+        ? await supabase.from('ads').update(payload as never).eq('id', id).select('id')
+        : await supabase.from('ads').insert({ id, ...payload } as never).select('id');
       if (error) throw error;
+      if (!data?.length) throw new Error('row-level security: nothing was saved');
 
       clearAdsCache();
       logActivity(
         editingId ? 'ad_updated' : 'ad_created',
-        `${editingId ? 'Edited' : 'Created'} the ad "${form.title}"${form.advertiser ? ` for ${form.advertiser}` : ''}`,
-        currentUser?.id, editingId ?? undefined, currentUser?.displayName,
+        `${editingId ? 'Edited' : 'Created'} the ad "${payload.title}"${payload.advertiser ? ` for ${payload.advertiser}` : ''}`,
+        currentUser?.id, id, currentUser?.displayName,
       );
-      toast.success(editingId ? 'Ad updated' : 'Ad created');
+      toast.success(editingId ? 'Ad updated' : payload.active ? 'Ad created — now live on the site' : 'Ad created — switch it on when it should run');
       setShowForm(false);
       fetchAds();
     } catch (err) {
-      toast.error('Failed to save ad');
+      toast.error(`Failed to save ad: ${adErrorMessage(err)}`);
     } finally {
       setSaving(false);
     }
@@ -187,11 +196,13 @@ export default function AdminAds() {
     if (!supabase) return;
     setActionLoading(prev => new Set(prev).add(ad.id));
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('ads')
-        .update({ active: !ad.active })
-        .eq('id', ad.id);
+        .update({ active: !ad.active } as never)
+        .eq('id', ad.id)
+        .select('id');
       if (error) throw error;
+      if (!data?.length) throw new Error('row-level security: nothing was saved');
       clearAdsCache();
       setAds(prev => prev.map(a => a.id === ad.id ? { ...a, active: !a.active } : a));
       logActivity(
@@ -200,8 +211,8 @@ export default function AdminAds() {
         currentUser?.id, ad.id, currentUser?.displayName,
       );
       toast.success(ad.active ? 'Ad paused' : 'Ad activated — now live on site');
-    } catch {
-      toast.error('Failed to update ad');
+    } catch (err) {
+      toast.error(`Failed to update ad: ${adErrorMessage(err)}`);
     } finally {
       setActionLoading(prev => { const s = new Set(prev); s.delete(ad.id); return s; });
     }
@@ -211,8 +222,9 @@ export default function AdminAds() {
     if (!supabase || !confirm('Delete this ad? This cannot be undone.')) return;
     setActionLoading(prev => new Set(prev).add(id));
     try {
-      const { error } = await supabase.from('ads').delete().eq('id', id);
+      const { data, error } = await supabase.from('ads').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!data?.length) throw new Error('row-level security: nothing was deleted');
       clearAdsCache();
       // Deleting an ad is permanent, so the log keeps enough to rebuild it.
       const gone = ads.find(a => a.id === id);
@@ -223,8 +235,8 @@ export default function AdminAds() {
         currentUser?.id, id, currentUser?.displayName,
       );
       toast.success('Ad deleted');
-    } catch {
-      toast.error('Failed to delete ad');
+    } catch (err) {
+      toast.error(`Failed to delete ad: ${adErrorMessage(err)}`);
     } finally {
       setActionLoading(prev => { const s = new Set(prev); s.delete(id); return s; });
     }
@@ -417,7 +429,7 @@ export default function AdminAds() {
             </div>
 
             {/* Scrollable form body */}
-            <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-5">
+            <form id="ad-form" onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-5">
 
               {/* Advertiser + title */}
               <div className="grid grid-cols-2 gap-4">
@@ -627,8 +639,7 @@ export default function AdminAds() {
                 type="submit"
                 form="ad-form"
                 className="flex-1 gap-2"
-                disabled={saving}
-                onClick={handleSave}
+                disabled={saving || uploading}
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 {editingId ? 'Save Changes' : 'Create Ad'}
